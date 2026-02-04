@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customers & Vehicles - Tasgheel POS</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Modern UI for Customers Page */
+    :root {
+      --primary-color: #4a90e2;
+      --secondary-color: #f5f6fa;
+      --text-color: #2d3436;
+      --card-bg: #ffffff;
+      --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      --shadow-hover: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      background-color: var(--secondary-color);
+    }
+
+    /* Grid Layout */
+    .customer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      padding: 20px 0;
+    }
+
+    /* Card Styling */
+    .customer-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid #e1e4e8;
+      padding: 0;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .customer-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+      border-color: var(--primary-color);
+    }
+
+    .card-header-bg {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      padding: 15px;
+      border-bottom: 1px solid #edf2f7;
+    }
+
+    .customer-card h3 {
+      margin: 0;
+      color: #2c3e50;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .customer-card .mobile-badge {
+      font-size: 0.9rem;
+      color: #636e72;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 5px;
+    }
+
+    .card-body {
+      padding: 15px;
+      flex: 1;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+      color: #555;
+    }
+
+    .info-row i {
+      color: var(--primary-color);
+      margin-top: 3px;
+    }
+
+    .address-badge {
+      background: #e3f2fd;
+      color: #1565c0;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      display: inline-block;
+      margin-top: 5px;
+    }
+
+    .action-row {
+      padding: 12px 15px;
+      background: #fff;
+      border-top: 1px solid #f1f1f1;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .btn-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    /* Toolbar Styling */
+    .toolbar-card {
+      background: white;
+      border-radius: 12px;
+      padding: 15px 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      max-width: 500px;
+    }
+
+    .search-wrapper input {
+      width: 100%;
+      padding: 12px 15px 12px 40px;
+      border: 1px solid #dfe6e9;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .search-wrapper input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+      outline: none;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #b2bec3;
+    }
+
+    body.rtl .search-wrapper input {
+      padding: 12px 40px 12px 15px;
+    }
+
+    body.rtl .search-icon {
+      left: auto;
+      right: 12px;
+    }
+
+    /* Enhanced Modal */
+    .modal-content {
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      border: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Language Switcher -->
+  <div class="language-switcher">
+    <button class="lang-btn" data-lang="en">English</button>
+    <button class="lang-btn" data-lang="ar">العربية</button>
+  </div>
+
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Restaurant POS</h2>
+      </div>
+      <nav><!-- Populated by shared-nav.js --></nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="top-bar">
+        <h1 data-i18n-key="nav_customers">👥 Customers & Addresses</h1>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="welcomeText">Welcome,</span>
+          <span id="currentUserName">User</span>
+          <span id="userRole" class="user-role"></span>
+        </div>
+      </header>
+
+      <section class="content-area">
+
+        <!-- Toolbar -->
+        <div class="toolbar-card">
+          <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchBox" placeholder="Search by name or mobile..." onkeyup="renderApp()">
+          </div>
+
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary btn-icon" onclick="openAreasModal()">
+              <span>🗺️</span> <span>Manage Areas</span>
+            </button>
+            <button class="btn btn-success btn-icon" onclick="openAddCustomerModal()">
+              <span>+</span> <span data-i18n-key="add_new_customer">New Customer</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Customers Grid -->
+        <div id="loadingText" style="text-align: center; padding: 20px; display: none;">Loading...</div>
+        <div id="customersContainer" class="customer-grid">
+          <!-- populated by JS -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add/Edit Customer Modal -->
+  <div id="customerModal" class="modal" style="display:none;">
+    <div class="modal-content modal-lg">
+      <h3 id="modalTitle" data-i18n-key="add_new_customer">Add New Customer</h3>
+      <form id="customerForm" onsubmit="handleCustomerSubmit(event)">
+        <input type="hidden" id="customerId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label data-i18n-key="name">Name *</label>
+            <input type="text" id="custName" required>
+          </div>
+          <div class="form-group">
+            <label data-i18n-key="mobile">Mobile *</label>
+            <input type="tel" id="custMobile" required>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label data-i18n-key="notes_optional">Notes / Preferences (Optional)</label>
+            <textarea id="custNotes" rows="2" placeholder="e.g. Likes spicy food, allergies..."></textarea>
+          </div>
+        </div>
+
+        <!-- Initial Address (Optional) -->
+        <fieldset style="border:1px solid #eee; padding: 10px; margin-top: 10px; border-radius:4px;">
+          <legend>📍 Address (Optional)</legend>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Area / District</label>
+              <select id="initArea">
+                <!-- Populated by JS -->
+                <option value="">-- Select Area --</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Street Name</label><input type="text" id="initStreet"></div>
+            <div class="form-group"><label>Building</label><input type="text" id="initBuilding"></div>
+            <div class="form-group"><label>Floor</label><input type="text" id="initFloor"></div>
+            <div class="form-group"><label>Apt</label><input type="text" id="initApt"></div>
+            <div class="form-group"><label>Extra Info</label><input type="text" id="initExtra"></div>
+          </div>
+        </fieldset>
+
+        <div style="margin-top: 20px; text-align: right;">
+          <button type="button" class="btn btn-danger" onclick="closeModal('customerModal')"
+            data-i18n-key="cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" data-i18n-key="save_customer">Save Customer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Customer Details & Addresses Modal -->
+  <div id="detailsModal" class="modal" style="display:none;">
+    <div class="modal-content modal-lg">
+      <div
+        style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;">
+        <h3 id="detailsTitle" data-i18n-key="customer_details">Customer Details</h3>
+        <button class="btn btn-sm btn-secondary" onclick="closeModal('detailsModal')">X</button>
+      </div>
+
+      <div id="customerInfoDisplay" style="text-align:left; margin-bottom:20px;"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h4>📍 Addresses</h4>
+        <button class="btn btn-sm btn-success" onclick="openAddAddressModal()">+ Add Address</button>
+      </div>
+
+      <div id="addressesList" style="max-height: 300px; overflow-y: auto;">
+        <!-- List of addresses -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Address Modal -->
+  <div id="addressModal" class="modal" style="display:none; z-index: 2000;">
+    <div class="modal-content">
+      <h3>Add Address</h3>
+      <form id="addressForm" onsubmit="handleAddressSubmit(event)">
+        <input type="hidden" id="addrCustomerId"> <!-- Linked Customer -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Area / District *</label>
+            <select id="vArea" required>
+              <!-- Populated by JS -->
+            </select>
+          </div>
+          <div class="form-group"><label>Street Name *</label><input type="text" id="vStreet" required></div>
+          <div class="form-group"><label>Building No/Name</label><input type="text" id="vBuilding"></div>
+          <div class="form-group"><label>Floor</label><input type="text" id="vFloor"></div>
+          <div class="form-group"><label>Apartment No</label><input type="text" id="vApt"></div>
+          <div class="form-group" style="grid-column: 1 / -1;"><label>Landmark / Extra Directions</label><textarea
+              id="vLandmark" rows="2"></textarea></div>
+        </div>
+        <div style="margin-top: 15px; text-align: right;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('addressModal')"
+            data-i18n-key="cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Address</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manage Areas Modal -->
+  <div id="areasModal" class="modal" style="display:none; z-index: 2100;">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>Manage Delivery Areas</h3>
+        <button class="btn btn-sm btn-secondary" onclick="closeModal('areasModal')">X</button>
+      </div>
+      <div style="margin-bottom:15px; display:flex; gap:5px; border-bottom:1px solid #eee; padding-bottom:10px;">
+        <input type="text" id="newAreaName" placeholder="Area Name (e.g. Downtown)" style="flex:1;">
+        <input type="number" id="newAreaFee" placeholder="Fee" style="width:80px;">
+        <button class="btn btn-success" onclick="saveNewArea()">+ Add</button>
+      </div>
+      <div id="areasList" style="max-height: 300px; overflow-y: auto;">
+        <!-- List -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script>window.currentPage = 'customers';</script>
+  <script src="js/shared-nav.js"></script>
+  <script src="js/translations.js"></script>
+  <script src="js/customers-app.js"></script>
+</body>
+
+</html>

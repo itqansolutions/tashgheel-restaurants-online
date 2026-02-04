@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title data-i18n-key="expenses" data-i18n-ar="المصاريف">Expenses</title>
+  <link rel="stylesheet" href="css/expenses.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script>window.currentPage = 'expenses';</script>
+  <script src="js/shared-nav.js"></script>
+  <script src="js/translations.js"></script>
+  <script defer src="js/expenses-app.js"></script>
+</head>
+
+<body>
+  <div class="language-switcher">
+    <button class="lang-btn" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="ar">AR</button>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Restaurant POS</h2>
+      </div>
+      <nav><!-- Populated by shared-nav.js --></nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-bar">
+        <h1 data-i18n-key="expenses" data-i18n-ar="المصاريف">💰 Expenses</h1>
+      </header>
+
+      <section class="content-area">
+        <!-- New Expense Form Card -->
+        <div class="card mb-20">
+          <div class="card-header">
+            <h3 data-i18n-key="add_expense" data-i18n-ar="إضافة مصروف">➕ Add Expense</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label data-i18n-key="date" data-i18n-ar="التاريخ">Date</label>
+                <input type="date" id="expenseDate" class="form-control">
+              </div>
+              <div class="form-group">
+                <label data-i18n-key="seller" data-i18n-ar="البائع">Seller</label>
+                <select id="expenseSeller" class="form-control"></select>
+              </div>
+              <div class="form-group" style="grid-column: span 2;">
+                <label data-i18n-key="description" data-i18n-ar="الوصف">Description</label>
+                <input type="text" id="expenseDesc" class="form-control" placeholder="e.g. Paper, Delivery...">
+              </div>
+              <div class="form-group">
+                <label data-i18n-key="amount" data-i18n-ar="المبلغ">Amount</label>
+                <input type="number" id="expenseAmount" step="0.01" class="form-control" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label data-i18n-key="method" data-i18n-ar="طريقة الدفع">Payment Method</label>
+                <select id="expenseMethod" class="form-control">
+                  <option value="cash" data-i18n-key="cash" data-i18n-ar="نقدي">Cash</option>
+                  <option value="card" data-i18n-key="card" data-i18n-ar="بطاقة">Card</option>
+                  <option value="mobile" data-i18n-key="mobile" data-i18n-ar="موبايل">Mobile</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top: 15px; text-align: right;">
+              <button class="btn btn-primary" onclick="addExpense()" data-i18n-key="add_expense"
+                data-i18n-ar="إضافة مصروف">💾 Save Expense</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expenses List Card -->
+        <div class="card">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <span data-i18n-key="expenses_list" data-i18n-ar="قائمة المصاريف">📋 Expenses List</span>
+
+            <div class="filter-controls" style="display: flex; gap: 10px;">
+              <input type="date" id="filterDate" class="form-control" style="width: auto;">
+              <select id="filterSeller" class="form-control" style="width: auto;"></select>
+              <button class="btn btn-secondary btn-sm" onclick="filterExpenses()" data-i18n-key="filter"
+                data-i18n-ar="فلترة">🔍</button>
+              <button class="btn btn-secondary btn-sm" onclick="resetFilter()" data-i18n-key="reset"
+                data-i18n-ar="إعادة تعيين">🔄</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th data-i18n-key="date" data-i18n-ar="التاريخ">Date</th>
+                  <th data-i18n-key="seller" data-i18n-ar="البائع">Seller</th>
+                  <th data-i18n-key="description" data-i18n-ar="الوصف">Description</th>
+                  <th data-i18n-key="method" data-i18n-ar="الدفع">Method</th>
+                  <th data-i18n-key="amount" data-i18n-ar="المبلغ">Amount</th>
+                  <th data-i18n-key="actions" data-i18n-ar="الإجراءات">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="expenses-table-body">
+                <!-- Filled by JS -->
+              </tbody>
+            </table>
+            <div
+              style="margin-top: 20px; text-align: right; font-size: 1.2em; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+              💰 <span data-i18n-key="total" data-i18n-ar="الإجمالي">Total:</span> <span id="total-expenses">0.00</span>
+              EGP
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    // Managed by js/translations.js
+  </script>
+
+
+  // Global logout
+  window.logout = function () {
+  localStorage.removeItem('currentUser');
+  window.location.href = 'index.html';
+  }
+  </script>
+</body>
+
+</html>

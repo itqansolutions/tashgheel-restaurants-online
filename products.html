@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="products">Products - POS</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <div class="language-switcher">
+    <button class="lang-btn" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="ar">AR</button>
+  </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Restaurant POS</h2>
+      </div>
+      <nav><!-- Populated by shared-nav.js --></nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-bar">
+        <h1 data-i18n-key="nav_products">Products</h1>
+      </header>
+
+      <section class="content-area">
+        <!-- Product Form is now in a Modal -->
+
+        <div class="card">
+          <div class="card-header">
+            <span data-i18n-key="product_list">Menu Items</span>
+            <button onclick="openProductModal()" class="btn btn-primary" style="float:right; margin-left:10px;">➕ <span
+                data-i18n-key="add_product">Add Product</span></button>
+          </div>
+          <div class="card-body">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th data-i18n-key="image">Image</th>
+                  <th data-i18n-key="code">Code</th>
+                  <th data-i18n-key="name">Item Name</th>
+                  <th data-i18n-key="category">Category</th>
+                  <th data-i18n-key="price">Price</th>
+                  <th data-i18n-key="cost">Cost (Calc)</th>
+                  <th data-i18n-key="actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="product-table-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header" data-i18n-key="manage_categories">Manage Categories</div>
+          <div class="card-body">
+            <form id="category-form" class="form-grid">
+              <div class="form-group">
+                <label for="new-category" data-i18n-key="new_category">New Category:</label>
+                <input type="text" id="new-category" required>
+              </div>
+              <div class="form-group">
+                <button type="submit" class="btn btn-primary" data-i18n-key="add_category">Add Category</button>
+              </div>
+            </form>
+            <ul id="category-list" class="mt-20"></ul>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    Tashgheel POS© 2025 - Designed and developed by <strong>itqan</strong> |
+    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
+  </footer>
+
+  <!-- Products Styles -->
+  <style>
+    /* Tab Navigation */
+    .modal-tabs {
+      display: flex;
+      border-bottom: 2px solid #eee;
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-weight: bold;
+      color: #7f8c8d;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tab-btn:hover {
+      background: #f9f9f9;
+    }
+
+    .tab-btn.active {
+      color: #2c3e50;
+      border-bottom-color: #3498db;
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Compact Forms in Tabs */
+    .form-grid.compact .form-group {
+      margin-bottom: 10px;
+    }
+  </style>
+
+  <!-- Product Modal (One-Stop Shop) -->
+  <div id="productModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 900px; width: 95%; height:90vh; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 id="productModalTitle" style="margin:0;">Add Product</h3>
+        <button onclick="closeProductModal()"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="tab-btn active" onclick="switchTab('basic')">📄 Basic Info</button>
+        <button class="tab-btn" onclick="switchTab('pricing')">💲 Pricing & Sizes</button>
+        <button class="tab-btn" onclick="switchTab('recipe')">👩‍🍳 Recipe & Cost</button>
+        <button class="tab-btn" onclick="switchTab('addons')">🧂 Add-ons</button>
+      </div>
+
+      <div style="flex:1; overflow-y:auto; padding:5px;">
+        <form id="product-form">
+          <input type="hidden" id="product-id">
+
+          <!-- TAB 1: BASIC INFO -->
+          <div id="tab-basic" class="tab-content active">
+            <div class="row">
+              <div class="col-6">
+                <div class="form-group">
+                  <label>Product Name <span style="color:red">*</span></label>
+                  <input type="text" id="product-name" required placeholder="e.g. Cheese Burger">
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label>Code / Barcode</label>
+                  <input type="text" id="product-code" placeholder="Scan or type code">
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-6">
+                <div class="form-group">
+                  <label>Category</label>
+                  <div style="display:flex; gap:5px;">
+                    <select id="product-category" style="width:100%"></select>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleCategoryInput()">+</button>
+                  </div>
+                  <!-- Inline Category Adder -->
+                  <div id="new-category-container" style="display:none; margin-top:5px; gap:5px;">
+                    <input type="text" id="new-category-input" placeholder="New Category" style="flex:1;">
+                    <button type="button" class="btn btn-success btn-sm" onclick="saveNewCategory()">✓</button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="toggleCategoryInput()">✗</button>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label>Image URL</label>
+                  <input type="text" id="product-image" placeholder="https://...">
+                </div>
+              </div>
+            </div>
+
+            <!-- New Row for Stock -->
+            <div class="row">
+              <div class="col-6">
+                <div class="form-group">
+                  <label>Stock Qty (For Direct Sales)</label>
+                  <input type="number" id="product-stock" placeholder="0">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: PRICING & SIZES -->
+          <div id="tab-pricing" class="tab-content">
+            <div class="form-group" style="background:#f0f8ff; padding:10px; border-radius:5px;">
+              <input type="checkbox" id="product-has-sizes" onchange="toggleSizesSection()">
+              <label for="product-has-sizes"
+                style="display:inline; font-weight:bold; font-size:1.1rem; margin-left:5px;">
+                Has Multiple Sizes / Variants?
+              </label>
+            </div>
+
+            <!-- Single Price Mode -->
+            <div id="pricing-single-mode">
+              <div class="row">
+                <div class="col-4">
+                  <div class="form-group">
+                    <label>Standard Price</label>
+                    <input type="number" id="product-price" step="0.01" class="input-lg">
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="form-group">
+                    <label>Dine-In Price (Optional)</label>
+                    <input type="number" id="product-price-dinein" step="0.01">
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="form-group">
+                    <label>Delivery Price (Optional)</label>
+                    <input type="number" id="product-price-delivery" step="0.01">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Multi-Size Mode -->
+            <div id="pricing-sizes-mode" style="display:none;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Size Name</th>
+                    <th>Code</th>
+                    <th>Price (Std)</th>
+                    <th>Dine-In</th>
+                    <th>Delivery</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="sizes-table-body">
+                  <!-- Populated via JS -->
+                </tbody>
+                <tfoot>
+                  <tr style="background:#f9f9f9;">
+                    <td><input type="text" id="size-name" placeholder="Name (e.g. L)" style="width:100%"></td>
+                    <td><input type="text" id="size-code" placeholder="Code" style="width:100%"></td>
+                    <td><input type="number" id="size-price" placeholder="0.00" style="width:100%"></td>
+                    <td><input type="number" id="size-price-dinein" placeholder="Opt" style="width:100%"></td>
+                    <td><input type="number" id="size-price-delivery" placeholder="Opt" style="width:100%"></td>
+                    <td><button type="button" onclick="addSizeVariant()" class="btn btn-success btn-sm">Add</button>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div id="tab-recipe" class="tab-content">
+            <div id="recipe-context-msg"
+              style="padding:10px; background:#e3f2fd; color:#0d47a1; margin-bottom:10px; border-radius:4px; font-weight:bold; display:none;">
+              <!-- Updated by JS -->
+            </div>
+            <div
+              style="margin-bottom:15px; background:#fff3cd; padding:10px; border-radius:5px; display:flex; justify-content:space-between; align-items:center;">
+              <span><strong>Total Cost:</strong> <span id="display-total-cost"
+                  style="font-size:1.2rem; font-weight:bold;">0.00</span></span>
+              <input type="hidden" id="product-cost"> <!-- Storage for DB -->
+              <small>Calculated automatically from ingredients below</small>
+            </div>
+
+            <!-- Size Selector for Recipe (Only visible if Has Sizes) -->
+            <div id="recipe-size-selector-container" style="margin-bottom:10px;">
+              <!-- Buttons inserted by JS -->
+            </div>
+
+            <!-- Ingredient Adder -->
+            <div style="background:#f5f5f5; padding:10px; border-radius:5px; margin-bottom:10px;">
+              <div style="display:flex; gap:5px; align-items:end;">
+                <div style="flex:2;">
+                  <label style="font-size:0.8rem">Raw Material</label>
+                  <select id="single-recipe-ingredient" style="width:100%"></select>
+                </div>
+                <div style="flex:1;">
+                  <label style="font-size:0.8rem">Qty</label>
+                  <input type="number" id="single-recipe-qty" placeholder="0">
+                </div>
+                <div style="flex:1;">
+                  <label style="font-size:0.8rem">Unit</label>
+                  <select id="single-recipe-unit" style="width:100%"></select>
+                </div>
+                <div style="flex:1;">
+                  <label style="font-size:0.8rem">Waste %</label>
+                  <input type="number" id="single-recipe-waste" placeholder="0" value="0">
+                  <input type="hidden" id="single-recipe-waste-type" value="percent">
+                </div>
+                <button type="button" onclick="addIngredientToSingleRecipe()" class="btn btn-primary">Add</button>
+              </div>
+            </div>
+
+            <!-- Recipe Table -->
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th>Qty</th>
+                  <th>Unit</th>
+                  <th>Waste</th>
+                  <th>Cost</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="single-recipe-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- TAB 4: ADD-ONS -->
+          <div id="tab-addons" class="tab-content">
+            <div class="form-group">
+              <input type="checkbox" id="allow-all-addons" onchange="toggleAddonsContainer()">
+              <label for="allow-all-addons" style="display:inline; font-weight:bold;">Allow All Add-ons</label>
+            </div>
+
+            <div id="specific-addons-container">
+              <label>Select Specific Add-ons:</label>
+              <div style="display:flex; gap:5px; margin-bottom:10px;">
+                <select id="addon-select" style="width:100%;"></select>
+                <button type="button" onclick="addAllowedAddon()" class="btn btn-primary">+</button>
+              </div>
+              <div id="allowed-addons-list" style="border:1px solid #eee; padding:10px; min-height:50px;"></div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="modal-footer" style="padding-top:10px; border-top:1px solid #eee; text-align:right;">
+        <button type="button" onclick="document.getElementById('product-form').dispatchEvent(new Event('submit'))"
+          class="btn btn-success btn-lg">💾 Save Menu Item</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recipe Modal -->
+  <div id="recipeModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; width: 90%;">
+      <h3>Recipe & Costing: <span id="recipeItemName"></span></h3>
+
+      <div id="recipe-size-selector-container"
+        style="margin-bottom:15px; padding:10px; background:#f0f0f0; border-radius:4px; display:none;">
+        <!-- Populated via JS -->
+      </div>
+
+      <div class="row">
+        <div class="col-6">
+          <label data-i18n-key="add_ingredient">Add Ingredient:</label>
+          <div style="display:flex; gap:5px; align-items: flex-end;">
+            <div style="flex:2;">
+              <label style="font-size:0.8rem;">Ingredient</label>
+              <select id="recipe-ingredient" style="width:100%;"></select>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:0.8rem;">Qty</label>
+              <input type="number" id="recipe-qty" placeholder="Qty" style="width:100%;">
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:0.8rem;">Waste Type</label>
+              <select id="recipe-waste-type" style="width:100%;">
+                <option value="percent">%</option>
+                <option value="fixed">Fixed Qty</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:0.8rem;">Waste Val</label>
+              <input type="number" id="recipe-waste" placeholder="0" style="width:100%;" value="0">
+            </div>
+            <button onclick="addIngredientToRecipe()" class="btn btn-success" style="height:38px;">+</button>
+          </div>
+        </div>
+      </div>
+
+      <table class="data-table mt-10">
+        <thead>
+          <tr>
+            <th data-i18n-key="ingredient">Ingredient</th>
+            <th data-i18n-key="net_qty">Net Qty</th>
+            <th data-i18n-key="unit">Unit</th>
+            <th data-i18n-key="cost_unit">Cost/Unit</th>
+            <th data-i18n-key="waste">Waste</th>
+            <th data-i18n-key="gross_qty">Gross Qty</th>
+            <th data-i18n-key="total_cost">Total Cost</th>
+            <th data-i18n-key="actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="recipeTableBody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5" style="text-align:right;"><strong>Total Plate Cost:</strong></td>
+            <td id="recipeTotalCost" style="font-weight:bold;">0.00</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div style="margin-top: 15px; text-align: right;">
+        <button onclick="saveRecipe()" class="btn btn-success">💾 Save Recipe</button>
+        <button onclick="closeRecipeModal()" class="btn btn-danger">❌ Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script>window.currentPage = 'menu';</script>
+  <script src="js/shared-nav.js"></script>
+  <script src="js/translations.js"></script>
+  <script src="js/products-app.js"></script>
+</body>
+
+</html>

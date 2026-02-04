@@ -1,0 +1,100 @@
+/* === Salesmen Page Styles === */
+
+.card {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.form-group {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-inline-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-inline-group .form-group {
+  flex: 1;
+  min-width: 150px;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+button.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+button.btn-secondary {
+  background-color: #6c757d;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+}
+
+.report-table th {
+  background-color: #f2f2f2;
+}
+
+.report-table tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* دعم RTL */
+body[dir="rtl"] .form-group,
+body[dir="rtl"] .form-inline-group {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+/* أداء لوني حسب النسبة */
+#salesmen-performance-table td:last-child {
+  font-weight: bold;
+}
+#salesmen-performance-table tr td:nth-child(6):not(:empty) {
+  color: #28a745;
+}
+#salesmen-performance-table tr td:nth-child(6):not(:empty):before {
+  content: "\2191 ";
+}
+#salesmen-performance-table tr td:nth-child(6):not(:empty):not([data-pass="true"]) {
+  color: #dc3545;
+  content: "\2193 ";
+}
+
+/* حذف زر */
+button.delete {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: red;
+  cursor: pointer;
+}

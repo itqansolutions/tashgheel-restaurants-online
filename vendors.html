@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendors - Tasgheel</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .vendor-card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .vendor-card h3 {
+            margin: 0 0 10px 0;
+        }
+
+        .credit-positive {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .credit-negative {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="language-switcher">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="ar">AR</button>
+    </div>
+
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Restaurant POS</h2>
+            </div>
+            <nav><!-- Populated by shared-nav.js --></nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1 data-i18n-key="vendors" data-i18n-ar="الموردين">🏪 Vendor Management</h1>
+            </header>
+
+            <section class="content-area">
+                <div class="card" style="margin-bottom: 20px; padding: 15px;">
+                    <button class="btn btn-success" onclick="openAddVendorModal()" data-i18n-key="add_vendor"
+                        data-i18n-ar="إضافة مورد">+ Add Vendor</button>
+                </div>
+
+                <div id="vendorsContainer"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add Vendor Modal -->
+    <div id="vendorModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3 id="vendorModalTitle" data-i18n-key="add_vendor" data-i18n-ar="إضافة مورد">Add Vendor</h3>
+            <form id="vendorForm" onsubmit="handleVendorSubmit(event)">
+                <input type="hidden" id="vendorId">
+                <div class="form-group">
+                    <label data-i18n-key="fullname" data-i18n-ar="الاسم">Vendor Name *</label>
+                    <input type="text" id="vendorName" required>
+                </div>
+                <div class="form-group">
+                    <label data-i18n-key="phone" data-i18n-ar="الموبايل">Mobile</label>
+                    <input type="tel" id="vendorMobile">
+                </div>
+                <div class="form-group">
+                    <label data-i18n-key="address" data-i18n-ar="العنوان">Address</label>
+                    <textarea id="vendorAddress" rows="2"></textarea>
+                </div>
+                <div style="text-align:right; margin-top:15px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('vendorModal')"
+                        data-i18n-key="cancel" data-i18n-ar="إلغاء">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n-key="save" data-i18n-ar="حفظ">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3 data-i18n-key="add_payment" data-i18n-ar="دفع للمورد">Pay Vendor</h3>
+            <form id="paymentForm" onsubmit="handlePaymentSubmit(event)">
+                <input type="hidden" id="paymentVendorId">
+                <div class="form-group">
+                    <label data-i18n-key="fullname" data-i18n-ar="الاسم">Vendor</label>
+                    <input type="text" id="paymentVendorName" readonly>
+                </div>
+                <div class="form-group">
+                    <label data-i18n-key="balance" data-i18n-ar="الرصيد">Current Credit</label>
+                    <input type="text" id="paymentCurrentCredit" readonly>
+                </div>
+                <div class="form-group">
+                    <label data-i18n-key="amount" data-i18n-ar="المبلغ">Payment Amount *</label>
+                    <input type="number" id="paymentAmount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label data-i18n-key="description" data-i18n-ar="الوصف">Notes</label>
+                    <textarea id="paymentNotes" rows="2"></textarea>
+                </div>
+                <div style="text-align:right; margin-top:15px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('paymentModal')"
+                        data-i18n-key="cancel" data-i18n-ar="إلغاء">Cancel</button>
+                    <button type="submit" class="btn btn-success" data-i18n-key="save" data-i18n-ar="دفع">Pay</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script>window.currentPage = 'vendors';</script>
+    <script src="js/shared-nav.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/vendors-app.js"></script>
+</body>
+
+</html>

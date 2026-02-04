@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Report - Tasgheel</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .summary-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-item h3 {
+            margin: 0;
+            font-size: 2em;
+            color: #2c3e50;
+        }
+
+        .summary-item p {
+            margin: 5px 0 0 0;
+            color: #7f8c8d;
+        }
+
+        .debt {
+            color: #e74c3c !important;
+        }
+
+        .paid {
+            color: #27ae60 !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="language-switcher">
+        <button class="lang-btn" onclick="setLanguage('en')">EN</button>
+        <button class="lang-btn" onclick="setLanguage('ar')">AR</button>
+    </div>
+
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Restaurant POS</h2>
+            </div>
+            <nav><!-- Populated by shared-nav.js --></nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>📊 Vendor Financial Report</h1>
+            </header>
+
+            <section class="content-area">
+                <!-- Summary Cards -->
+                <div class="summary-card">
+                    <div class="summary-item">
+                        <h3 id="totalDebt" class="debt">0.00</h3>
+                        <p>Total We Owe / إجمالي المستحق</p>
+                    </div>
+                    <div class="summary-item">
+                        <h3 id="totalPaid" class="paid">0.00</h3>
+                        <p>Total Paid / إجمالي المدفوع</p>
+                    </div>
+                    <div class="summary-item">
+                        <h3 id="vendorCount">0</h3>
+                        <p>Active Vendors / الموردين النشطين</p>
+                    </div>
+                </div>
+
+                <!-- Vendor Details Table -->
+                <div class="card">
+                    <div class="card-header">Vendor Details / تفاصيل الموردين</div>
+                    <div class="card-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Vendor / المورد</th>
+                                    <th>Mobile / الموبايل</th>
+                                    <th>Total Purchases / المشتريات</th>
+                                    <th>Total Paid / المدفوع</th>
+                                    <th>Balance / الرصيد</th>
+                                    <th>Status / الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vendorDetailsTable">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Payment History -->
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">Payment History / سجل المدفوعات</div>
+                    <div class="card-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date / التاريخ</th>
+                                    <th>Vendor / المورد</th>
+                                    <th>Amount / المبلغ</th>
+                                    <th>Notes / ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentHistoryTable">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script>window.currentPage = 'vendors';</script>
+    <script src="js/shared-nav.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/vendor-report-app.js"></script>
+</body>
+
+</html>

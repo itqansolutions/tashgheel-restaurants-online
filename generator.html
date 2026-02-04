@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tashgheel License Generator</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 50px;
+        }
+
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .key-display {
+            font-family: monospace;
+            word-break: break-all;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">🔑 License Key Generator</h3>
+                        <small>For Admin Use Only - Keep Secure</small>
+                    </div>
+                    <div class="card-body">
+                        <form id="genForm">
+                            <div class="mb-3">
+                                <label class="form-label">Client Machine ID</label>
+                                <input type="text" class="form-control" id="mid"
+                                    placeholder="Paste user's Machine ID here..." required>
+                                <div class="form-text">The user should copy this from their activation screen.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Client Business Name</label>
+                                <input type="text" class="form-control" id="biz" placeholder="e.g. Al-Amal Market"
+                                    required>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">License Type</label>
+                                    <select class="form-select" id="type" onchange="toggleDuration()">
+                                        <option value="TRIAL">Trial Version</option>
+                                        <option value="FULL_TIME">Full Version (Time Limited)</option>
+                                        <option value="LIFETIME" selected>Lifetime Full Version</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3" id="durationDiv" style="display:none;">
+                                    <label class="form-label">Duration (Days)</label>
+                                    <input type="number" class="form-control" id="days" value="30">
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <button type="submit" class="btn btn-success w-100 btn-lg">Generate License Key</button>
+                        </form>
+
+                        <div id="resultArea" class="mt-4" style="display:none;">
+                            <label class="form-label fw-bold">Generated License Key:</label>
+                            <textarea class="form-control key-display" id="outKey" rows="4" readonly></textarea>
+                            <button class="btn btn-outline-primary mt-2" onclick="copyKey()">📋 Copy Key</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Embed Crypto Logic Directly to make this file portable -->
+    <script>
+        /**
+         * License Crypto Module (Embedded)
+         */
+        const LicenseCrypto = {
+            SECRET_KEY: "Tashgheel_Services_Secure_2025_#$#",
+
+            generateKey: function (payload) {
+                try {
+                    const enrichedPayload = {
+                        ...payload,
+                        _salt: Math.random().toString(36).substring(7),
+                        _gen: Date.now()
+                    };
+                    const jsonStr = JSON.stringify(enrichedPayload);
+                    const encrypted = this._encryptString(jsonStr, this.SECRET_KEY);
+                    const signature = this._hashString(encrypted + this.SECRET_KEY);
+                    return btoa(signature + "." + encrypted);
+                } catch (e) {
+                    console.error(e);
+                    return null;
+                }
+            },
+
+            _encryptString: function (text, key) {
+                // UTF-8 Safe Encoding for Arabic Characters support
+                const utf8 = unescape(encodeURIComponent(text));
+
+                let result = "";
+                for (let i = 0; i < utf8.length; i++) {
+                    const charCode = utf8.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+                    result += String.fromCharCode(charCode);
+                }
+                return btoa(result);
+            },
+
+            _hashString: function (str) {
+                let hash = 5381;
+                for (let i = 0; i < str.length; i++) {
+                    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                }
+                return (hash >>> 0).toString(16);
+            }
+        };
+
+        // UI Logic
+        function toggleDuration() {
+            const type = document.getElementById('type').value;
+            const div = document.getElementById('durationDiv');
+            if (type === 'LIFETIME') {
+                div.style.display = 'none';
+                document.getElementById('days').value = 9999;
+            } else {
+                div.style.display = 'block';
+                if (type === 'TRIAL') document.getElementById('days').value = 14;
+                else document.getElementById('days').value = 365;
+            }
+        }
+
+        document.getElementById('genForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const mid = document.getElementById('mid').value.trim();
+            const biz = document.getElementById('biz').value.trim();
+            const type = document.getElementById('type').value;
+            const days = parseInt(document.getElementById('days').value);
+
+            if (!mid || !biz) {
+                alert("Please fill all fields!");
+                return;
+            }
+
+            const payload = { mid, biz, type, days };
+            const key = LicenseCrypto.generateKey(payload);
+
+            if (key) {
+                document.getElementById('resultArea').style.display = 'block';
+                document.getElementById('outKey').value = key;
+            } else {
+                alert("Error generating key.");
+            }
+        });
+
+        function copyKey() {
+            const copyText = document.getElementById("outKey");
+            copyText.select();
+            document.execCommand("copy");
+            alert("Key copied to clipboard!");
+        }
+    </script>
+
+</body>
+
+</html>

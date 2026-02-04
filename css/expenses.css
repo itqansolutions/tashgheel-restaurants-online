@@ -1,0 +1,105 @@
+
+
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+
+.container {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+  max-height: 100vh;
+  box-sizing: border-box;
+}
+
+
+.container {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.1);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.form-section label,
+.filter-section label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.form-section input,
+.form-section select,
+.filter-section input,
+.filter-section select {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.form-section button,
+.filter-section button {
+  margin-top: 15px;
+  padding: 8px 16px;
+  border: none;
+  background-color: #ffa726;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.form-section button:hover,
+.filter-section button:hover {
+  background-color: #fb8c00;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: #fff;
+}
+
+thead {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+thead th {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+tbody td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.total-label {
+  margin-top: 10px;
+  font-weight: bold;
+  font-size: 16px;
+  color: #333;
+}

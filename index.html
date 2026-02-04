@@ -1,0 +1,278 @@
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tashgeel POS System</title>
+  <link rel="stylesheet" href="css/styles.css">
+
+</head>
+
+<!-- ... (body content) ... -->
+
+
+
+<body>
+  <!-- Language Switcher -->
+  <div class="language-switcher">
+    <button class="lang-btn" data-lang="en" id="langEn">English</button>
+    <button class="lang-btn" data-lang="ar" id="langAr">العربية</button>
+  </div>
+
+  <!-- Login Screen -->
+  <div class="login-screen">
+    <div class="license-container">
+      <div class="version-badge">ENHANCED</div>
+      <div class="pos-logo">🏪</div>
+      <h1 id="loginTitle" data-i18n-key="shop_pos_system">Tashgeel POS System</h1>
+      <p class="subtitle" id="subtitle" data-i18n-key="enhanced_security">Powered by itqan</p>
+
+      <!-- Activation Status -->
+      <div id="activationStatus" class="activation-status not-activated">
+        <span id="statusText">System Not Activated</span>
+      </div>
+
+      <!-- License Activation Form -->
+      <div id="licenseForm">
+        <h3 id="activationTitle" data-i18n-key="activation_required">System Activation Required</h3>
+
+        <!-- Machine ID Display -->
+        <div class="form-group mb-3">
+          <label id="machineIdLabel">Unique Machine ID (Provide this to Admin):</label>
+          <div class="input-group">
+            <input type="text" id="fingerprintDisplay" class="form-control" readonly style="background: #e9ecef;">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyMachineId()">📋 Copy</button>
+          </div>
+          <small class="text-muted">The user should copy this and send it to get their license key.</small>
+        </div>
+
+        <div class="form-group">
+          <label id="licenseKeyLabel" data-i18n-key="license_key">License Key:</label>
+          <input type="text" id="licenseKey" placeholder="Enter your license key">
+        </div>
+        <div class="form-group">
+          <label id="businessNameLabel" data-i18n-key="business_name">Business Name:</label>
+          <input type="text" id="businessName" placeholder="Enter your business name">
+        </div>
+        <button type="button" class="btn btn-primary" onclick="activateLicense()" id="activateBtn"
+          data-i18n-key="activate_license">🔑 Activate
+          License</button>
+        <div id="licenseError" class="error"></div>
+      </div>
+
+      <!-- License Info (shown when activated) -->
+      <div id="licenseInfo" class="license-info hidden">
+        <h4 id="licenseInfoTitle" data-i18n-key="license_info">License Information</h4>
+        <p><strong id="businessLabel" data-i18n-key="business">Business:</strong> <span id="businessDisplay"></span></p>
+        <p><strong id="activatedLabel" data-i18n-key="activated">Activated:</strong> <span id="activationDate"></span>
+        </p>
+        <p><strong id="statusLabel" data-i18n-key="status">Status:</strong> <span style="color: #27ae60;">✅
+            Active</span></p>
+      </div>
+
+      <!-- Login Form (shown when activated) -->
+      <form class="login-form hidden" id="loginForm">
+        <div class="form-group">
+          <label data-i18n-key="business_email">Business Email:</label>
+          <input type="email" id="businessEmail" placeholder="owner@business.com" required />
+        </div>
+        <div class="form-group">
+          <label id="usernameLabel" data-i18n-key="username">Username:</label>
+          <input type="text" id="username" required />
+        </div>
+        <div class="form-group">
+          <label id="passwordLabel" data-i18n-key="password">Password:</label>
+          <input type="password" id="password" required />
+        </div>
+        <button type="submit" class="btn btn-success" id="loginBtn" data-i18n-key="login_btn">🚀 Launch System</button>
+        <div id="loginError" class="error"></div>
+        <p style="margin-top:15px; font-size:0.9em;">
+          <a href="#" onclick="showRegisterModal()" style="color:#2c3e50;">Register New Business</a>
+        </p>
+      </form>
+
+      <!-- Security Features -->
+      <div class="security-notice">
+        <h3 id="securityFeaturesTitle" data-i18n-key="security_features">🔐 Security Features</h3>
+        <ul id="securityFeaturesList">
+          <li id="feature1" data-i18n-key="feature1">One-time license activation</li>
+          <li id="feature2" data-i18n-key="feature2">Encrypted data storage</li>
+          <li id="feature3" data-i18n-key="feature3">Automatic secure backups</li>
+          <li id="feature4" data-i18n-key="feature4">Multi-language support</li>
+          <li id="feature5" data-i18n-key="feature5">Role-based access control</li>
+          <li id="feature6" data-i18n-key="feature6">Receipt printing with logo</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registration Modal -->
+  <div id="registerModal" class="modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:2000;">
+    <div class="modal-content" style="background:white; padding:30px; border-radius:10px; width:400px; max-width:90%;">
+      <h3>Register New Business</h3>
+      <form id="registerForm">
+        <div class="form-group">
+          <input type="text" id="regBusinessName" placeholder="Business Name" class="form-control" required
+            style="width:100%; margin-bottom:10px; padding:8px;">
+        </div>
+        <div class="form-group">
+          <input type="email" id="regEmail" placeholder="Owner Email" class="form-control" required
+            style="width:100%; margin-bottom:10px; padding:8px;">
+        </div>
+        <div class="form-group">
+          <input type="tel" id="regPhone" placeholder="Mobile Number" class="form-control" required
+            style="width:100%; margin-bottom:10px; padding:8px;">
+        </div>
+        <div class="form-group">
+          <input type="text" id="regUsername" placeholder="Admin Username" class="form-control" required
+            style="width:100%; margin-bottom:10px; padding:8px;">
+        </div>
+        <div class="form-group">
+          <input type="password" id="regPassword" placeholder="Password" class="form-control" required
+            style="width:100%; margin-bottom:15px; padding:8px;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Create Account</button>
+        <button type="button" onclick="document.getElementById('registerModal').style.display='none'"
+          class="btn btn-secondary" style="width:100%; margin-top:10px;">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Tashgheel POS© 2025</strong> |
+    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
+    <span id="footerText" data-i18n-key="enhanced_security">Designed and developed by itqan</span>
+  </div>
+
+
+
+
+
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/translations.js"></script>
+  <script>
+    function copyMachineId() {
+      const copyText = document.getElementById("fingerprintDisplay");
+      if (copyText && copyText.value) {
+        copyText.select();
+        document.execCommand("copy");
+        // Simple visual feedback
+        const btn = document.querySelector('button[onclick="copyMachineId()"]');
+        const originalText = btn.textContent;
+        btn.textContent = "✅ Copied!";
+        setTimeout(() => btn.textContent = originalText, 2000);
+      }
+    }
+
+    async function initLogin() {
+      const fingerprintField = document.getElementById('fingerprintDisplay');
+
+      // FIX: Read from EnhancedSecurity or correct LocalStorage key
+      let license = null;
+      if (typeof EnhancedSecurity !== 'undefined') {
+        license = EnhancedSecurity.getLicenseData();
+      }
+      if (!license) {
+        try {
+          license = JSON.parse(localStorage.getItem("pos_backup_license"));
+        } catch (e) { console.log("No license found in backup"); }
+      }
+
+      // 1. Get Machine ID immediately
+      if (window.electronAPI?.getMachineId) {
+        try {
+          const id = await window.electronAPI.getMachineId();
+          if (fingerprintField) fingerprintField.value = id;
+          console.log("Machine ID Loaded:", id);
+        } catch (err) {
+          console.error("Failed to get machine ID:", err);
+          if (fingerprintField) fingerprintField.value = "ERROR: Failed to fetch ID";
+        }
+      }
+
+      // 2. Check Activation
+      if (license) {
+        document.getElementById("licenseForm").style.display = "none";
+        document.getElementById("loginForm").classList.remove("hidden");
+        document.getElementById("activationStatus").classList.remove("not-activated");
+        document.getElementById("activationStatus").classList.add("activated");
+        document.getElementById("statusText").textContent = "✅ System Activated";
+        document.getElementById("licenseInfo").classList.remove("hidden");
+        document.getElementById("businessDisplay").textContent = license.business;
+        document.getElementById("activationDate").textContent = new Date(license.activatedAt).toLocaleString();
+        return;
+      }
+    }
+
+    async function activateLicense() {
+      const licenseKey = document.getElementById('licenseKey').value.trim();
+      const businessName = document.getElementById('businessName').value.trim();
+      const licenseError = document.getElementById('licenseError');
+
+      if (!licenseKey) {
+        licenseError.textContent = "❌ Please enter a license key.";
+        return;
+      }
+
+      try {
+        const realFingerprint = window.electronAPI ? await window.electronAPI.getMachineId() : 'browser-fingerprint';
+
+        if (typeof EnhancedSecurity !== 'undefined') {
+          const result = await EnhancedSecurity.activateLicenseWithFingerprint(licenseKey, realFingerprint);
+          if (result.success) {
+            // Success logic
+            document.getElementById("activationStatus").classList.remove("not-activated");
+            document.getElementById("activationStatus").classList.add("activated");
+            document.getElementById("statusText").textContent = "✅ System Activated";
+
+            document.getElementById("licenseForm").style.display = "none";
+            document.getElementById("licenseInfo").classList.remove("hidden");
+            document.getElementById("businessDisplay").textContent = result.data.businessName;
+            document.getElementById("activationDate").textContent = new Date(result.data.activatedDate).toLocaleString();
+            document.getElementById("loginForm").classList.remove("hidden");
+
+            alert("Activation Successful!");
+          } else {
+            licenseError.textContent = "❌ " + result.error;
+            licenseError.style.color = "red";
+          }
+        } else {
+          console.warn("EnhancedSecurity not found");
+          alert("Security module missing. Please refresh the page.");
+        }
+
+      } catch (e) {
+        licenseError.textContent = "❌ Error during activation process.";
+        console.error(e);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Data System auto-initializes via auth.js
+      // await EnhancedSecurity.init(); // REMOVED (Legacy)
+      initLogin();
+
+      const loginForm = document.getElementById('loginForm');
+      loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const errorDiv = document.getElementById('loginError');
+
+        if (window.login(username, password)) {
+          window.location.href = 'pos.html';
+        } else {
+          errorDiv.textContent = '❌ Invalid username or password';
+          errorDiv.style.color = 'red';
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

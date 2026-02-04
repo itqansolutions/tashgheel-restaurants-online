@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Report - Tashgheel Services</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .summary-card .amount {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .vendor-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .vendor-table th {
+            background: #34495e;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .vendor-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+
+        .vendor-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .purchase {
+            color: #e74c3c;
+        }
+
+        .payment {
+            color: #27ae60;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Restaurant POS</h2>
+            </div>
+            <nav><!-- Populated by shared-nav.js --></nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>📊 Vendor Summary Report</h1>
+            </header>
+
+            <section class="content-area">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>All Vendors Summary</h2>
+                        <button class="btn btn-primary" onclick="window.print()">🖨️ Print Report</button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Summary Cards -->
+                        <div class="summary-cards">
+                            <div class="summary-card">
+                                <h3>Total Purchases</h3>
+                                <p class="amount" id="totalPurchases">0.00</p>
+                            </div>
+                            <div class="summary-card"
+                                style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                <h3>Total Payments</h3>
+                                <p class="amount" id="totalPayments">0.00</p>
+                            </div>
+                            <div class="summary-card"
+                                style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                <h3>Current Balance</h3>
+                                <p class="amount" id="currentBalance">0.00</p>
+                            </div>
+                        </div>
+
+                        <!-- Vendor Details Table -->
+                        <table class="vendor-table">
+                            <thead>
+                                <tr>
+                                    <th>Vendor</th>
+                                    <th>Total Purchases</th>
+                                    <th>Total Payments</th>
+                                    <th>Balance</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vendorSummaryBody">
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script>window.currentPage = 'vendors';</script>
+    <script src="js/shared-nav.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/vendor-summary-report.js"></script>
+</body>
+
+</html>

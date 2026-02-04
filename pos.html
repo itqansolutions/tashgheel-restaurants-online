@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasgheel POS System</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      width: 300px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .cart-item button {
+      margin-left: 10px;
+      padding: 4px 6px;
+      font-size: 0.9em;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- License Check -->
+  <div id="licenseCheckOverlay"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000000e6;z-index:10000;color:white;text-align:center;padding-top:150px;">
+    <h2>🔒 Access Denied</h2>
+    <p>This system requires a valid license to operate.</p>
+    <button onclick="window.location.href='index.html'" class="btn btn-primary" style="margin-top: 20px;">Go to
+      Activation</button>
+  </div>
+
+  <!-- Language Switcher -->
+  <div class="language-switcher">
+    <button class="lang-btn" onclick="setLanguage('en')" id="langEn">English</button>
+    <button class="lang-btn" onclick="setLanguage('ar')" id="langAr">العربية</button>
+  </div>
+
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2 id="posSystemTitle" data-i18n-key="shop_pos_system">Restaurant POS</h2>
+      </div>
+      <nav><!-- Populated by shared-nav.js --></nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="top-bar">
+        <h1 id="pageTitle" data-i18n-key="nav_pos">Point of Sale</h1>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="welcomeText" data-i18n-key="welcome">Welcome,</span>
+          <span id="currentUserName">User</span>
+          <span id="userRole" class="user-role">cashier</span>
+          <span style="background:#27ae60;color:white;padding:4px 8px;border-radius:12px;font-size:0.7rem;"
+            data-i18n-key="activated">🔐 Licensed</span>
+        </div>
+      </header>
+
+      <section class="content-area">
+        <div class="pos-layout">
+          <!-- Products Section -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <span id="productsTitle" data-i18n-key="productsTitle">Products</span>
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <input type="text" id="productSearch" placeholder="Search by name, code, or barcode..."
+                    class="search-box" style="width:200px;">
+                  <button class="btn btn-secondary" onclick="scanBarcode()" id="scanBtn" data-i18n-key="scan_btn">📷
+                    Scan</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <!-- Category Filter -->
+                <div id="categoryFilterContainer"
+                  style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; white-space:nowrap; border-bottom:1px solid #eee;">
+                  <!-- Populated by JS -->
+                </div>
+
+                <div class="product-grid" id="productGrid">
+                  <div style="text-align:center;padding:40px;color:#666;">
+                    <p id="loadingText" data-i18n-key="loading">Loading products...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cart Section -->
+          <div class="cart">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+              <h3 id="cartTitle" data-i18n-key="cart_title">🛒 Cart</h3>
+              <div>
+                <button class="btn btn-sm btn-outline-warning" onclick="openPendingOrders()" title="Pending Orders">
+                  ⏳ <span id="pendingOrdersBtn" class="badge" style="background:#e67e22; color:white;">0</span>
+                </button>
+                <span id="cartCounter" class="badge">0</span>
+              </div>
+            </div>
+
+            <div id="cartItems">
+              <p id="cartEmptyText" style="text-align:center;color:#666;" data-i18n-key="cart_empty">Cart is empty</p>
+            </div>
+
+            <div class="cart-summary">
+              <div><span id="subtotalLabel" data-i18n-key="subtotal">Subtotal:</span> <span id="cartSubtotal">0.00
+                  ج.م</span></div>
+              <div><span id="discountLabel" data-i18n-key="discount">Discount:</span> <span id="cartDiscount">0.00
+                  ج.م</span></div>
+              <div id="deliveryFeeRow" style="display:none;"><span data-i18n-key="delivery_fee">Delivery:</span> <span
+                  id="cartDeliveryFee">0.00 ج.م</span></div>
+              <div><span id="taxLabel" data-i18n-key="tax">Tax (0%):</span> <span id="cartTax">0.00 ج.م</span></div>
+              <hr>
+              <div class="cart-total" id="cartTotal">Total: 0.00 ج.م</div>
+            </div>
+
+            <div style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+              <h4 style="margin:0 0 10px 0; font-size:14px; color:#555;" data-i18n-key="order_type">Order Type</h4>
+              <div style="display:flex; gap:10px;">
+                <label style="cursor:pointer; display:flex; align-items:center;">
+                  <input type="radio" name="orderType" value="dine_in" onchange="toggleOrderType()">
+                  <span style="margin-left:5px;" data-i18n-key="dine_in">🍽️ Dine In</span>
+                </label>
+                <label style="cursor:pointer; display:flex; align-items:center;">
+                  <input type="radio" name="orderType" value="take_away" onchange="toggleOrderType()" checked>
+                  <span style="margin-left:5px;" data-i18n-key="take_away">🥡 Take Away</span>
+                </label>
+                <label style="cursor:pointer; display:flex; align-items:center;">
+                  <input type="radio" name="orderType" value="delivery" onchange="toggleOrderType()">
+                  <span style="margin-left:5px;" data-i18n-key="delivery">🛵 Delivery</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="tableSelection" style="margin-bottom:10px; display:none;">
+              <label for="tableSelect">🪑 <span data-i18n-key="table_label">Table:</span></label>
+              <select id="tableSelect"
+                style="width:100%;padding:8px;margin-top:5px; border:1px solid #ddd; border-radius:4px;">
+                <!-- Populated by JS -->
+              </select>
+            </div>
+
+            <!-- Delivery Customer Section -->
+            <div id="deliverySection"
+              style="margin-bottom:10px; display:none; border:1px solid #eee; padding:10px; border-radius:4px; background:#f9f9f9;">
+              <label style="display:block; margin-bottom:5px; font-weight:bold;">📞 Customer Info</label>
+
+              <!-- Search / New -->
+              <div style="display:flex; gap:5px; margin-bottom:10px;">
+                <input type="text" id="custSearchPos" placeholder="Phone or Name..." style="flex:1; padding:5px;">
+                <button class="btn btn-sm btn-primary" onclick="searchCustomerPos()">🔍</button>
+              </div>
+
+              <!-- Selected Customer Display -->
+              <div id="selectedCustomerDisplay"
+                style="display:none; margin-bottom:10px; padding:5px; background:#e3f2fd; border-radius:4px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span id="selCustName" style="font-weight:bold;"></span>
+                  <button class="btn btn-sm btn-danger" onclick="clearSelectedCustomer()"
+                    style="padding:1px 5px;">x</button>
+                </div>
+                <div id="selCustMobile" style="font-size:0.85em; color:#555;"></div>
+              </div>
+
+              <!-- Address Selection -->
+              <div id="addressSection" style="display:none;">
+                <label style="font-size:0.9em; color:#555;">📍 Address:</label>
+                <select id="custAddressSelect" style="width:100%; padding:5px; margin-bottom:5px;"></select>
+                <button class="btn btn-sm btn-outline-primary" style="width:100%;" onclick="openAddAddressModal()">+ Add
+                  New Address</button>
+              </div>
+
+              <!-- Quick Add Customer Button if not found -->
+              <div id="newCustomerBtnArea" style="display:none; text-align:center;">
+                <button class="btn btn-sm btn-success" onclick="openQuickAddCustomer()">+ New Customer</button>
+              </div>
+            </div>
+
+            <div id="salesmanSection" style="margin-bottom:10px;">
+              <label for="salesmanSelect">👤 <span id="salesmanLabel"
+                  data-i18n-key="salesman_label">Salesman:</span></label>
+              <select id="salesmanSelect" style="width:100%;padding:6px;margin-top:5px;"></select>
+            </div>
+
+            <div class="payment-methods">
+              <button class="btn btn-success" onclick="processSale('cash')" id="cashBtn" disabled
+                data-i18n-key="cash">💵 Cash</button>
+              <button class="btn btn-success" onclick="processSale('card')" id="cardBtn" disabled
+                data-i18n-key="card">💳 Card</button>
+              <button class="btn btn-success" onclick="processSale('mobile')" id="mobileBtn" disabled
+                data-i18n-key="mobile">📱 Mobile</button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+              <button class="btn btn-warning" onclick="holdTransaction()" id="holdBtn" disabled
+                data-i18n-key="hold_btn">⏸️ Hold</button>
+              <button class="btn btn-secondary" onclick="clearCart()" id="clearCartBtn" disabled
+                data-i18n-key="clear_cart_btn">🗑️ Clear</button>
+            </div>
+
+            <button class="btn btn-info" onclick="closeDay()" style="margin-top:10px;width:100%;">🧾 <span
+                id="closeDayBtn" data-i18n-key="close_day_btn">Close Day</span></button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Close Day Modal -->
+  <div id="closeDayModal" class="modal" style="display:none;">
+    <div class="modal-content" style="width:400px;">
+      <h3 id="daySummaryTitle" data-i18n-key="day_summary_title">📊 Day Summary</h3>
+      <div id="daySummaryContent" style="text-align:left;margin-top:10px;"></div>
+      <br>
+      <button onclick="window.print()" class="btn btn-primary">🖨️ <span id="printBtn"
+          data-i18n-key="print_btn">Print</span></button>
+      <button onclick="document.getElementById('closeDayModal').style.display='none'" class="btn btn-danger">✖️ <span
+          id="cancelBtn" data-i18n-key="close_btn">Close</span></button>
+    </div>
+  </div>
+
+  <!-- Discount Modal -->
+  <div id="discountModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <h3 id="discountTitle" data-i18n-key="discount_modal_title">🧾 Discount</h3>
+      <label data-i18n-key="discount_type">Discount Type:</label>
+      <select id="discountType">
+        <option value="none" data-i18n-key="discount_none">None</option>
+        <option value="percent" data-i18n-key="discount_percent">Percentage (%)</option>
+        <option value="value" data-i18n-key="discount_fixed">Fixed Value</option>
+      </select>
+      <br><br>
+      <label data-i18n-key="discount_value">Value:</label>
+      <input type="number" id="discountValue" placeholder="0">
+      <br><br>
+      <button onclick="saveDiscount()" data-i18n-key="save">💾 Save</button>
+      <button onclick="closeDiscountModal()" data-i18n-key="cancel">✖️ Cancel</button>
+    </div>
+  </div>
+
+  <!-- Add-ons Selection Modal -->
+  <div id="addonsModal" class="modal" style="display:none;">
+    <div class="modal-content" style="width: 400px; max-width:90%;">
+      <h3><span data-i18n-key="select_addons">Select Extras</span>: <span id="addonsProductTitle"></span></h3>
+
+      <!-- Size Selection (Hidden by default) -->
+      <div id="size-selection-area" style="display:none; margin-bottom:15px; text-align:left;">
+        <h4 style="margin:0 0 5px 0; font-size:0.9rem; color:#555;">Select Size:</h4>
+        <div id="sizes-list" style="display:flex; gap:5px; flex-wrap:wrap;"></div>
+      </div>
+
+      <div id="addonsList"
+        style="text-align:left; max-height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #ddd; padding:10px;">
+        <!-- Checkboxes for allowed add-ons populated here -->
+      </div>
+      <div>
+        <button onclick="confirmAddons()" class="btn btn-success" data-i18n-key="add_to_cart">Add to Cart</button>
+        <button onclick="closeAddonsModal()" class="btn btn-danger" data-i18n-key="cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Add Customer Modal -->
+  <div id="quickCustomerModal" class="modal" style="display:none;">
+    <div class="modal-content" style="width:300px;">
+      <h3>New Customer</h3>
+      <input type="text" id="quickCustName" placeholder="Name" style="width:100%; margin-bottom:10px; padding:8px;">
+      <input type="tel" id="quickCustMobile" placeholder="Mobile" style="width:100%; margin-bottom:10px; padding:8px;">
+      <input type="text" id="quickCustAddress" style="display:none;"> <!-- Hidden legacy -->
+
+      <div style="border:1px solid #eee; padding:10px; border-radius:4px; margin-bottom:10px;">
+        <label style="font-size:0.85em; font-weight:bold; color:#555;">📍 Address Details</label>
+        <select id="quickCustArea" style="width:100%; margin-bottom:5px; padding:8px;">
+          <option value="">-- Select Area --</option>
+        </select>
+        <input type="text" id="quickCustStreet" placeholder="Street Name *"
+          style="width:100%; margin-bottom:5px; padding:8px;">
+        <div style="display:flex; gap:5px;">
+          <input type="text" id="quickCustBuilding" placeholder="Bldg" style="width:33%; padding:8px;">
+          <input type="text" id="quickCustFloor" placeholder="Floor" style="width:33%; padding:8px;">
+          <input type="text" id="quickCustApt" placeholder="Apt" style="width:33%; padding:8px;">
+        </div>
+        <input type="text" id="quickCustExtra" placeholder="Landmark / Extra Info"
+          style="width:100%; margin-top:5px; padding:8px;">
+      </div>
+      <button onclick="saveQuickCustomer()" class="btn btn-primary" style="width:100%;">Save</button>
+      <button onclick="document.getElementById('quickCustomerModal').style.display='none'" class="btn btn-secondary"
+        style="width:100%; margin-top:5px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Pending Orders Modal -->
+  <div id="pendingOrdersModal" class="modal" style="display:none;">
+    <div class="modal-content" style="width:400px;">
+      <div
+        style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px;">
+        <h3 data-i18n-key="pending_orders">Pending Orders</h3>
+        <button class="btn btn-sm btn-secondary"
+          onclick="document.getElementById('pendingOrdersModal').style.display='none'">X</button>
+      </div>
+      <div id="pendingOrdersList" style="max-height:300px; overflow-y:auto; margin-top:10px;">
+        <!-- List -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Address Modal -->
+  <div id="addressModal" class="modal" style="display:none;">
+    <div class="modal-content" style="width:350px;">
+      <h3>Add Address</h3>
+      <input type="text" id="addrArea" placeholder="Area / District"
+        style="width:100%; margin-bottom:5px; padding:8px;">
+      <input type="text" id="addrStreet" placeholder="Street Name" style="width:100%; margin-bottom:5px; padding:8px;">
+      <input type="text" id="addrBuilding" placeholder="Building No/Name"
+        style="width:100%; margin-bottom:5px; padding:8px;">
+      <div style="display:flex; gap:5px;">
+        <input type="text" id="addrFloor" placeholder="Floor" style="width:50%; margin-bottom:5px; padding:8px;">
+        <input type="text" id="addrApt" placeholder="Apt No" style="width:50%; margin-bottom:5px; padding:8px;">
+      </div>
+      <input type="text" id="addrExtra" placeholder="Extra Directions (Optional)"
+        style="width:100%; margin-bottom:10px; padding:8px;">
+
+      <button onclick="saveCheckCustomerAddress()" class="btn btn-primary" style="width:100%;">Save Address</button>
+      <button onclick="document.getElementById('addressModal').style.display='none'" class="btn btn-secondary"
+        style="width:100%; margin-top:5px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    Tashgheel POS© 2025</strong> |
+    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
+    <span id="footerText" data-i18n-key="enhanced_security">Designed and developed by itqan</span>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/backup-system.js"></script>
+  <script>window.currentPage = 'pos';</script>
+  <script src="js/shared-nav.js"></script>
+  <script src="js/translations.js"></script>
+  <script src="js/pos-app.js"></script>
+
+
+</body>
+
+</html>

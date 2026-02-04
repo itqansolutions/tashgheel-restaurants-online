@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory - POS</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Restaurant POS</h2>
+            </div>
+            <nav><!-- Populated by shared-nav.js --></nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Inventory (Raw Materials)</h1>
+            </header>
+
+            <section class="content-area">
+                <!-- Add Material Form -->
+                <div class="card">
+                    <div class="card-header">Add Raw Material</div>
+                    <div class="card-body">
+                        <form id="inventory-form" class="form-grid">
+                            <input type="hidden" id="material-id">
+
+                            <div class="form-group">
+                                <label>Material Name:</label>
+                                <input type="text" id="material-name" required placeholder="e.g. Tomato, Milk, Beef">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Unit:</label>
+                                <select id="material-unit" required>
+                                    <option value="kg">Kilogram (kg)</option>
+                                    <option value="g">Gram (g)</option>
+                                    <option value="l">Liter (l)</option>
+                                    <option value="ml">Milliliter (ml)</option>
+                                    <option value="pcs">Piece (pcs)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Cost per Unit:</label>
+                                <input type="number" id="material-cost" step="0.01" min="0" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Current Stock:</label>
+                                <input type="number" id="material-stock" step="0.001" min="0" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Vendor:</label>
+                                <select id="material-vendor">
+                                    <option value="">-- Select Vendor --</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-success">💾 Save Material</button>
+                                <button type="button" class="btn btn-secondary" onclick="resetForm()">Values
+                                    Reset</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Materials List -->
+                <div class="card">
+                    <div class="card-header">
+                        <span>Raw Materials Stock</span>
+                        <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+                            <button onclick="openStockAudit()" class="btn btn-warning btn-sm"
+                                data-i18n-key="stock_audit_btn">📋 Stock Audit</button>
+                            <input type="text" id="searchBox" placeholder="Search materials..." style="padding:5px;">
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Unit</th>
+                                    <th>Cost/Unit</th>
+                                    <th>Stock</th>
+                                    <th>Total Value</th>
+                                    <th>Vendor</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script>window.currentPage = 'inventory';</script>
+    <script src="js/shared-nav.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/inventory-app.js"></script>
+    <!-- Stock Audit Modal -->
+    <div id="auditModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 800px; width: 95%;">
+            <h3>Stock Audit (Raw Materials)</h3>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Material</th>
+                            <th>Unit</th>
+                            <th>Recorded Stock</th>
+                            <th>Actual Stock</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody"></tbody>
+                </table>
+            </div>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="saveStockAudit()" class="btn btn-success">✅ Save Changes</button>
+                <button onclick="closeStockAudit()" class="btn btn-danger">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+    <!-- Restock Modal -->
+    <div id="restockModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>➕ Restock Material</h3>
+            <div class="form-group">
+                <input type="hidden" id="restock-id">
+                <p>Current Stock: <span id="restock-current-stock"></span> | Cost: <span
+                        id="restock-current-cost"></span>
+                </p>
+                <label>Quantity to Add:</label>
+                <input type="number" id="restock-qty" class="form-control" step="0.001">
+            </div>
+            <div class="form-group">
+                <label>New Unit Cost:</label>
+                <input type="number" id="restock-cost" class="form-control" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Payment Method:</label>
+                <select id="restock-method" class="form-control">
+                    <option value="credit">Credit (Pay Later)</option>
+                    <option value="cash">Cash (Paid Now)</option>
+                </select>
+            </div>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="confirmRestock()" class="btn btn-success">✅ Confirm Restock</button>
+                <button onclick="document.getElementById('restockModal').style.display='none'" class="btn btn-danger">❌
+                    Cancel</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

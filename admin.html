@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel - POS</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <div class="language-switcher">
+    <button class="lang-btn" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="ar">AR</button>
+  </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Restaurant POS</h2>
+      </div>
+      <nav><!-- Populated by shared-nav.js --></nav>
+
+      <div class="sidebar-footer"
+        style="text-align:center; padding:15px; font-size:0.85em; border-top:1px solid #34495e;">
+        <strong>Tashgheel Services</strong><br>
+        <small style="color:#95a5a6;">powered by itqansolutions © 2025</small><br>
+        <small style="color:#95a5a6;">
+          📧 info@itqansolutions.org<br>
+          📱 +201126522373 / +201155253886
+        </small>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <style>
+        /* Admin Specific Styles */
+        .admin-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          /* Stack vertically */
+          gap: 25px;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+
+        .card {
+          border: none;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+          transition: transform 0.2s;
+        }
+
+        .card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+          padding: 20px;
+          font-size: 1.1rem;
+          color: #2c3e50;
+          border-bottom: 1px solid #edf2f7;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .card-header::before {
+          content: '';
+          display: inline-block;
+          width: 4px;
+          height: 18px;
+          background: #3498db;
+          border-radius: 2px;
+        }
+
+        .form-label {
+          font-weight: 600;
+          color: #555;
+          margin-bottom: 6px;
+          display: block;
+        }
+
+        .form-control {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid #dfe6e9;
+          border-radius: 6px;
+          transition: all 0.3s;
+        }
+
+        .form-control:focus {
+          border-color: #3498db;
+          box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+          outline: none;
+        }
+
+        .permissions-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          gap: 10px;
+          background: #f8f9fa;
+          padding: 15px;
+          border-radius: 8px;
+          border: 1px solid #edf2f7;
+        }
+
+        .permission-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          padding: 5px;
+          border-radius: 4px;
+          transition: background 0.2s;
+        }
+
+        .permission-item:hover {
+          background: #e9ecef;
+        }
+
+        .user-list-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 15px;
+          border-bottom: 1px solid #f1f1f1;
+        }
+
+        .user-list-item:last-child {
+          border-bottom: none;
+        }
+
+        .role-badge {
+          padding: 3px 8px;
+          border-radius: 12px;
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          font-weight: bold;
+        }
+
+        .role-admin {
+          background: #fee2e2;
+          color: #b91c1c;
+        }
+
+        .role-manager {
+          background: #e0e7ff;
+          color: #4338ca;
+        }
+
+        .role-cashier {
+          background: #d1fae5;
+          color: #065f46;
+        }
+      </style>
+
+      <header class="top-bar">
+        <h1 data-i18n="admin_panel">⚙️ Admin Panel</h1>
+
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="welcomeText" data-i18n="welcome">Welcome,</span>
+          <span id="currentUserName" style="font-weight:bold;">User</span>
+          <span id="userRole" class="role-badge" style="background:#e0e7ff; color:#4338ca;">admin</span>
+        </div>
+      </header>
+
+      <section class="content-area">
+        <div class="admin-grid">
+
+          <!-- Shop Settings -->
+          <div class="card">
+            <div class="card-header" data-i18n="shop_settings">🏭 Shop Settings</div>
+            <div class="card-body">
+              <form id="shop-settings-form">
+                <div class="form-group">
+                  <label class="form-label" for="shop-name" data-i18n="shop_name">Shop Name</label>
+                  <input type="text" id="shop-name" class="form-control" required
+                    placeholder="e.g. Tashgheel Restaurant">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="shop-address" data-i18n="shop_address">Address & Phone</label>
+                  <textarea id="shop-address" class="form-control" rows="3"
+                    placeholder="Shop address and contact info..."></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="footer-message" data-i18n="footer_message">Receipt Footer</label>
+                  <input type="text" id="footer-message" class="form-control"
+                    placeholder="e.g. Thank you for your visit!">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Shop Logo</label>
+                  <div style="display:flex; align-items:center; gap:15px;">
+                    <div
+                      style="width:80px; height:80px; border:2px dashed #ddd; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#fafafa;">
+                      <img id="logo-preview" src="" alt="Logo" style="max-width:100%; max-height:100%; display:none;">
+                      <span id="logo-placeholder" style="color:#aaa; font-size:2rem;">📷</span>
+                    </div>
+                    <div style="flex:1;">
+                      <input type="file" id="shop-logo" accept="image/*" class="form-control">
+                      <small style="color:#888;">Recommended: 200x200px PNG or JPG</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top:20px; text-align:right;">
+                  <button class="btn btn-success" type="submit">💾 <span data-i18n="save">Save Settings</span></button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- User Management -->
+          <div class="card">
+            <div class="card-header" data-i18n="user_management">👥 User Management</div>
+            <div class="card-body">
+
+              <!-- Add User Form -->
+              <div
+                style="background:#f8faff; padding:15px; border-radius:8px; border:1px solid #e1e8f0; margin-bottom:20px;">
+                <h4 style="margin:0 0 10px 0; color:#34495e;">Add New User</h4>
+                <form id="user-form">
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                      <label class="form-label" data-i18n="username">Username</label>
+                      <input type="text" id="new-username" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" data-i18n="password">Password</label>
+                      <input type="password" id="new-password" class="form-control" required>
+                    </div>
+                  </div>
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                      <label class="form-label" data-i18n="fullname">Full Name</label>
+                      <input type="text" id="new-fullname" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" data-i18n="role">Role</label>
+                      <select id="user-role-select" class="form-control" onchange="toggleAdminRoleOther()">
+                        <option value="cashier">Cashier</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                        <option value="inventory_manager">Inventory Manager</option>
+                        <option value="technician">Technician</option>
+                        <option value="Other">Other...</option>
+                      </select>
+                      <input type="text" id="user-role-other" class="form-control" placeholder="Enter Custom Role"
+                        style="display:none; margin-top:5px;">
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Page Access / الصلاحيات</label>
+                    <div class="permissions-grid">
+                      <label class="permission-item"><input type="checkbox" name="access" value="pos.html"> POS
+                        Sales</label>
+                      <label class="permission-item"><input type="checkbox" name="access" value="products.html">
+                        Menu</label>
+                      <label class="permission-item"><input type="checkbox" name="access" value="inventory.html">
+                        Inventory</label>
+                      <label class="permission-item"><input type="checkbox" name="access" value="kitchen.html">
+                        Kitchen</label>
+                      <label class="permission-item"><input type="checkbox" name="access" value="customers.html">
+                        Customers</label>
+                      <label class="permission-item"><input type="checkbox" name="access" value="receipts.html">
+                        Receipts</label>
+                      <label class="permission-item"><input type="checkbox" name="access" value="reports.html">
+                        Reports</label>
+                      <label class="permission-item"><input type="checkbox" name="access" value="admin.html">
+                        Admin</label>
+                    </div>
+                  </div>
+
+                  <div style="text-align:right; margin-top:10px;">
+                    <button class="btn btn-primary" type="submit">➕ <span data-i18n="create_user">Create
+                        User</span></button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Users List -->
+              <h4 style="margin:0 0 10px 0; color:#34495e;">Existing Users</h4>
+              <div style="border:1px solid #eee; border-radius:8px; overflow:hidden;">
+                <table class="data-table" style="box-shadow:none; margin:0;">
+                  <thead style="background:#f1f1f1;">
+                    <tr>
+                      <th data-i18n="username">User</th>
+                      <th data-i18n="role">Role</th>
+                      <th style="text-align:right;" data-i18n="actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="user-table-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    Tashgheel POS© 2025 - Designed and developed by <strong>itqan</strong> |
+    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
+  </footer>
+
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/shared-nav.js"></script>
+  <script src="js/translations.js"></script>
+  <script>
+    window.currentPage = 'admin';
+  </script>
+  <script src="js/admin-app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+      if (currentUser?.role === 'cashier') {
+        alert('Access denied');
+        window.location.href = 'pos.html';
+      }
+
+      // Connect Save button to shop settings
+      const saveBtn = document.querySelector('.btn-success, button[type="submit"]');
+      if (saveBtn && saveBtn.textContent.includes('Save')) {
+        saveBtn.onclick = function (e) {
+          e.preventDefault();
+          if (typeof window.saveShopSettings === 'function') {
+            window.saveShopSettings();
+          }
+        };
+      }
+    });
+  </script>
+</body>
+
+</html>

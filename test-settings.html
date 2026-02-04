@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Shop Settings</title>
+</head>
+
+<body>
+    <h1>Shop Settings Test</h1>
+    <div id="output"></div>
+
+    <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+    <script>
+        const output = document.getElementById('output');
+
+        // Check EnhancedSecurity
+        if (window.EnhancedSecurity) {
+            const settings = window.EnhancedSecurity.getSecureData('shop_settings');
+            output.innerHTML += '<h2>EnhancedSecurity Data:</h2>';
+            output.innerHTML += '<pre>' + JSON.stringify(settings, null, 2) + '</pre>';
+        } else {
+            output.innerHTML += '<p>EnhancedSecurity not available</p>';
+        }
+
+        // Check localStorage
+        output.innerHTML += '<h2>LocalStorage Data:</h2>';
+        output.innerHTML += '<p>Shop Name: ' + localStorage.getItem('shopName') + '</p>';
+        output.innerHTML += '<p>Shop Address: ' + localStorage.getItem('shopAddress') + '</p>';
+        output.innerHTML += '<p>Footer Message: ' + localStorage.getItem('footerMessage') + '</p>';
+        output.innerHTML += '<p>Logo: ' + (localStorage.getItem('shopLogo') ? 'Present (' + localStorage.getItem('shopLogo').length + ' chars)' : 'Not set') + '</p>';
+    </script>
+</body>
+
+</html>

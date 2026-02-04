@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n-key="page_title" data-i18n-ar="التقارير">Reports - POS</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/report-app.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+
+<body>
+  <div class="language-switcher">
+    <button class="lang-btn" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="ar">AR</button>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Restaurant POS</h2>
+      </div>
+      <nav><!-- Populated by shared-nav.js --></nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-bar">
+        <h1 data-i18n-key="reports" data-i18n-ar="التقارير">Reports</h1>
+      </header>
+
+      <section class="content-area">
+        <div class="card">
+          <div class="tabs" id="report-tabs">
+            <button class="tab report-tab" data-tab="sales" data-i18n-key="total_sales"
+              data-i18n-ar="إجمالي المبيعات">🧾 Total Sales</button>
+            <button class="tab report-tab" data-tab="visits" data-i18n-key="visits_report"
+              data-i18n-ar="تقرير الزيارات">🔧 Visits</button>
+            <button class="tab report-tab admin-only" data-tab="cogs" data-i18n-key="cogs"
+              data-i18n-ar="تكلفة البضاعة">📦 COGS</button>
+            <button class="tab report-tab admin-only" data-tab="profit" data-i18n-key="profit" data-i18n-ar="الربح">💰
+              Profit</button>
+            <button class="tab report-tab admin-only" data-tab="returns" data-i18n-key="returns"
+              data-i18n-ar="المرتجعات">↩️ Returns</button>
+            <button class="tab report-tab" data-tab="by-product" data-i18n-key="sales_by_product"
+              data-i18n-ar="المبيعات حسب المنتج">📦 Sales by Product</button>
+            <button class="tab report-tab" data-tab="by-category" data-i18n-key="sales_by_category"
+              data-i18n-ar="المبيعات حسب التصنيف">🗂️ Sales by Category</button>
+            <button class="tab report-tab" data-tab="by-user" data-i18n-key="sales_by_user"
+              data-i18n-ar="المبيعات حسب المستخدم">👤 Sales by User</button>
+            <button class="tab report-tab" data-tab="expenses" data-i18n-key="expenses" data-i18n-ar="المصاريف">💸
+              Expenses</button>
+            <button class="tab report-tab admin-only" data-tab="stock-value" data-i18n-key="stock_value"
+              data-i18n-ar="تكلفة المخزون">🏷️ Stock Value</button>
+
+          </div>
+
+          <div class="form-inline-group mt-20">
+            <div class="form-group">
+              <label for="from-date" data-i18n-key="from" data-i18n-ar="من">From:</label>
+              <input type="date" id="from-date">
+            </div>
+            <div class="form-group">
+              <label for="to-date" data-i18n-key="to" data-i18n-ar="إلى">To:</label>
+              <input type="date" id="to-date">
+            </div>
+          </div>
+
+          <div class="report-cards mt-20">
+            <div class="report-card" id="card-sales">
+              <div class="report-title">🧾 <span data-i18n-key="total_sales" data-i18n-ar="إجمالي المبيعات">Total
+                  Sales</span></div>
+              <div class="report-summary">
+                <div><strong>💵 <span data-i18n-key="cash_sales" data-i18n-ar="مبيعات نقدية">Cash Sales:</span></strong>
+                  <span id="total-sales-cash">0.00 EGP</span>
+                </div>
+                <div><strong>💳 <span data-i18n-key="card_sales" data-i18n-ar="مبيعات كارت">Card Sales:</span></strong>
+                  <span id="total-sales-card">0.00 EGP</span>
+                </div>
+                <div><strong>📱 <span data-i18n-key="mobile_sales" data-i18n-ar="مبيعات موبايل">Mobile
+                      Sales:</span></strong> <span id="total-sales-mobile">0.00 EGP</span></div>
+                <div><strong>🔻 <span data-i18n-key="total_discounts" data-i18n-ar="إجمالي الخصومات">Total
+                      Discounts:</span></strong> <span id="total-discounts">0.00 EGP</span></div>
+              </div>
+            </div>
+
+            <div class="report-card" id="card-visits" style="display:none;">
+              <div class="report-title">🔧 <span data-i18n-key="visits_report" data-i18n-ar="تقرير الزيارات">Visits
+                  Report</span></div>
+              <div class="report-summary">
+                <div><strong>🔢 <span data-i18n-key="visits_count" data-i18n-ar="عدد الزيارات">Visits
+                      Count:</span></strong> <span id="visits-count">0</span></div>
+                <div><strong>💵 <span data-i18n-key="visits_price" data-i18n-ar="إجمالي الزيارات">Visits
+                      Price:</span></strong> <span id="visits-price">0.00 EGP</span></div>
+              </div>
+              <table class="report-table" id="table-visits"></table>
+            </div>
+
+            <div class="report-card admin-only" id="card-cogs" style="display:none;">
+              <div class="report-title">📦 <span data-i18n-key="cogs" data-i18n-ar="تكلفة البضاعة">COGS</span></div>
+              <div id="total-cogs"></div>
+            </div>
+
+            <div class="report-card admin-only" id="card-profit" style="display:none;">
+              <div class="report-title">💰 <span data-i18n-key="profit" data-i18n-ar="الربح">Profit</span></div>
+              <div id="total-profit"></div>
+            </div>
+
+            <div class="report-card admin-only" id="card-returns" style="display:none;">
+              <div class="report-title">↩️ <span data-i18n-key="returns" data-i18n-ar="المرتجعات">Returns</span></div>
+              <div id="total-returns"></div>
+            </div>
+
+            <div class="report-card" id="card-by-product" style="display: none;">
+              <div class="report-title" data-i18n-key="sales_by_product" data-i18n-ar="المبيعات حسب المنتج">📦 Sales by
+                Product</div>
+              <div class="export-buttons">
+                <button onclick="exportTableToExcel('table-by-product')">📊 Excel</button>
+                <button onclick="exportTableToPDF('table-by-product')">📄 PDF</button>
+              </div>
+              <table class="report-table" id="table-by-product"></table>
+            </div>
+
+            <div class="report-card" id="card-by-category" style="display: none;">
+              <div class="report-title" data-i18n-key="sales_by_category" data-i18n-ar="المبيعات حسب التصنيف">🗂️ Sales
+                by Category</div>
+              <div class="export-buttons">
+                <button onclick="exportTableToExcel('table-by-category')">📊 Excel</button>
+                <button onclick="exportTableToPDF('table-by-category')">📄 PDF</button>
+              </div>
+              <table class="report-table" id="table-by-category"></table>
+            </div>
+
+            <div class="report-card" id="card-by-user" style="display: none;">
+              <div class="report-title" data-i18n-key="sales_by_user" data-i18n-ar="المبيعات حسب المستخدم">👤 Sales by
+                User</div>
+              <div class="export-buttons">
+                <button onclick="exportTableToExcel('table-by-user')">📊 Excel</button>
+                <button onclick="exportTableToPDF('table-by-user')">📄 PDF</button>
+              </div>
+              <table class="report-table" id="table-by-user"></table>
+            </div>
+
+            <div class="report-card" id="card-expenses" style="display: none;">
+              <div class="report-title" data-i18n-key="expenses_report" data-i18n-ar="تقرير المصاريف">💸 Expenses Report
+              </div>
+              <div class="export-buttons">
+                <button onclick="exportTableToExcel('table-expenses')">📊 Excel</button>
+                <button onclick="exportTableToPDF('table-expenses')">📄 PDF</button>
+              </div>
+              <div class="report-summary">
+                <div><strong><span data-i18n-key="total_expenses" data-i18n-ar="إجمالي المصاريف">Total
+                      Expenses:</span></strong> <span id="total-expenses-amount">0.00 EGP</span></div>
+              </div>
+              <table class="report-table" id="table-expenses"></table>
+            </div>
+          </div>
+
+          <!-- === تكلفة المخزون === -->
+          <div class="report-card admin-only" id="card-stock-value" style="display:none;">
+            <div class="report-title">🏷️ <span data-i18n-key="stock_value" data-i18n-ar="تكلفة المخزون">Stock
+                Value</span></div>
+            <div class="export-buttons">
+              <button onclick="exportTableToExcel('table-stock-value')">📊 Excel</button>
+              <button onclick="exportTableToPDF('table-stock-value')">📄 PDF</button>
+            </div>
+            <table class="report-table" id="table-stock-value"></table>
+          </div>
+
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    Tashgheel POS© 2025</strong> |
+    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
+    <span id="footerText">Designed and developed by itqan</span>
+  </footer>
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script>window.currentPage = 'reports';</script>
+  <script src="js/shared-nav.js"></script>
+  <script src="js/translations.js"></script>
+  <script src="js/reports-app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+      if (currentUser?.role === 'cashier') {
+        alert('Access denied');
+        window.location.href = 'pos.html';
+      }
+    });
+  </script>
+  <script>
+    // setLanguage is now handled by js/translations.js
+  </script>
+
+</body>
+
+</html>

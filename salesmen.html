@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title data-i18n-key="employees_management">Salesmen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/salesmen-app.css">
+  <link rel="stylesheet" href="css/payroll.css">
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/translations.js"></script>
+  <!-- Main Logic -->
+  <script src="js/salesmen-app.js" defer></script>
+  <script>window.currentPage = 'salesmen';</script>
+  <script src="js/shared-nav.js" defer></script>
+</head>
+
+<body>
+  <div class="language-switcher">
+    <button class="lang-btn" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="ar">AR</button>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Restaurant POS</h2>
+      </div>
+      <nav><!-- Populated by shared-nav.js --></nav>
+
+      <div class="sidebar-footer"
+        style="text-align:center; padding:15px; font-size:0.85em; border-top:1px solid #34495e;">
+        <strong>Tashgheel Services</strong><br>
+        <small style="color:#95a5a6;">powered by itqansolutions © 2025</small><br>
+        <small style="color:#95a5a6;">
+          📧 info@itqansolutions.org<br>
+          📱 +201126522373 / +201155253886
+        </small>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-bar">
+        <h1 data-i18n-key="employees_management">👔 Employees Management</h1>
+      </header>
+
+      <section class="content-area">
+
+        <!-- Tabs Navigation -->
+        <div class="tabs-nav">
+          <button class="tab-btn active" data-tab="tab-staff" data-i18n-key="tab_staff">👥 Staff Management</button>
+          <button class="tab-btn" data-tab="tab-attendance" data-i18n-key="attendance">📅 Attendance (Daily)</button>
+          <button class="tab-btn" data-tab="tab-targets" data-i18n-key="targets">🎯 Targets</button>
+          <button class="tab-btn" data-tab="tab-financials" data-i18n-key="financials">💰 Financials
+            (Deductions/Bonus)</button>
+          <button class="tab-btn" data-tab="tab-payroll" data-i18n-key="tab_payroll">🧾 Payroll Processing</button>
+        </div>
+
+        <!-- TAB 1: Staff Management -->
+        <div id="tab-staff" class="tab-content active">
+          <div class="card">
+            <div class="card-header">
+              <h3 data-i18n-key="employee_master_data">Employee Master Data</h3>
+              <button class="btn btn-primary" onclick="openEmployeeModal()" data-i18n-key="add_new_employee">➕ Add New
+                Employee</button>
+            </div>
+            <div class="card-body">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th data-i18n-key="name">Name</th>
+                    <th data-i18n-key="role">Role</th>
+                    <th data-i18n-key="base_salary_monthly">Base Salary</th>
+                    <th data-i18n-key="shift_hours_day">Shift Hours</th>
+                    <th data-i18n-key="phone">Mobile</th>
+                    <th data-i18n-key="actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="employees-table-body">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: Attendance -->
+        <div id="tab-attendance" class="tab-content">
+          <div class="card">
+            <div class="card-header" style="justify-content: flex-start; gap: 20px;">
+              <h3 data-i18n-key="daily_attendance">Daily Attendance</h3>
+              <input type="date" id="attendance-date" class="form-control" style="width: auto;">
+              <button class="btn btn-secondary" onclick="loadAttendanceForDate()" data-i18n-key="load_attendance">🔄
+                Load</button>
+            </div>
+            <div class="card-body">
+              <p class="hint-text" data-i18n-key="attendance_hint">Enter <strong>Actual Hours</strong> worked. System
+                calculates Overtime/Shortage
+                automatically.</p>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th data-i18n-key="employee">Employee</th>
+                    <th data-i18n-key="expected_hours">Shift Hours (Expected)</th>
+                    <th data-i18n-key="actual_hours">Actual Hours</th>
+                    <th data-i18n-key="diff">Difference</th>
+                    <th data-i18n-key="status">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="attendance-table-body">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+              <div style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-success" onclick="saveAttendance()" data-i18n-key="save_attendance">💾 Save Daily
+                  Attendance</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2a: Targets -->
+        <div id="tab-targets" class="tab-content">
+          <div class="card">
+            <div class="card-header">
+              <h3 data-i18n-key="monthly_targets">Monthly Sales Targets</h3>
+              <div style="display:flex; gap:10px;">
+                <input type="month" id="targets-month-picker" onchange="loadTargetsTable()">
+                <button class="btn btn-success" onclick="saveTargets()" data-i18n-key="save">💾 Save Targets</button>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th data-i18n-key="employee">Employee</th>
+                  <th data-i18n-key="target_egp">Values (EGP)</th>
+                </tr>
+              </thead>
+              <tbody id="targets-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 3: Financials -->
+        <div id="tab-financials" class="tab-content">
+          <div class="card">
+            <div class="card-header">
+              <h3 data-i18n-key="add_transaction">Add Deduction / Bonus</h3>
+            </div>
+            <div class="card-body">
+              <form id="financial-form" class="form-grid">
+                <div class="form-group">
+                  <label data-i18n-key="employee">Employee</label>
+                  <select id="fin-employee" required></select>
+                </div>
+                <div class="form-group">
+                  <label data-i18n-key="category">Type</label>
+                  <select id="fin-type" required>
+                    <option value="deduction" data-i18n-key="deduction">🔴 Deduction (Loan/Advance)</option>
+                    <option value="bonus" data-i18n-key="bonus">🟢 Bonus / Reward</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label data-i18n-key="amount">Amount</label>
+                  <input type="number" id="fin-amount" min="1" step="0.5" required>
+                </div>
+                <div class="form-group">
+                  <label data-i18n-key="date">Date</label>
+                  <input type="date" id="fin-date" required>
+                </div>
+                <div class="form-group" style="grid-column: 1/-1">
+                  <label data-i18n-key="reason_note">Reason / Note</label>
+                  <input type="text" id="fin-reason">
+                </div>
+                <div class="form-group">
+                  <button type="submit" class="btn btn-warning" data-i18n-key="add_transaction_btn">➕ Add
+                    Transaction</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card mt-20">
+            <h3 data-i18n-key="transaction_history">Transaction History (Current Month)</h3>
+            <div class="filters" style="margin-bottom: 10px;">
+              <select id="hist-month"></select>
+              <select id="hist-year"></select>
+              <button class="btn btn-sm btn-secondary" onclick="loadFinancialHistory()"
+                data-i18n-key="filter">Filter</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th data-i18n-key="date">Date</th>
+                  <th data-i18n-key="employee">Employee</th>
+                  <th data-i18n-key="category">Type</th>
+                  <th data-i18n-key="amount">Amount</th>
+                  <th data-i18n-key="description">Reason</th>
+                  <th data-i18n-key="actions">Action</th>
+                </tr>
+              </thead>
+              <tbody id="financials-history-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 4: Payroll Processing -->
+        <div id="tab-payroll" class="tab-content">
+          <div class="card">
+            <div class="card-header">
+              <h3 data-i18n-key="monthly_payroll">Monthly Payroll Processing</h3>
+              <div style="display:flex; gap:10px;">
+                <select id="payroll-month"></select>
+                <select id="payroll-year"></select>
+                <button class="btn btn-primary" onclick="calculatePayrollPreview()" data-i18n-key="calc_preview">📊
+                  Calculate Preview</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <!-- Data for Print Header -->
+              <div id="print-header">
+                <h1>Tashgheel Restaurant</h1>
+                <h2>Payroll Report / تقرير الرواتب</h2>
+                <p id="print-date"></p>
+              </div>
+
+              <div id="payroll-status-banner" class="alert hidden"></div>
+
+              <table class="data-table payroll-table">
+                <thead>
+                  <tr>
+                    <th data-i18n-key="employee">Employee</th>
+                    <th data-i18n-key="base_salary_monthly">Base Salary</th>
+                    <!-- Merged Hours -->
+                    <th data-i18n-key="actual_hours">Actual Hours</th>
+                    <th data-i18n-key="hour_diff">Diff (Amt)</th>
+
+                    <th data-i18n-key="deductions">Deductions</th>
+                    <th data-i18n-key="bonuses">Bonuses</th>
+                    <th data-i18n-key="sales_achieved">Achieved Sales</th>
+
+                    <th data-i18n-key="final_salary">FINAL SALARY</th>
+                  </tr>
+                </thead>
+                <tbody id="payroll-preview-body"></tbody>
+              </table>
+
+              <div class="payroll-actions" style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-danger" id="btn-close-payroll" onclick="closePayrollPeriod()"
+                  data-i18n-key="close_period_btn">🔒 Close Period &
+                  Finalize</button>
+                <button class="btn btn-secondary" onclick="printPayrollReport()" data-i18n-key="print_report_btn">🖨️
+                  Print Report</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Employee Modal -->
+      <div id="employee-modal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 data-i18n-key="employee_details">Employee Details</h2>
+            <span class="close-modal" onclick="closeEmployeeModal()">&times;</span>
+          </div>
+          <form id="employee-form" class="form-grid">
+            <input type="hidden" id="emp-id">
+            <div class="form-group">
+              <label data-i18n-key="fullname">Full Name</label>
+              <input type="text" id="emp-name" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n-key="role">Role</label>
+              <select id="emp-role-select" onchange="toggleRoleOther()"
+                style="width:100%; padding:8px; margin-bottom:5px;">
+                <option value="Manager">Manager</option>
+                <option value="Cashier">Cashier</option>
+                <option value="Waiter">Waiter</option>
+                <option value="Delivery Man">Delivery Man</option>
+                <option value="Chef">Chef</option>
+                <option value="Other">Other...</option>
+              </select>
+              <input type="text" id="emp-role-other" placeholder="Enter Role" style="display:none; margin-top:5px;">
+            </div>
+            <div class="form-group">
+              <label>Linked System User</label>
+              <select id="emp-user-link" style="width:100%; padding:8px;">
+                <option value="">-- None --</option>
+                <!-- Populated by JS -->
+              </select>
+              <small style="color:#666;">Links this employee to a login account.</small>
+            </div>
+            <div class="form-group">
+              <label data-i18n-key="national_id">National ID</label>
+              <input type="text" id="emp-nid">
+            </div>
+            <div class="form-group">
+              <label data-i18n-key="phone">Phone</label>
+              <input type="text" id="emp-phone">
+            </div>
+            <div class="form-group">
+              <label data-i18n-key="base_salary_monthly">Base Salary (Monthly)</label>
+              <input type="number" id="emp-salary" min="0" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n-key="working_days_month">Working Days/Month</label>
+              <input type="number" id="emp-days" value="26" min="1" max="31" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n-key="shift_hours_day">Shift Hours/Day</label>
+              <input type="number" id="emp-hours" value="9" min="1" max="24" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n-key="address">Address</label>
+              <input type="text" id="emp-address">
+            </div>
+            <div class="form-group" style="grid-column:1/-1; margin-top:20px;">
+              <button type="submit" class="btn btn-success" style="width:100%" data-i18n-key="save">Save
+                Employee</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    Tashgheel Restaurant© 2025</strong> |
+    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
+    <span id="footerText">Designed and developed by itqan</span>
+  </footer>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+      // Waiters shouldn't see confidential data, but Managers/Admin should.
+      if (currentUser?.role === 'cashier' || currentUser?.role === 'waiter') {
+        alert('Access denied');
+        window.location.href = 'pos.html';
+      }
+    });
+  </script>
+
+</body>
+
+</html>
