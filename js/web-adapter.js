@@ -33,7 +33,9 @@
         }
 
         try {
-            const response = await fetch(API_BASE + path, fetchOptions);
+            // Ensure path starts with /
+            const safePath = path.startsWith('/') ? path : '/' + path;
+            const response = await fetch(API_BASE + safePath, fetchOptions);
 
             if (!response.ok) {
                 const text = await response.text();
