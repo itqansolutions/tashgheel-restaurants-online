@@ -265,7 +265,7 @@
             try {
                 const branchId = localStorage.getItem('activeBranchId');
                 if (!branchId || branchId === 'bypass') {
-                    console.warn('⚠️ listDataFiles skipped: No active branch selected.');
+                    console.warn('⚠️ listDataFiles skipped: No valid active branch selected (found:', branchId, ')');
                     return [];
                 }
 
