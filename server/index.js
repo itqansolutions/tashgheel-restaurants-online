@@ -14,12 +14,15 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
+const mongoUri = (process.env.MONGO_URI || '').trim().replace(/[\r\n]/g, '');
 console.log('Attempting to connect to MongoDB...');
-if (!process.env.MONGO_URI) {
+if (!mongoUri) {
     console.error('CRITICAL: MONGO_URI is not defined in environment variables!');
+} else {
+    console.log('URI detected (first 15 chars):', mongoUri.substring(0, 15) + '...');
 }
 
-mongoose.connect(process.env.MONGO_URI || '')
+mongoose.connect(mongoUri)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => {
         console.error('❌ MongoDB Connection Error:');
