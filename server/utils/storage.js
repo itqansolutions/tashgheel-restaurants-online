@@ -2,16 +2,19 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 // Models
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
+const Data = require('../models/Data');
 
 const DATA_DIR = path.join(__dirname, '../data');
 
-// Mode Check
-const IS_MONGO = !!process.env.MONGO_URI;
+// Mode Check - Normalize URI as in index.js to prevent "flickering" between file and mongo
+const rawUri = process.env.MONGO_URI || '';
+const MONGO_URI = rawUri.trim().replace(/[\r\n]/g, '');
+const IS_MONGO = !!MONGO_URI;
 
 // Ensure data directory exists (for hybrid or fallback)
 async function ensureDataDir() {
@@ -24,11 +27,11 @@ async function ensureDataDir() {
 
 // Connect to MongoDB if URI is present
 if (IS_MONGO) {
-    mongoose.connect(process.env.MONGO_URI, {
+    mongoose.connect(MONGO_URI, {
         useNewUrlParser: true,
         useUnifiedTopology: true
     })
-        .then(() => console.log('✅ MongoDB Connected'))
+        .then(() => console.log('✅ MongoDB Connected (Storage Logic Active)'))
         .catch(err => console.error('❌ MongoDB Connection Error:', err));
 }
 
@@ -46,7 +49,16 @@ function getFilePath(key, tenantId) {
 // Low-level: Write data to file or Mongo (key-value generic)
 async function saveData(key, data, tenantId) {
     if (IS_MONGO) {
-        // ... (can be extended to a generic collection)
+        try {
+            const tid = tenantId || 'global';
+            await Data.findOneAndUpdate(
+                { key, tenantId: tid },
+                { value: data, updatedAt: new Date() },
+                { upsert: true, new: true }
+            );
+        } catch (err) {
+            console.error('Mongo SaveData Error:', err);
+        }
     }
 
     await ensureDataDir();
@@ -58,6 +70,16 @@ async function saveData(key, data, tenantId) {
 
 // Low-level: Read data from file
 async function readData(key, tenantId) {
+    if (IS_MONGO) {
+        try {
+            const tid = tenantId || 'global';
+            const doc = await Data.findOne({ key, tenantId: tid });
+            if (doc) return typeof doc.value === 'string' ? doc.value : JSON.stringify(doc.value);
+        } catch (err) {
+            console.error('Mongo ReadData Error:', err);
+        }
+    }
+
     const filePath = getFilePath(key, tenantId);
     try {
         const data = await fs.readFile(filePath, 'utf8');

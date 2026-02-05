@@ -909,14 +909,13 @@ function changePassword(currentPassword, newPassword, confirmPassword) {
 
 // Check if user session is valid
 function isSessionValid() {
-    // First check if system is activated
-    if (!EnhancedSecurity.isSystemActivated()) {
-        return false;
-    }
-
     var currentUser = getCurrentUser();
     if (!currentUser) return false;
 
+    // 🚀 SaaS/API Mode: If we have an API token, the session is managed by the server
+    if (currentUser.token) return true;
+
+    // Legacy File Mode: Cross-reference with local users.json
     var users = getUsers();
     for (var i = 0; i < users.length; i++) {
         if (users[i].id === currentUser.id && users[i].active === true) {
@@ -924,7 +923,7 @@ function isSessionValid() {
         }
     }
 
-    logout();
+    // Default: Invalid session
     return false;
 }
 
@@ -980,20 +979,25 @@ function enforcePagePermissions() {
     let sessionUser = getCurrentUser();
     if (!sessionUser) return; // Login page handles this
 
-    // 1. Refresh permissions from Source of Truth (in case admin changed them while user is logged in)
-    try {
-        const allUsers = getUsers();
-        const freshUser = allUsers.find(u => u.id === sessionUser.id);
-
-        if (freshUser) {
-            // Update session user with latest role and permissions
-            sessionUser = { ...sessionUser, ...freshUser };
-        } else {
-            // User deleted? Logout
-            logout();
-            return;
-        }
-    } catch (e) { console.error('Error refreshing user permissions', e); }
+    // 1. Refresh permissions
+    // 🚀 SaaS/API Mode: Trust the bearer token session
+    if (sessionUser.token) {
+        // Token session exists, we don't strictly need to find them in local users.json
+        // But we ensure sessionUser is up to date.
+        // Skip the local find() that triggers logout
+    } else {
+        // Legacy File Mode: Find in local users.json
+        try {
+            const allUsers = getUsers();
+            const freshUser = allUsers.find(u => u.id === sessionUser.id);
+            if (freshUser) {
+                sessionUser = { ...sessionUser, ...freshUser };
+            } else {
+                logout();
+                return;
+            }
+        } catch (e) { console.error('Error refreshing user permissions', e); }
+    }
 
     if (sessionUser.role === 'admin') return; // Admins see everything
 
