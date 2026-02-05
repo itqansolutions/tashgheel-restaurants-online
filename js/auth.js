@@ -643,12 +643,12 @@ async function login(username, password) {
             token: token
         };
 
-        // Persist session to file/storage
-        await EnhancedSecurity.storeSecureData('session', sessionUser);
-
         // Store Token for Web Adapter (Tenant Isolation)
         localStorage.setItem('auth_token', token);
         localStorage.setItem('tenant_id', user.tenantId);
+
+        // Persist session to file/storage
+        await EnhancedSecurity.storeSecureData('session', sessionUser);
 
         return true;
 
