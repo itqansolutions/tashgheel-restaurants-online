@@ -264,6 +264,7 @@
         listDataFiles: async () => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
+                console.log('🔍 listDataFiles: activeBranchId =', branchId); // Debug Log
                 if (!branchId || branchId === 'bypass') {
                     console.warn('⚠️ listDataFiles skipped: No valid active branch selected (found:', branchId, ')');
                     return [];
