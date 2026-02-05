@@ -1160,6 +1160,25 @@ function enforcePagePermissions() {
     // 2. Check current page access
     const path = window.location.pathname.split('/').pop().toLowerCase(); // Normalize
 
+    // 🚀 FIX: if allowedPages is empty (not SENT from backend), derive from Role
+    if (!sessionUser.allowedPages || sessionUser.allowedPages.length === 0) {
+        const ROLE_DEFAULTS = {
+            'manager': ['pos.html', 'dashboard.html', 'products.html', 'inventory.html', 'vendors.html', 'reports.html', 'expenses.html', 'customers.html', 'visits.html', 'salesmen.html', 'register.html', 'backup.html'],
+            'inventory_manager': ['products.html', 'inventory.html', 'vendors.html', 'expenses.html', 'dashboard.html'],
+            'cashier': ['pos.html', 'customers.html', 'dashboard.html'],
+            'technician': ['visits.html', 'upcoming-visits.html', 'customers.html', 'dashboard.html'],
+            'salesman': ['pos.html', 'customers.html', 'dashboard.html']
+        };
+        const roleKey = (sessionUser.role || '').toLowerCase();
+        sessionUser.allowedPages = ROLE_DEFAULTS[roleKey] || [];
+        // If still empty and role exists, maybe give basic access?
+        if (sessionUser.allowedPages.length === 0 && roleKey) {
+            // Fallback: if role is unknown but not admin, they might be stuck. 
+            // Assume they can access POS at least.
+            sessionUser.allowedPages = ['pos.html'];
+        }
+    }
+
     // Default to empty array if undefined
     const allowed = (sessionUser.allowedPages || []).map(p => p.toLowerCase());
 
