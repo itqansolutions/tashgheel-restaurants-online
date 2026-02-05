@@ -56,7 +56,10 @@
         ensureDataDir: async () => {
             await fetch(`${API_BASE}/utils/ensure-data-dir`, {
                 method: 'POST',
-                headers: { 'x-auth-token': localStorage.getItem('auth_token') }
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-branch-id': localStorage.getItem('activeBranchId')
+                }
             });
             return true;
         },
@@ -68,7 +71,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-auth-token': localStorage.getItem('auth_token')
+                        'x-branch-id': localStorage.getItem('activeBranchId')
                     },
                     body: JSON.stringify({ key: cleanKey, value: value })
                 });
@@ -83,12 +86,105 @@
             try {
                 const cleanKey = key.replace('.json', '');
                 const response = await fetch(`${API_BASE}/data/read/${cleanKey}`, {
-                    headers: { 'x-auth-token': localStorage.getItem('auth_token') }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-branch-id': localStorage.getItem('activeBranchId')
+                    }
                 });
                 if (!response.ok) return null;
                 const text = await response.text();
                 return text || null;
             } catch (e) { console.error("readData error", e); return null; }
+        },
+
+        // Sales Specific Operation
+        saveSale: async (sale) => {
+            try {
+                const response = await fetch(`${API_BASE}/sales`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-branch-id': localStorage.getItem('activeBranchId')
+                    },
+                    body: JSON.stringify(sale)
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Sale failed');
+                return { success: true, id: result.id };
+            } catch (err) { return { success: false, error: err }; }
+        },
+
+        // Inventory Operation
+        updateStock: async (productId, qty) => {
+            try {
+                const response = await fetch(`${API_BASE}/inventory/set`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-branch-id': localStorage.getItem('activeBranchId')
+                    },
+                    body: JSON.stringify({ productId, qty }) // Changed from id to productId for clarity in backend
+                });
+                const result = await response.json();
+                return result;
+            } catch (err) { return { success: false, error: err }; }
+        },
+
+        // Reporting
+        getLiveReport: async () => {
+            try {
+                const response = await fetch(`${API_BASE}/reports/live`, {
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                });
+                return await response.json();
+            } catch (err) { return null; }
+        },
+
+        getSalesHistory: async (filters = {}) => {
+            try {
+                const params = new URLSearchParams(filters).toString();
+                const response = await fetch(`${API_BASE}/reports/history?${params}`, {
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                });
+                return await response.json();
+            } catch (err) { return { sales: [], total: 0 }; }
+        },
+
+        getCurrentShift: async () => {
+            try {
+                const response = await fetch(`${API_BASE}/shifts/current`, {
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                });
+                return await response.json();
+            } catch (err) { return null; }
+        },
+
+        openShift: async (openingCash) => {
+            try {
+                const response = await fetch(`${API_BASE}/shifts/open`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-branch-id': localStorage.getItem('activeBranchId')
+                    },
+                    body: JSON.stringify({ openingCash })
+                });
+                return await response.json();
+            } catch (err) { return { error: err.message }; }
+        },
+
+        closeShift: async (shiftId, closingCash) => {
+            try {
+                const response = await fetch(`${API_BASE}/shifts/close`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-branch-id': localStorage.getItem('activeBranchId')
+                    },
+                    body: JSON.stringify({ shiftId, closingCash, notes })
+                });
+                return await response.json();
+            } catch (err) { return { error: err.message }; }
         },
 
         // Aliases
@@ -104,7 +200,10 @@
         listDataFiles: async () => {
             try {
                 const response = await fetch(`${API_BASE}/data/list`, {
-                    headers: { 'x-auth-token': localStorage.getItem('auth_token') }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-branch-id': localStorage.getItem('activeBranchId')
+                    }
                 });
                 if (!response.ok) return [];
                 return await response.json();

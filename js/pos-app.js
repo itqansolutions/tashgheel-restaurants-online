@@ -3,6 +3,7 @@ let allProducts = [];
 let filteredProducts = [];
 let cart = [];
 let currentDiscountIndex = null;
+let currentShift = null;
 
 // Translation Helper using global translations
 const t = (key) => {
@@ -50,6 +51,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   updateCartSummary();
   loadTables();
   toggleOrderType(); // Set initial state
+
+  // 🚀 Shift Check (Mandatory for SaaS)
+  checkShift();
 });
 
 function bindSearchOnce() {
@@ -80,9 +84,132 @@ function ensureSearchClickable() {
 
 // Exposed for HTML access
 window.closeDay = function () {
-  printDailySummary();
-  document.getElementById('closeDayModal').style.display = 'flex';
+  const modal = document.getElementById('closeDayModal');
+  if (modal) modal.style.display = 'flex';
 };
+
+// ===================== SHIFT MANAGEMENT =====================
+
+async function checkShift() {
+  const result = await window.electronAPI.getCurrentShift();
+  if (result && result.shift) {
+    currentShift = result.shift;
+    updateShiftUI();
+  } else {
+    document.getElementById('openShiftModal').style.display = 'flex';
+  }
+}
+
+function updateShiftUI() {
+  if (!currentShift) return;
+
+  const banner = document.getElementById('shiftBanner');
+  const timeEl = document.getElementById('shiftOpenTime');
+  const cashEl = document.getElementById('shiftCashDisplay');
+
+  if (banner) banner.style.display = 'block';
+  if (timeEl) {
+    const d = new Date(currentShift.openedAt);
+    timeEl.textContent = `Opened: ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  updateShiftCashDisplay();
+}
+
+function updateShiftCashDisplay() {
+  const cashEl = document.getElementById('shiftCashDisplay');
+  if (cashEl && currentShift) {
+    // Note: This is an estimated running total, backend is source of truth on close
+    // We can fetch live stats if needed, but for now showing opening cash
+    cashEl.textContent = `${currentShift.openingCash.toFixed(2)} EGP (Base)`;
+  }
+}
+
+async function confirmOpenShift() {
+  const openingCash = parseFloat(document.getElementById('openingCashInput').value || 0);
+  const result = await window.electronAPI.openShift(openingCash);
+
+  if (result && result.success) {
+    currentShift = result.shift;
+    document.getElementById('openShiftModal').style.display = 'none';
+    updateShiftUI();
+  } else {
+    alert(result?.error || 'Failed to open shift');
+  }
+}
+
+async function closeShiftFlow() {
+  if (!currentShift) return;
+
+  // Fetch latest stats for this shift before showing modal
+  // For simplicity, we can let the close API handle aggregation, 
+  // but to show "Expected" in the UI, we need a quick fetch.
+  const statsResult = await window.electronAPI.getCurrentShift(); // Refresh instance
+  if (!statsResult?.shift) return;
+
+  const s = statsResult.shift;
+  document.getElementById('statOpeningCash').textContent = s.openingCash.toFixed(2);
+
+  // We'll calculate Expected based on current session if available, 
+  // or add a 'getShiftStats' endpoint. For now, we'll use a placeholder or zero.
+  // IDEAL: Backend should provide 'currentTotals' in getCurrentShift()
+  const cashSales = s.totals?.cashTotal || 0;
+  document.getElementById('statNetSales').textContent = cashSales.toFixed(2);
+
+  const expected = s.openingCash + cashSales;
+  document.getElementById('statExpectedCash').textContent = `${expected.toFixed(2)} EGP`;
+
+  document.getElementById('closeShiftModal').style.display = 'flex';
+  document.getElementById('closingCashInput').value = '';
+  document.getElementById('diffHighlight').style.display = 'none';
+}
+
+function calculateShiftDiff() {
+  const expectedText = document.getElementById('statExpectedCash').textContent;
+  const expected = parseFloat(expectedText.replace(/[^0-9.]/g, ''));
+  const actual = parseFloat(document.getElementById('closingCashInput').value || 0);
+
+  const diff = actual - expected;
+  const diffEl = document.getElementById('statDiff');
+  const highlight = document.getElementById('diffHighlight');
+
+  diffEl.textContent = `${diff.toFixed(2)} EGP`;
+  highlight.style.display = 'block';
+
+  if (diff === 0) {
+    highlight.style.background = '#e8f5e9';
+    highlight.style.color = '#2e7d32';
+  } else if (diff > 0) {
+    highlight.style.background = '#e3f2fd';
+    highlight.style.color = '#1565c0';
+    diffEl.textContent = `+${diff.toFixed(2)} EGP (Overage)`;
+  } else {
+    highlight.style.background = '#ffebee';
+    highlight.style.color = '#c62828';
+    diffEl.textContent = `${diff.toFixed(2)} EGP (Shortage)`;
+  }
+}
+
+async function confirmCloseShift() {
+  if (!confirm('Are you sure you want to close your shift? This will log you out.')) return;
+
+  const closingCashInput = document.getElementById('closingCashInput');
+  const closingNotesInput = document.getElementById('closingNotesInput');
+
+  const closingCash = parseFloat(closingCashInput?.value || 0);
+  const notes = closingNotesInput?.value || "";
+
+  const result = await window.electronAPI.closeShift(currentShift._id, closingCash, notes);
+
+  if (result && result.success) {
+    alert('Shift closed successfully! Difference: ' + result.shift.difference.toFixed(2));
+    // Logout or redirect to branch picker
+    localStorage.removeItem('activeBranchId');
+    window.location.href = 'index.html';
+  } else {
+    alert(result?.error || 'Failed to close shift');
+  }
+}
+
 
 let currentCategory = 'All';
 
@@ -1056,24 +1183,21 @@ function processSale(method) {
   };
 
   // Stock Deduction Logic
+  // 🚀 MOVED TO BACKEND (SaaS Phase 3)
+  /*
   cart.forEach(item => {
-    // 1. Deduct Main Item
-    processStockDeduction(item.product_id, item.qty, item.sizeId);
+      // 1. Deduct Main Item
+      processStockDeduction(item.product_id, item.qty, item.sizeId);
 
-    // 2. Deduct Add-ons
-    if (item.addons && item.addons.length > 0) {
-      item.addons.forEach(addon => {
-        // Addons are also Products/Parts
-        // We assume 1 qty of addon per parent item qty? Or defined in selection?
-        // Logic above set qty:1 per selection.
-        // If I buy 2 Burgers, and selected "Extra Cheese", I expect 2 Extra Cheeses?
-        // CURRENT IMPLEMENTATION: item.addons is the CONFIGURATION for a single unit of item.
-        // So for "Burger x 2" with "Extra Cheese", we need to deduct 2 Extra Cheeses.
-
-        processStockDeduction(addon.id, item.qty * addon.qty, null);
-      });
-    }
+      // 2. Deduct Add-ons
+      if (item.addons && item.addons.length > 0) {
+          item.addons.forEach(addon => {
+              processStockDeduction(addon.id, item.qty * addon.qty, null);
+          });
+      }
   });
+  */
+
 
   // Save Sale
   window.DB.saveSale(sale);

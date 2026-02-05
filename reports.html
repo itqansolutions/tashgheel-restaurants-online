@@ -35,6 +35,8 @@
       <section class="content-area">
         <div class="card">
           <div class="tabs" id="report-tabs">
+            <button class="tab report-tab active" data-tab="live" data-i18n-key="live_monitor"
+              data-i18n-ar="المراقبة اللحظية">📊 Live Monitor</button>
             <button class="tab report-tab" data-tab="sales" data-i18n-key="total_sales"
               data-i18n-ar="إجمالي المبيعات">🧾 Total Sales</button>
             <button class="tab report-tab" data-tab="visits" data-i18n-key="visits_report"
@@ -70,7 +72,44 @@
           </div>
 
           <div class="report-cards mt-20">
-            <div class="report-card" id="card-sales">
+            <!-- === LIVE MONITOR === -->
+            <div class="report-card" id="card-live">
+              <div class="report-title">🚀 <span data-i18n-key="live_stats" data-i18n-ar="إحصائيات مباشرة">Live Stats
+                  (Today)</span></div>
+              <div class="live-grid"
+                style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-bottom:20px;">
+                <div class="stat-box"
+                  style="background:#f0f9ff; border:1px solid #bae6fd; padding:15px; border-radius:10px; text-align:center;">
+                  <div style="font-size:0.85rem; color:#0369a1; margin-bottom:5px;">Revenue</div>
+                  <div id="live-revenue" style="font-size:1.5rem; font-weight:bold; color:#0c4a6e;">0.00 EGP</div>
+                </div>
+                <div class="stat-box"
+                  style="background:#f0fdf4; border:1px solid #bbf7d0; padding:15px; border-radius:10px; text-align:center;">
+                  <div style="font-size:0.85rem; color:#15803d; margin-bottom:5px;">Orders</div>
+                  <div id="live-orders" style="font-size:1.5rem; font-weight:bold; color:#064e3b;">0</div>
+                </div>
+                <div class="stat-box"
+                  style="background:#fff7ed; border:1px solid #fed7aa; padding:15px; border-radius:10px; text-align:center;">
+                  <div style="font-size:0.85rem; color:#9a3412; margin-bottom:5px;">Avg Ticket</div>
+                  <div id="live-avg" style="font-size:1.5rem; font-weight:bold; color:#7c2d12;">0.00 EGP</div>
+                </div>
+              </div>
+              <div class="report-title" style="font-size:1rem; margin-top:20px;">🕒 Recent Transactions</div>
+              <table class="report-table" id="table-live-recent">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Total</th>
+                    <th>Method</th>
+                    <th>Cashier</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="live-recent-body"></tbody>
+              </table>
+            </div>
+
+            <div class="report-card" id="card-sales" style="display:none;">
               <div class="report-title">🧾 <span data-i18n-key="total_sales" data-i18n-ar="إجمالي المبيعات">Total
                   Sales</span></div>
               <div class="report-summary">
@@ -84,6 +123,26 @@
                       Sales:</span></strong> <span id="total-sales-mobile">0.00 EGP</span></div>
                 <div><strong>🔻 <span data-i18n-key="total_discounts" data-i18n-ar="إجمالي الخصومات">Total
                       Discounts:</span></strong> <span id="total-discounts">0.00 EGP</span></div>
+              </div>
+
+              <div class="report-title" style="font-size:1rem; margin-top:20px;">📜 Transaction Ledger</div>
+              <table class="report-table" id="table-sales-history">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Method</th>
+                    <th>Cashier</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="sales-history-body"></tbody>
+              </table>
+              <div class="pagination-controls"
+                style="margin-top:15px; display:flex; justify-content: space-between; align-items: center;">
+                <button id="prev-page" class="btn btn-secondary btn-sm" disabled>« Previous</button>
+                <span id="page-info" style="font-size:0.9rem; color:#666;">Page 1 of 1</span>
+                <button id="next-page" class="btn btn-secondary btn-sm" disabled>Next »</button>
               </div>
             </div>
 
@@ -157,20 +216,17 @@
               </div>
               <table class="report-table" id="table-expenses"></table>
             </div>
-          </div>
 
-          <!-- === تكلفة المخزون === -->
-          <div class="report-card admin-only" id="card-stock-value" style="display:none;">
-            <div class="report-title">🏷️ <span data-i18n-key="stock_value" data-i18n-ar="تكلفة المخزون">Stock
-                Value</span></div>
-            <div class="export-buttons">
-              <button onclick="exportTableToExcel('table-stock-value')">📊 Excel</button>
-              <button onclick="exportTableToPDF('table-stock-value')">📄 PDF</button>
+            <div class="report-card admin-only" id="card-stock-value" style="display:none;">
+              <div class="report-title">🏷️ <span data-i18n-key="stock_value" data-i18n-ar="تكلفة المخزون">Stock
+                  Value</span></div>
+              <div class="export-buttons">
+                <button onclick="exportTableToExcel('table-stock-value')">📊 Excel</button>
+                <button onclick="exportTableToPDF('table-stock-value')">📄 PDF</button>
+              </div>
+              <table class="report-table" id="table-stock-value"></table>
             </div>
-            <table class="report-table" id="table-stock-value"></table>
           </div>
-
-
         </div>
       </section>
     </main>
@@ -197,10 +253,6 @@
       }
     });
   </script>
-  <script>
-    // setLanguage is now handled by js/translations.js
-  </script>
-
 </body>
 
 </html>

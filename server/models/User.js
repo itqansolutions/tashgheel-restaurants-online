@@ -7,6 +7,9 @@ const userSchema = new mongoose.Schema({
     role: { type: String, enum: ['admin', 'manager', 'cashier'], default: 'cashier' },
     fullName: { type: String, required: true },
     active: { type: Boolean, default: true },
+    // Multi-Branch Support
+    branchIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'data_branches' }],
+    defaultBranchId: { type: mongoose.Schema.Types.ObjectId, ref: 'data_branches' },
     createdAt: { type: Date, default: Date.now }
 });
 

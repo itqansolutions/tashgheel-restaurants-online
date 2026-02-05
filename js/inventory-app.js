@@ -99,15 +99,26 @@ function handleSaveMaterial(e) {
             name,
             unit,
             cost,
-            stock,
             vendorId: vendorId || null
+            // Stock is handled separately for SaaS
         };
 
+        // 1. Save Definition (Global)
+        // We do NOT save stock in the definition file to prevent overwrites
         const result = window.DB.saveIngredient(material);
 
         if (!result) {
             alert('Error: Database failed to save the material. Storage might be full.');
             return;
+        }
+
+        // 2. Save Stock (Branch Scoped)
+        if (stock > 0) {
+            // We await this to ensure it persists check
+            // Note: initApp doesn't await listener, so we use promise syntax or assumes fast enough
+            // Better to make handleSaveMaterial async if possible, but event handler...
+            // We can just fire and forget or use .then
+            window.electronAPI.updateStock(material.id, stock);
         }
 
         // === VENDOR LOGIC (For New Materials) ===
@@ -116,13 +127,13 @@ function handleSaveMaterial(e) {
         // If hidden field was empty, it's new.
         const isEdit = !!document.getElementById('material-id').value;
 
-        if (!isEdit && material.vendorId && material.stock > 0 && material.cost > 0) {
-            const totalValue = material.stock * material.cost;
+        if (!isEdit && material.vendorId && stock > 0 && material.cost > 0) {
+            const totalValue = stock * material.cost;
             window.DB.addVendorTransaction({
                 vendorId: material.vendorId,
                 type: 'purchase',
                 amount: totalValue,
-                description: `Initial Stock: ${material.name} (Qty: ${material.stock})`,
+                description: `Initial Stock: ${material.name} (Qty: ${stock})`,
                 date: new Date().toISOString().split('T')[0],
                 method: 'credit' // Default to credit
             });
@@ -138,7 +149,8 @@ function handleSaveMaterial(e) {
             // trigger input event or just reload
         }
 
-        loadInventory();
+        // Small delay to allow backend to persist stock
+        setTimeout(loadInventory, 500);
 
     } catch (err) {
         console.error(err);
@@ -230,8 +242,11 @@ function saveStockAudit() {
             const newStock = parseFloat(actualInput.value);
             // Update if valid and not NaN
             if (!isNaN(newStock) && Math.abs(newStock - ing.stock) > 0.0001) {
-                ing.stock = newStock;
-                window.DB.saveIngredient(ing);
+                // ing.stock = newStock; // Don't update local obj for file save
+                // window.DB.saveIngredient(ing);
+
+                // Use Backend Stock Update
+                window.electronAPI.updateStock(ing.id, newStock);
                 updatedCount++;
             }
         }
@@ -299,11 +314,18 @@ window.confirmRestock = function () {
         finalUnitCost = totalValue / (oldStock + qty);
     }
 
-    ing.stock = oldStock + qty;
+    // ing.stock = oldStock + qty; // REMOVED: Stock updated via API
     ing.cost = parseFloat(finalUnitCost.toFixed(2));
     ing.lastRestockDate = new Date().toISOString();
 
-    if (window.DB.saveIngredient(ing)) {
+    // Save Definition (Cost Update) - Clean Clone
+    const ingToSave = { ...ing };
+    delete ingToSave.stock; // Ensure stock is not overwritten in definition file
+
+    if (window.DB.saveIngredient(ingToSave)) {
+        // Update Stock via API
+        window.electronAPI.updateStock(id, oldStock + qty);
+
         const totalPurchaseValue = qty * newUnitCost;
 
         // === VENDOR & FINANCIAL LOGIC ===

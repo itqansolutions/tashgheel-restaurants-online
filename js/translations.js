@@ -148,7 +148,17 @@ const translations = {
     delivery_man: { en: "Delivery Man:", ar: "الطيار:" },
 
     // Login & Activation
-    shop_pos_system: { en: "Tashgeel POS System", ar: "نظام تشغيل لإدارة المبيعات" },
+    // Shift Management
+    'close_shift_btn': { en: 'Close Shift', ar: 'إغلاق الوردية' },
+    'open_shift_btn': { en: 'Open Shift', ar: 'فتح وردية' },
+    'opening_cash': { en: 'Opening Cash', ar: 'عهدة البداية' },
+    'closing_cash': { en: 'Closing Cash', ar: 'عهدة النهاية' },
+    'expected_cash': { en: 'Expected Cash', ar: 'النقد المتوقع' },
+    'difference': { en: 'Difference', ar: 'العجز / الزيادة' },
+    'shift_active': { en: 'Shift Active', ar: 'الوردية نشطة' },
+
+    // Existing keys continue below...
+    shop_pos_system: { en: 'Restaurant POS System', ar: 'نظام كاشير المطاعم' },
     enhanced_security: { en: "Powered By itqan", ar: "بواسطة اتقان" },
     login_btn: { en: "🚀 Launch System", ar: "🚀 تشغيل النظام" },
     activation_required: { en: "System Activation Required", ar: "مطلوب تفعيل النظام" },

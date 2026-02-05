@@ -335,19 +335,31 @@ window.DB = window.DB || {
     },
 
     saveSale: function (sale) {
-        const sales = this.getSales();
-        // Sales are usually append-only, but let's allow update if needed
-        const index = sales.findIndex(s => s.id == sale.id);
+        // Prepare Sale Object
+        if (!sale.id) sale.id = 'REC-' + Date.now();
+        sale.createdAt = new Date().toISOString();
 
-        if (index >= 0) {
-            sales[index] = { ...sales[index], ...sale, updatedAt: new Date().toISOString() };
-        } else {
-            // New Sale
-            if (!sale.id) sale.id = 'REC-' + Date.now();
-            sale.createdAt = new Date().toISOString();
+        // 🚀 Use Backend Integration via Web Adapter
+        if (window.electronAPI && window.electronAPI.saveSale) {
+            window.electronAPI.saveSale(sale).then(res => {
+                if (!res.success) console.error("Sale Save Failed", res.error);
+            });
+            // Update Local Cache Optimistically?
+            // For SaaS, we might rely on fetching? 
+            // But to keep UI responsive, we push to local cache too
+            const sales = this.getSales();
             sales.push(sale);
+            // We DO NOT save 'sales' array back to storage here to avoid overwrite race condition
+            // But we keep it in memory for viewing history this session
+            // window.EnhancedSecurity.storeSecureData('sales', sales); // Disabled
+        } else {
+            // Fallback (Offline/Legacy)
+            const sales = this.getSales();
+            sales.push(sale);
+            window.EnhancedSecurity.storeSecureData('sales', sales);
         }
-        return window.EnhancedSecurity.storeSecureData('sales', sales);
+
+        return true;
     },
 
     // === MAINTENANCE REMINDERS ===

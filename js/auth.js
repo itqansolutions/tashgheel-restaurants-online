@@ -99,6 +99,29 @@ async function initializeDataSystem() {
 
         let migrationNeeded = false;
 
+        // 🚀 SaaS Hardening: Verify Session with Server via Cookies
+        try {
+            const meRes = await fetch('/api/auth/me');
+            if (meRes.ok) {
+                const meUser = await meRes.json();
+                console.log('✅ Session Verified:', meUser.username);
+                // Update local session cache
+                await EnhancedSecurity.storeSecureData('session', meUser);
+            } else {
+                if (meRes.status === 401 || meRes.status === 403) {
+                    console.warn('⚠️ Session Expired/Invalid');
+                    await EnhancedSecurity.storeSecureData('session', null);
+                    if (!window.location.pathname.includes('index.html')) {
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Session Check Failed (Offline?):', err);
+            // If offline, trust local session for now (Optional: enforce online logic?)
+        }
+
         for (const key of keys) {
             let fileData = null;
 
@@ -631,7 +654,7 @@ async function login(username, password) {
         }
 
         const user = data.user;
-        const token = data.token; // Store this if needed for protected routes
+        // const token = data.token; // REMOVED: Token is now in HTTP-Only Cookie
 
         // Create Session Object
         var sessionUser = {
@@ -640,17 +663,36 @@ async function login(username, password) {
             username: user.username,
             role: user.role,
             fullName: user.fullName,
-            allowedPages: [], // TODO: server should return permissions
-            loginTime: new Date().toISOString(),
-            token: token
+            allowedPages: [],
+            loginTime: new Date().toISOString()
+            // token: token // No longer stored
         };
 
-        // Store Token for Web Adapter (Tenant Isolation)
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('tenant_id', user.tenantId);
+        if (user.tenantId) localStorage.setItem('tenant_id', user.tenantId);
 
         // Persist session to file/storage
         await EnhancedSecurity.storeSecureData('session', sessionUser);
+
+        // 🚀 Multi-Branch Logic
+        const branches = user.branches || [];
+
+        // Scenario A: Legacy / No Branches
+        if (branches.length === 0) {
+            console.warn('User has no branches linked. Defaulting to legacy mode.');
+        }
+
+        // Scenario B: Single Branch -> Auto Select
+        else if (branches.length === 1) {
+            localStorage.setItem('activeBranchId', branches[0].id);
+            window.location.href = 'pos.html';
+            return true;
+        }
+
+        // Scenario C: Multiple Branches -> Show Picker
+        else {
+            showBranchPicker(branches, user.defaultBranchId);
+            return true;
+        }
 
         return true;
 
@@ -661,9 +703,46 @@ async function login(username, password) {
     }
 }
 
+// 🏢 Branch Picker UI Logic
+function showBranchPicker(branches, defaultBranchId) {
+    const modal = document.getElementById('branchModal');
+    const list = document.getElementById('branchList');
+    if (!modal || !list) return;
+
+    list.innerHTML = ''; // Clear
+
+    branches.forEach(branch => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        // Style simply matches existing buttons
+        btn.style.cssText = `
+            padding: 12px; border: 1px solid #ddd; background: #f9f9f9; 
+            border-radius: 6px; cursor: pointer; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center;
+        `;
+
+        // Display Name + Code
+        btn.innerHTML = `<span>${branch.name}</span> <span style="color:#666; font-size:0.8em">${branch.code}</span>`;
+
+        btn.onclick = () => selectBranch(branch.id);
+        list.appendChild(btn);
+    });
+
+    modal.style.display = 'flex';
+}
+
+function selectBranch(branchId) {
+    localStorage.setItem('activeBranchId', branchId);
+    window.location.href = 'pos.html';
+}
+
 // Logout function
 async function logout(force = false) {
     if (force || await confirm('Are you sure you want to logout?')) {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' }); // Clear Cookies
+        } catch (e) { console.error('Logout API failed', e); }
+
         await EnhancedSecurity.storeSecureData('session', null);
         window.location.href = 'index.html';
     }
@@ -979,10 +1058,12 @@ function enforcePagePermissions() {
 
     // 1. Refresh permissions
     // 🚀 SaaS/API Mode: Trust the bearer token session
-    if (sessionUser.token) {
-        // We trust the API session.
-        // If we want to refresh permissions, we should fetch /api/auth/me (future improvement)
-        // For now, assume the stored session is valid and do NOT check local users.json
+    if (sessionUser && !sessionUser.token) {
+        // If no token property, it means we are using Cookie Auth (New implementation)
+        // We assume the check in initializeDataSystem validated the session.
+        // So proceed.
+    } else if (sessionUser.token) {
+        // Legacy/Transition: Token exists
     } else {
         // Legacy File Mode: Find in local users.json
         try {

@@ -60,6 +60,13 @@
       <div class="sidebar-header">
         <h2 id="posSystemTitle" data-i18n-key="shop_pos_system">Restaurant POS</h2>
       </div>
+      <!-- Shift Info Banner -->
+      <div id="shiftBanner"
+        style="padding:10px; margin:10px; background:#fff3e0; border-radius:8px; border:1px solid #ffe0b2; display:none;">
+        <div style="font-size:0.75rem; color:#e65100; font-weight:bold; text-transform:uppercase;">Shift Active</div>
+        <div id="shiftOpenTime" style="font-size:0.85rem; margin:3px 0;">Opened: --:--</div>
+        <div id="shiftCashDisplay" style="font-size:0.95rem; font-weight:bold; color:#bf360c;">0.00 EGP</div>
+      </div>
       <nav><!-- Populated by shared-nav.js --></nav>
     </aside>
 
@@ -218,24 +225,75 @@
                 data-i18n-key="clear_cart_btn">🗑️ Clear</button>
             </div>
 
-            <button class="btn btn-info" onclick="closeDay()" style="margin-top:10px;width:100%;">🧾 <span
-                id="closeDayBtn" data-i18n-key="close_day_btn">Close Day</span></button>
+            <button class="btn btn-danger" onclick="closeShiftFlow()"
+              style="margin-top:10px;width:100%; font-weight:bold; border-radius:8px; padding:12px;">🔒 <span
+                id="closeShiftBtn" data-i18n-key="close_shift_btn">Close Shift</span></button>
           </div>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- Close Day Modal -->
-  <div id="closeDayModal" class="modal" style="display:none;">
-    <div class="modal-content" style="width:400px;">
-      <h3 id="daySummaryTitle" data-i18n-key="day_summary_title">📊 Day Summary</h3>
-      <div id="daySummaryContent" style="text-align:left;margin-top:10px;"></div>
-      <br>
-      <button onclick="window.print()" class="btn btn-primary">🖨️ <span id="printBtn"
-          data-i18n-key="print_btn">Print</span></button>
-      <button onclick="document.getElementById('closeDayModal').style.display='none'" class="btn btn-danger">✖️ <span
-          id="cancelBtn" data-i18n-key="close_btn">Close</span></button>
+  <!-- Open Shift Modal -->
+  <div id="openShiftModal" class="modal" style="display:none; z-index:10001; background:rgba(0,0,0,0.8);">
+    <div class="modal-content" style="width:350px; padding:30px;">
+      <h2 style="margin-bottom:10px;">☀️ Open New Shift</h2>
+      <p style="font-size:0.9rem; color:#666; margin-bottom:20px;">Please enter the starting cash in drawer.</p>
+
+      <div style="text-align:left; margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:5px;">Opening Cash (EGP)</label>
+        <input type="number" id="openingCashInput" value="0"
+          style="width:100%; padding:12px; font-size:1.2rem; border:2px solid #ddd; border-radius:8px; text-align:center;">
+      </div>
+
+      <button class="btn btn-success" onclick="confirmOpenShift()"
+        style="width:100%; padding:12px; font-size:1rem; font-weight:bold;">🚀 Open Shift</button>
+    </div>
+  </div>
+
+  <!-- Close Shift Modal -->
+  <div id="closeShiftModal" class="modal" style="display:none; z-index:10001;">
+    <div class="modal-content" style="width:400px; padding:25px;">
+      <h2 style="margin-bottom:15px;">🔒 Close Your Shift</h2>
+
+      <div id="shiftStats"
+        style="background:#f9f9f9; padding:15px; border-radius:8px; text-align:left; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span>Opening Cash:</span> <strong id="statOpeningCash">0.00</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span>Net Sales (Cash):</span> <strong id="statNetSales">0.00</strong>
+        </div>
+        <hr style="border:0; border-top:1px dashed #ccc; margin:10px 0;">
+        <div style="display:flex; justify-content:space-between; font-size:1.1rem; color:#2c3e50;">
+          <span>System Expected:</span> <strong id="statExpectedCash">0.00 EGP</strong>
+        </div>
+      </div>
+
+      <div style="text-align:left; margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:8px;">Physical Cash Counted (EGP)</label>
+        <input type="number" id="closingCashInput" placeholder="0.00" oninput="calculateShiftDiff()"
+          style="width:100%; padding:15px; font-size:1.5rem; font-weight:bold; border:2px solid #27ae60; border-radius:8px; text-align:center;">
+      </div>
+
+      <div id="diffHighlight"
+        style="padding:10px; border-radius:6px; margin-bottom:15px; font-weight:bold; display:none;">
+        Difference: <span id="statDiff">0.00</span>
+      </div>
+
+      <div style="text-align:left; margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:8px; font-size:0.85rem; color:#666;">📝 Shift Notes
+          / Discrepancy Reason</label>
+        <textarea id="closingNotesInput" placeholder="Optional notes about this shift..."
+          style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; height:60px; resize:none; font-family:inherit;"></textarea>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button class="btn btn-danger" onclick="confirmCloseShift()" style="padding:12px; font-weight:bold;">Confirm &
+          Close</button>
+        <button class="btn btn-secondary"
+          onclick="document.getElementById('closeShiftModal').style.display='none'">Cancel</button>
+      </div>
     </div>
   </div>
 

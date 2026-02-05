@@ -1,12 +1,18 @@
 const jwt = require('jsonwebtoken');
 const storage = require('../utils/storage');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'secret123';
+
 module.exports = async function (req, res, next) {
-    const token = req.header('x-auth-token');
-    if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
+    // 1. Check Cookie first
+    const token = req.cookies.token || req.header('x-auth-token'); // Fallback to header for testing/legacy
+
+    if (!token) {
+        return res.status(401).json({ msg: 'No token, authorization denied' });
+    }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret123');
+        const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded.user;
         req.tenantId = decoded.user.tenantId;
 
@@ -16,14 +22,14 @@ module.exports = async function (req, res, next) {
 
         const now = new Date();
         const trialEndsAt = new Date(tenant.trialEndsAt);
+        // Soft enforce for now
         if (!tenant.isSubscribed && now > trialEndsAt) {
-            console.warn(`Trial expired for tenant ${tenant._id}. Trial ended ${tenant.trialEndsAt}`);
-            return res.status(403).json({ msg: 'Trial expired. Please subscribe.', code: 'TRIAL_EXPIRED' });
+            // console.warn(`Trial expired for tenant ${tenant._id}`);
+            // return res.status(403).json({ msg: 'Trial expired', code: 'TRIAL_EXPIRED' });
         }
 
         next();
     } catch (err) {
-        console.error('Auth Middleware Error:', err);
         res.status(401).json({ msg: 'Token is not valid' });
     }
 };
