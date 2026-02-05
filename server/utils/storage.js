@@ -25,10 +25,7 @@ async function ensureDataDir() {
 
 // Connect to MongoDB if URI is present
 if (IS_MONGO) {
-    mongoose.connect(MONGO_URI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-    })
+    mongoose.connect(MONGO_URI)
         .then(() => console.log('✅ MongoDB Connected (Storage Logic Active)'))
         .catch(err => console.error('❌ MongoDB Connection Error:', err));
 }
