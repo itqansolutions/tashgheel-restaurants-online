@@ -152,6 +152,10 @@ async function initializeDataSystem() {
         }
 
         for (const key of keys) {
+            // 🚀 NUCLEAR OPTION: Prevent 'session' from EVER being loaded from disk
+            // This protects the in-memory authenticated session from being overwritten by a stale file
+            if (key === 'session') continue;
+
             let fileData = null;
 
             // 1. Try Read File
