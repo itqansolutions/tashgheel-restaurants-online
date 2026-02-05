@@ -2,7 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+const mongoose = require('mongoose');
 
 // Models
 const Tenant = require('../models/Tenant');

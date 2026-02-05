@@ -14,20 +14,27 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
-const mongoUri = (process.env.MONGO_URI || '').trim().replace(/[\r\n]/g, '');
-console.log('Attempting to connect to MongoDB...');
-if (!mongoUri) {
-    console.error('CRITICAL: MONGO_URI is not defined in environment variables!');
-} else {
-    console.log('URI detected (first 15 chars):', mongoUri.substring(0, 15) + '...');
-}
+// Connect to MongoDB
+const envUri = process.env.MONGO_URI || '';
+const mongoUri = envUri.trim().replace(/[\r\n]/g, '');
 
-mongoose.connect(mongoUri)
-    .then(() => console.log('✅ MongoDB Connected'))
-    .catch(err => {
-        console.error('❌ MongoDB Connection Error:');
-        console.error(err.message);
-    });
+console.log('🔍 Environment Check:');
+console.log('- Keys present:', Object.keys(process.env).filter(k => !k.startsWith('npm_')).join(', '));
+console.log('- MONGO_URI present:', !!process.env.MONGO_URI);
+console.log('- MONGO_URI length:', envUri.length);
+
+if (!mongoUri) {
+    console.error('❌ CRITICAL ERROR: MONGO_URI is missing or empty.');
+    console.error('   Please verify the variable is set in Railway settings.');
+    // Do not attempt connect to avoid crash, but app will be broken
+} else {
+    console.log('Attempting to connect to MongoDB...');
+    mongoose.connect(mongoUri)
+        .then(() => console.log('✅ MongoDB Connected'))
+        .catch(err => {
+            console.error('❌ MongoDB Connection Error:', err.message);
+        });
+}
 
 const auth = require('./middleware/auth');
 
