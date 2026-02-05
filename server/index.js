@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 // Connect to MongoDB
 // Connect to MongoDB
 const envUri = process.env.MONGO_URI || '';
-const mongoUri = envUri.trim().replace(/[\r\n]/g, '');
+const mongoUri = envUri.trim().replace(/[\r\n"']/g, ''); // Remove newlines AND quotes
 
 console.log('🔍 Environment Check:');
 console.log('- Keys present:', Object.keys(process.env).filter(k => !k.startsWith('npm_')).join(', '));
