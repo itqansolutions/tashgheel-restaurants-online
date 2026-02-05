@@ -35,6 +35,7 @@
                 const response = await fetch(`${API_BASE}/data/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ key: filename.replace('.json', ''), value: data })
                 });
                 const result = await response.json();
@@ -46,6 +47,7 @@
                 const response = await fetch(`${API_BASE}/file/exists`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ folderPath, filename })
                 });
                 return await response.json();
@@ -61,7 +63,8 @@
                 headers: {
                     'Content-Type': 'application/json',
                     'x-branch-id': activeBranch
-                }
+                },
+                credentials: 'include'
             });
             return true;
         },
@@ -75,6 +78,7 @@
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ key: cleanKey, value: value })
                 });
                 const result = await response.json();
@@ -91,7 +95,8 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
-                    }
+                    },
+                    credentials: 'include'
                 });
                 if (!response.ok) return null;
                 const text = await response.text();
@@ -108,6 +113,7 @@
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
+                    credentials: 'include',
                     body: JSON.stringify(sale)
                 });
                 const result = await response.json();
@@ -125,6 +131,7 @@
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ productId, qty }) // Changed from id to productId for clarity in backend
                 });
                 const result = await response.json();
@@ -136,7 +143,8 @@
         getLiveReport: async () => {
             try {
                 const response = await fetch(`${API_BASE}/reports/live`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') },
+                    credentials: 'include'
                 });
                 return await response.json();
             } catch (err) { return null; }
@@ -146,7 +154,8 @@
             try {
                 const params = new URLSearchParams(filters).toString();
                 const response = await fetch(`${API_BASE}/reports/history?${params}`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') },
+                    credentials: 'include'
                 });
                 return await response.json();
             } catch (err) { return { sales: [], total: 0 }; }
@@ -155,7 +164,8 @@
         getCurrentShift: async () => {
             try {
                 const response = await fetch(`${API_BASE}/shifts/current`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') },
+                    credentials: 'include'
                 });
                 return await response.json();
             } catch (err) { return null; }
@@ -169,6 +179,7 @@
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ openingCash })
                 });
                 return await response.json();
@@ -183,6 +194,7 @@
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ shiftId, closingCash, notes })
                 });
                 return await response.json();
@@ -205,7 +217,8 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
-                    }
+                    },
+                    credentials: 'include'
                 });
                 if (!response.ok) return [];
                 return await response.json();
