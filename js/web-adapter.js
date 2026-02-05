@@ -86,7 +86,7 @@
         // Data Storage Operations
         ensureDataDir: async () => {
             const activeBranch = localStorage.getItem('activeBranchId');
-            if (!activeBranch) return true; // Skip if no branch selected
+            if (!activeBranch || activeBranch === 'bypass') return true; // Skip if no branch selected
 
             await apiFetch(`${API_BASE}/utils/ensure-data-dir`, {
                 method: 'POST',
@@ -101,7 +101,7 @@
         saveData: async (key, value) => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return { success: false, error: 'No branch selected' };
+                if (!branchId || branchId === 'bypass') return { success: false, error: 'No branch selected' };
 
                 const cleanKey = key.replace('.json', '');
                 const response = await apiFetch(`${API_BASE}/data/save`, {
@@ -122,7 +122,7 @@
             if (!key) return null;
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return null; // Cannot read branch data without branch ID
+                if (!branchId || branchId === 'bypass') return null; // Cannot read branch data without branch ID
 
                 const cleanKey = key.replace('.json', '');
                 const response = await apiFetch(`${API_BASE}/data/read/${cleanKey}`, {
@@ -141,7 +141,7 @@
         saveSale: async (sale) => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return { success: false, error: 'No branch selected' };
+                if (!branchId || branchId === 'bypass') return { success: false, error: 'No branch selected' };
 
                 const response = await apiFetch(`${API_BASE}/sales`, {
                     method: 'POST',
@@ -161,7 +161,7 @@
         updateStock: async (productId, qty) => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return { success: false, error: 'No branch selected' };
+                if (!branchId || branchId === 'bypass') return { success: false, error: 'No branch selected' };
 
                 const response = await apiFetch(`${API_BASE}/inventory/set`, {
                     method: 'POST',
@@ -180,7 +180,7 @@
         getLiveReport: async () => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return null;
+                if (!branchId || branchId === 'bypass') return null;
 
                 const response = await apiFetch(`${API_BASE}/reports/live`, {
                     method: 'GET',
@@ -193,7 +193,7 @@
         getSalesHistory: async (filters = {}) => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return { sales: [], total: 0 };
+                if (!branchId || branchId === 'bypass') return { sales: [], total: 0 };
 
                 const params = new URLSearchParams(filters).toString();
                 const response = await apiFetch(`${API_BASE}/reports/history?${params}`, {
@@ -207,7 +207,7 @@
         getCurrentShift: async () => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return null;
+                if (!branchId || branchId === 'bypass') return null;
 
                 const response = await apiFetch(`${API_BASE}/shifts/current`, {
                     method: 'GET',
@@ -220,7 +220,7 @@
         openShift: async (openingCash) => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return { error: 'No branch selected' };
+                if (!branchId || branchId === 'bypass') return { error: 'No branch selected' };
 
                 const response = await apiFetch(`${API_BASE}/shifts/open`, {
                     method: 'POST',
@@ -237,7 +237,7 @@
         closeShift: async (shiftId, closingCash, notes) => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) return { error: 'No branch selected' };
+                if (!branchId || branchId === 'bypass') return { error: 'No branch selected' };
 
                 const response = await apiFetch(`${API_BASE}/shifts/close`, {
                     method: 'POST',
@@ -264,7 +264,7 @@
         listDataFiles: async () => {
             try {
                 const branchId = localStorage.getItem('activeBranchId');
-                if (!branchId) {
+                if (!branchId || branchId === 'bypass') {
                     console.warn('⚠️ listDataFiles skipped: No active branch selected.');
                     return [];
                 }
