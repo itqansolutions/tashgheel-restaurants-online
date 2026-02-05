@@ -107,6 +107,28 @@ async function initializeDataSystem() {
                 console.log('✅ Session Verified:', meUser.username);
                 // Update local session cache
                 await EnhancedSecurity.storeSecureData('session', meUser);
+
+                // 🚀 If on index.html but already logged in, auto-navigate
+                if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+                    const branches = meUser.branches || [];
+                    const activeBranchId = localStorage.getItem('activeBranchId');
+
+                    if (activeBranchId) {
+                        console.log('Redirecting to POS (Branch active)');
+                        window.location.href = 'pos.html';
+                        return;
+                    } else if (branches.length === 1) {
+                        localStorage.setItem('activeBranchId', branches[0].id);
+                        window.location.href = 'pos.html';
+                        return;
+                    } else if (branches.length > 1) {
+                        showBranchPicker(branches, meUser.defaultBranchId);
+                        // Hide the login form if it was shown
+                        const loginForm = document.getElementById('loginForm');
+                        if (loginForm) loginForm.classList.add('hidden');
+                        return;
+                    }
+                }
             } else {
                 if (meRes.status === 401 || meRes.status === 403) {
                     console.warn('⚠️ Session Expired/Invalid');

@@ -11,10 +11,19 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret123';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || 'refreshSecret123';
 
 // Helper: Get Branch Details
-async function getBranchDetails(branchIds) {
-    if (!branchIds || branchIds.length === 0) return [];
+async function getBranchDetails(user) {
     try {
-        const branches = await Branch.find({ _id: { $in: branchIds } }).select('name code');
+        let query = {};
+        if (user.role === 'admin') {
+            // Admins get all branches of their tenant
+            query = { tenantId: user.tenantId };
+        } else {
+            // Others only get specific ones
+            if (!user.branchIds || user.branchIds.length === 0) return [];
+            query = { _id: { $in: user.branchIds } };
+        }
+
+        const branches = await Branch.find(query).select('name code');
         return branches.map(b => ({ id: b._id, name: b.name, code: b.code }));
     } catch (e) { return []; }
 }
@@ -97,6 +106,15 @@ router.post('/register', authLimiter, async (req, res) => {
             active: true
         });
 
+        // 4. Create Default Main Branch
+        const mainBranch = new Branch({
+            tenantId: tenant._id,
+            name: 'Main Branch',
+            code: 'MAIN',
+            isActive: true
+        });
+        await mainBranch.save();
+
         // Send Email Notification (Async - don't block)
         sendRegistrationEmail(businessName, email, phone, username, trialEndsAt).catch(console.error);
 
@@ -158,7 +176,7 @@ router.post('/login', authLimiter, async (req, res) => {
         setCookies(res, accessToken, refreshToken);
 
         // Fetch Branch Names
-        const branches = await getBranchDetails(user.branchIds);
+        const branches = await getBranchDetails(user);
 
         res.json({
             msg: 'Login successful',
@@ -230,7 +248,7 @@ router.get('/me', auth, async (req, res) => {
         if (!user) return res.status(404).json({ msg: 'User not found' });
 
         // Fetch Branch Names
-        const branches = await getBranchDetails(user.branchIds);
+        const branches = await getBranchDetails(user);
 
         res.json({
             id: user._id,
