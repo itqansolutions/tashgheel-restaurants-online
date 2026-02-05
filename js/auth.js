@@ -1109,70 +1109,86 @@ function enforcePagePermissions() {
         }
     }
 
-    console.debug('🔒 Permission Check:', {
+    // 🚀 INTEGRITY CHECK: If session looks like a default dummy, try to reload it
+    if (sessionUser.username === 'User') {
+        const rawLocal = localStorage.getItem('session'); // Direct fallback
+        if (rawLocal) {
+            try {
+                const refreshed = JSON.parse(rawLocal);
+                if (refreshed && refreshed.username && refreshed.username !== 'User') {
+                    console.warn('🔄 Self-Healing: Refreshed stale session found in LocalStorage', refreshed.username);
+                    sessionUser = refreshed;
+                }
+            } catch (e) { }
+        }
+    }
+
+    console.warn('🔒 Permission Check:', {
         username: sessionUser.username,
         role: sessionUser.role,
         isAdmin: sessionUser.role === 'admin'
     });
 
-    if (sessionUser.role === 'admin') {
-        console.debug('✅ User is Admin -> Bypassing Enforcement');
+    // Check Case-Insensitive for robustness
+    if (sessionUser.role && sessionUser.role.toLowerCase() === 'admin') {
+        console.warn('✅ User is Admin -> Bypassing Enforcement');
         return;
     }
+}
 
-    // 2. Check current page access
-    const path = window.location.pathname.split('/').pop().toLowerCase(); // Normalize
+// 2. Check current page access
+const path = window.location.pathname.split('/').pop().toLowerCase(); // Normalize
 
-    // Default to empty array if undefined
-    const allowed = (sessionUser.allowedPages || []).map(p => p.toLowerCase());
+// Default to empty array if undefined
+const allowed = (sessionUser.allowedPages || []).map(p => p.toLowerCase());
 
-    console.log(`🔒 Enforcement: User=${sessionUser.username}, Path=${path}, Allowed=${JSON.stringify(allowed)}`);
+console.log(`🔒 Enforcement: User=${sessionUser.username}, Path=${path}, Allowed=${JSON.stringify(allowed)}`);
 
-    // Secured Pages List
-    const securedPages = [
-        'visits.html',
-        'vendors.html',
-        'customers.html',
-        'products.html',
-        'receipts.html',
-        'reports.html',
-        'salesmen.html',
-        'expenses.html',
-        'admin.html',
-        'backup.html',
-        'upcoming-visits.html'
-    ];
+// Secured Pages List
+const securedPages = [
+    'visits.html',
+    'vendors.html',
+    'customers.html',
+    'products.html',
+    'receipts.html',
+    'reports.html',
+    'salesmen.html',
+    'expenses.html',
+    'admin.html',
+    'backup.html',
+    'upcoming-visits.html'
+];
 
-    // If current page is secured, STRICTLY check if it's in the allowed list
-    if (securedPages.includes(path)) {
-        if (!allowed.includes(path)) {
-            console.warn('⛔ Access Denied');
-            alert('Access Denied: You do not have permission for this page. \nContact Admin.');
+// If current page is secured, STRICTLY check if it's in the allowed list
+if (securedPages.includes(path)) {
+    if (!allowed.includes(path)) {
+        console.warn('⛔ Access Denied');
+        alert('Access Denied: You do not have permission for this page. \nContact Admin.');
 
-            // Redirect logic: Find first allowed secured page, or go to index/pos
-            const firstAllowed = sessionUser.allowedPages && sessionUser.allowedPages.length > 0
-                ? sessionUser.allowedPages[0]
-                : 'index.html';
+        // Redirect logic: Find first allowed secured page, or go to index/pos
+        const firstAllowed = sessionUser.allowedPages && sessionUser.allowedPages.length > 0
+            ? sessionUser.allowedPages[0]
+            : 'index.html';
 
-            window.location.href = firstAllowed;
-            return;
-        }
+        window.location.href = firstAllowed;
+        return;
     }
+}
 
-    // 3. Hide Navigation Links (UI Polish)
-    const navLinks = document.querySelectorAll('.nav-item');
-    navLinks.forEach(link => {
-        const href = link.getAttribute('href');
-        if (href) {
-            const linkPath = href.split('/').pop().toLowerCase();
-            if (securedPages.includes(linkPath)) {
-                if (!allowed.includes(linkPath)) {
-                    link.style.display = 'none';
-                }
+// 3. Hide Navigation Links (UI Polish)
+const navLinks = document.querySelectorAll('.nav-item');
+navLinks.forEach(link => {
+    const href = link.getAttribute('href');
+    if (href) {
+        const linkPath = href.split('/').pop().toLowerCase();
+        if (securedPages.includes(linkPath)) {
+            if (!allowed.includes(linkPath)) {
+                link.style.display = 'none';
             }
         }
-    });
-}
+    }
+});
+
 
 // === Dynamic Roles Management ===
 const defaultRoles = [
