@@ -231,23 +231,13 @@ async function initializeDataSystem() {
 
 // ✅ Branch Bootstrapper
 async function resolveBranchAndStart() {
-    // Only run if we are logged in (checking index.html vs internal pages)
-    // If on index.html, we wait for login. If on internal pages (pos.html), we run this.
-    // Actually, user said: "Check Login -> Get User Profile -> Load Branches"
-    // So this should run EVERYWHERE. On index.html, if not logged in, `my-branches` will fail (401) and we stop.
-
     try {
-        const res = await fetch("/api/auth/me", { credentials: "include" }); // Use 'me' instead of 'my-branches' to check login first
-        if (!res.ok) {
-            // Not logged in.
-            if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
-                // Redirect to login if on protected page
-                window.location.href = 'index.html';
-            }
-            return;
+        const user = await window.apiFetch("/auth/me", { method: "GET" });
+
+        if (!user) {
+            throw new Error("No user data");
         }
 
-        const user = await res.json();
         const branches = user.branches || [];
 
         if (!branches.length) {
@@ -255,26 +245,25 @@ async function resolveBranchAndStart() {
             return;
         }
 
-        // Auto-select single branch
         if (branches.length === 1) {
-            localStorage.setItem("activeBranchId", branches[0].id); // User used ._id in snippet, but my schema uses .id usually. I'll stick to .id from previous code unless I see ._id
-            // verification: `showBranchPicker` used `.id`. So `.id` is correct.
+            localStorage.setItem("activeBranchId", branches[0].id);
             initializeDataSystem();
             return;
         }
 
-        // Check if we already have a valid selection
         const current = localStorage.getItem("activeBranchId");
         if (current && branches.find(b => b.id === current)) {
             initializeDataSystem();
             return;
         }
 
-        // Multiple branches -> prompt
         showBranchSelector(branches);
 
     } catch (err) {
         console.error("❌ Branch resolution failed", err);
+        if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
+            window.location.href = 'index.html';
+        }
     }
 }
 
@@ -757,14 +746,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const password = document.getElementById('regPassword').value;
 
             try {
-                const response = await fetch('/api/auth/register', {
+                // Refactored to use apiFetch for consistency
+                const data = await window.apiFetch('auth/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ businessName, email, phone, username, password })
                 });
 
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.msg || 'Registration failed');
+                // apiFetch throws on error, so if we are here, it's successful.
 
                 alert('Registration Successful! You can now log in.');
                 document.getElementById('registerModal').style.display = 'none';
@@ -790,26 +778,14 @@ async function login(username, password) {
     }
 
     try {
-        const response = await fetch('/api/auth/login', {
+        // Refactored to use apiFetch - includes credentials automatically
+        const data = await window.apiFetch('auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password, businessEmail })
         });
 
-        const data = await response.json();
+        // If we reach here, login is successful (apiFetch throws on non-200)
 
-        if (!response.ok) {
-            const errorMsg = data.msg || 'Login Failed';
-            console.error('Login failed:', errorMsg);
-            const errorDiv = document.getElementById('loginError');
-            if (errorDiv) {
-                errorDiv.textContent = '❌ ' + errorMsg;
-                errorDiv.style.color = 'red';
-            } else {
-                alert(errorMsg);
-            }
-            return false;
-        }
 
         const user = data.user;
         // const token = data.token; // REMOVED: Token is now in HTTP-Only Cookie
