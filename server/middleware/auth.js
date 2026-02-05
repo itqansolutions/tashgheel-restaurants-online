@@ -14,6 +14,7 @@ module.exports = async function (req, res, next) {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded.user;
+        req.userId = decoded.user.id;
         req.tenantId = decoded.user.tenantId;
 
         // Check subscription/trial status

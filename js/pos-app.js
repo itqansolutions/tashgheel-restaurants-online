@@ -92,6 +92,14 @@ window.closeDay = function () {
 
 async function checkShift() {
   const result = await window.electronAPI.getCurrentShift();
+
+  if (result && result.error === 'BRANCH_REQUIRED') {
+    console.warn('Branch selection missing. Redirecting...');
+    localStorage.removeItem('activeBranchId'); // Clear any toxic string like "null"
+    window.location.href = 'index.html';
+    return;
+  }
+
   if (result && result.shift) {
     currentShift = result.shift;
     updateShiftUI();

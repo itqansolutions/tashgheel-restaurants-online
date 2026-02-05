@@ -4,11 +4,14 @@ module.exports = async function (req, res, next) {
     // 1. Get Branch ID from Header
     const branchId = req.header('x-branch-id');
 
-    // 2. Check for missing header
-    if (!branchId) {
-        // If Reporting Mode logic is needed later, we can check req.path here.
-        // For now, strict enforcement for operational security.
-        return res.status(400).json({ msg: 'Branch Selection Required (x-branch-id header missing)' });
+    // 2. Check for missing or invalid header (literal "null" or "undefined" strings)
+    if (!branchId || branchId === 'null' || branchId === 'undefined' || branchId === '') {
+        return res.status(400).json({ error: 'BRANCH_REQUIRED', msg: 'Branch Selection Required' });
+    }
+
+    // 3. Validate ObjectId Format (Strict check)
+    if (!/^[0-9a-fA-F]{24}$/.test(branchId)) {
+        return res.status(400).json({ error: 'INVALID_BRANCH', msg: 'Invalid Branch ID format' });
     }
 
     try {
