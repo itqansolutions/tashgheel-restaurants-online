@@ -19,12 +19,19 @@ module.exports = async function (req, res, next) {
         }
 
         // 4. Validate Branch Access for Regular Users
-        // a. Check if user has branchIds array
+        // a. Admin Bypass: Admins can access any branch within their tenant
+        if (req.user.role === 'admin') {
+            req.branchId = branchId;
+            return next();
+        }
+
+        // b. Check if user has specific branch access
         if (!req.user.branchIds || !req.user.branchIds.includes(branchId)) {
             // Also allow if it matches defaultBranchId just in case
             if (req.user.defaultBranchId && req.user.defaultBranchId.toString() === branchId) {
                 // Allowed
             } else {
+                console.warn(`Forbidden: User ${req.user.username} (role: ${req.user.role}) attempted to access branch ${branchId}`);
                 return res.status(403).json({ msg: 'Access Denied to this Branch' });
             }
         }
