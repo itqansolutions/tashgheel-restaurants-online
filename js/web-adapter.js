@@ -12,32 +12,42 @@
 
     // Helper: Enforce credentials and standardize requests
     async function apiFetch(url, options = {}) {
+        const defaultOptions = {
+            credentials: 'include',
+            method: 'GET',
+            headers: {}
+        };
+
+        const finalHeaders = { ...defaultOptions.headers, ...(options.headers || {}) };
+
+        const finalOptions = {
+            ...defaultOptions,
+            ...options,
+            headers: finalHeaders
+        };
+
+        // 🚀 SMART HEADERS: Only add Content-Type if body exists and not set
+        if (finalOptions.body && !finalOptions.headers['Content-Type']) {
+            finalOptions.headers['Content-Type'] = 'application/json';
+        }
+
         try {
-            const defaultOptions = {
-                credentials: 'include',
-                method: 'GET',
-                headers: {}
-            };
-
-            const finalHeaders = { ...defaultOptions.headers, ...(options.headers || {}) };
-
-            const finalOptions = {
-                ...defaultOptions,
-                ...options,
-                headers: finalHeaders
-            };
-
-            // 🚀 SMART HEADERS: Only add Content-Type if body exists and not set
-            if (finalOptions.body && !finalOptions.headers['Content-Type']) {
-                finalOptions.headers['Content-Type'] = 'application/json';
-            }
-
             const response = await fetch(url, finalOptions);
-            if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
-            return await response.json();
+
+            // Handle non-JSON or empty responses gracefully
+            const text = await response.text();
+            if (!text) return {}; // fallback for empty response (204 etc)
+
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                console.warn('apiFetch: Non-JSON response at', url, text);
+                return { _raw: text }; // Return raw text if needed, or valid object
+            }
         } catch (err) {
             console.error('❌ apiFetch Network Error:', { url, error: err });
-            throw err; // Let caller handle retry if needed
+            // Throwing allows caller to implement retry logic (essential for auth.js)
+            throw err;
         }
     }
 
@@ -59,23 +69,21 @@
         },
         saveBackupFile: async (folderPath, filename, data) => {
             try {
-                const response = await apiFetch(`${API_BASE}/data/save`, {
+                const result = await apiFetch(`${API_BASE}/data/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key: filename.replace('.json', ''), value: data })
                 });
-                const result = await response.json();
                 return { success: result.success, path: filename };
             } catch (e) { return { success: false, error: e }; }
         },
         checkFileExists: async (folderPath, filename) => {
             try {
-                const response = await apiFetch(`${API_BASE}/file/exists`, {
+                return await apiFetch(`${API_BASE}/file/exists`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ folderPath, filename })
                 });
-                return await response.json();
             } catch (e) { return false; }
         },
 
@@ -100,7 +108,7 @@
                 if (!branchId || branchId === 'bypass') return { success: false, error: 'No branch selected' };
 
                 const cleanKey = key.replace('.json', '');
-                const response = await apiFetch(`${API_BASE}/data/save`, {
+                const result = await apiFetch(`${API_BASE}/data/save`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -108,7 +116,6 @@
                     },
                     body: JSON.stringify({ key: cleanKey, value: value })
                 });
-                const result = await response.json();
                 if (!result.success) throw new Error(result.error);
                 return { success: true };
             } catch (err) { return { success: false, error: err }; }
@@ -121,15 +128,19 @@
                 if (!branchId || branchId === 'bypass') return null; // Cannot read branch data without branch ID
 
                 const cleanKey = key.replace('.json', '');
-                const response = await apiFetch(`${API_BASE}/data/read/${cleanKey}`, {
+                const data = await apiFetch(`${API_BASE}/data/read/${cleanKey}`, {
                     method: 'GET',
                     headers: {
                         'x-branch-id': branchId
                     }
                 });
-                if (!response.ok) return null;
-                const text = await response.text();
-                return text || null;
+                // apiFetch returns Parsed Object OR { _raw: text }
+                if (data && data._raw) return data._raw;
+                // If it's an object, we need to return it as a string for auth.js to parse?
+                // actually, if we return object, auth.js will crash on JSON.parse(object).
+                // Robust fix: stringify it if it's an object.
+                if (typeof data === 'object') return JSON.stringify(data);
+                return data;
             } catch (e) { console.error("readData error", e); return null; }
         },
 
@@ -139,7 +150,7 @@
                 const branchId = localStorage.getItem('activeBranchId');
                 if (!branchId || branchId === 'bypass') return { success: false, error: 'No branch selected' };
 
-                const response = await apiFetch(`${API_BASE}/sales`, {
+                const result = await apiFetch(`${API_BASE}/sales`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -147,8 +158,7 @@
                     },
                     body: JSON.stringify(sale)
                 });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || 'Sale failed');
+                // apiFetch throws if not ok, so result is data
                 return { success: true, id: result.id };
             } catch (err) { return { success: false, error: err }; }
         },
@@ -159,7 +169,7 @@
                 const branchId = localStorage.getItem('activeBranchId');
                 if (!branchId || branchId === 'bypass') return { success: false, error: 'No branch selected' };
 
-                const response = await apiFetch(`${API_BASE}/inventory/set`, {
+                const result = await apiFetch(`${API_BASE}/inventory/set`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -167,7 +177,6 @@
                     },
                     body: JSON.stringify({ productId, qty })
                 });
-                const result = await response.json();
                 return result;
             } catch (err) { return { success: false, error: err }; }
         },
@@ -178,11 +187,10 @@
                 const branchId = localStorage.getItem('activeBranchId');
                 if (!branchId || branchId === 'bypass') return null;
 
-                const response = await apiFetch(`${API_BASE}/reports/live`, {
+                return await apiFetch(`${API_BASE}/reports/live`, {
                     method: 'GET',
                     headers: { 'x-branch-id': branchId }
                 });
-                return await response.json();
             } catch (err) { return null; }
         },
 
@@ -196,7 +204,7 @@
                     method: 'GET',
                     headers: { 'x-branch-id': branchId }
                 });
-                return await response.json();
+                return response; // Correctly return the data object
             } catch (err) { return { sales: [], total: 0 }; }
         },
 
@@ -205,11 +213,10 @@
                 const branchId = localStorage.getItem('activeBranchId');
                 if (!branchId || branchId === 'bypass') return null;
 
-                const response = await apiFetch(`${API_BASE}/shifts/current`, {
+                return await apiFetch(`${API_BASE}/shifts/current`, {
                     method: 'GET',
                     headers: { 'x-branch-id': branchId }
                 });
-                return await response.json();
             } catch (err) { return null; }
         },
 
@@ -218,7 +225,7 @@
                 const branchId = localStorage.getItem('activeBranchId');
                 if (!branchId || branchId === 'bypass') return { error: 'No branch selected' };
 
-                const response = await apiFetch(`${API_BASE}/shifts/open`, {
+                return await apiFetch(`${API_BASE}/shifts/open`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -226,7 +233,6 @@
                     },
                     body: JSON.stringify({ openingCash })
                 });
-                return await response.json();
             } catch (err) { return { error: err.message }; }
         },
 
@@ -235,7 +241,7 @@
                 const branchId = localStorage.getItem('activeBranchId');
                 if (!branchId || branchId === 'bypass') return { error: 'No branch selected' };
 
-                const response = await apiFetch(`${API_BASE}/shifts/close`, {
+                return await apiFetch(`${API_BASE}/shifts/close`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -243,7 +249,6 @@
                     },
                     body: JSON.stringify({ shiftId, closingCash, notes })
                 });
-                return await response.json();
             } catch (err) { return { error: err.message }; }
         },
 

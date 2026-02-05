@@ -184,7 +184,8 @@ async function initializeDataSystem() {
             const fileContent = await window.electronAPI.readData(key);
             if (fileContent) {
                 try {
-                    fileData = JSON.parse(fileContent);
+                    // Handle both raw string (legacy/local) and pre-parsed object (web adapter)
+                    fileData = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
                 } catch (e) {
                     fileData = fileContent;
                 }
