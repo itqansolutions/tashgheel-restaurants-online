@@ -679,6 +679,8 @@ async function login(username, password) {
         // Scenario A: Legacy / No Branches
         if (branches.length === 0) {
             console.warn('User has no branches linked. Defaulting to legacy mode.');
+            window.location.href = 'pos.html';
+            return true;
         }
 
         // Scenario B: Single Branch -> Auto Select

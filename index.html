@@ -157,7 +157,7 @@
         const errorDiv = document.getElementById('loginError');
 
         if (await window.login(username, password)) {
-          window.location.href = 'pos.html';
+          // Redirection/Branch Picker handled inside login()
         } else {
           errorDiv.textContent = '❌ Invalid username or password';
           errorDiv.style.color = 'red';
