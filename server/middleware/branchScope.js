@@ -4,6 +4,16 @@ module.exports = async function (req, res, next) {
     // 1. Get Branch ID from Header
     const branchId = req.header('x-branch-id');
 
+    // 🚀 SYSTEM BYPASS: Foundation routes don't need branch context
+    const bypassRoutes = [
+        '/api/utils/ensure-data-dir',
+        '/api/file/exists',
+        '/api/data/list'
+    ];
+    if (bypassRoutes.includes(req.originalUrl.split('?')[0])) {
+        return next();
+    }
+
     // 2. Check for missing or invalid header (literal "null" or "undefined" strings)
     if (!branchId || branchId === 'null' || branchId === 'undefined' || branchId === '') {
         return res.status(400).json({ error: 'BRANCH_REQUIRED', msg: 'Branch Selection Required' });

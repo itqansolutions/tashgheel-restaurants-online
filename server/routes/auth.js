@@ -176,7 +176,19 @@ router.post('/login', authLimiter, async (req, res) => {
         setCookies(res, accessToken, refreshToken);
 
         // Fetch Branch Names
-        const branches = await getBranchDetails(user);
+        let branches = await getBranchDetails(user);
+
+        // 🚀 Auto-migration for legacy tenants: Ensure at least one branch for admins
+        if (user.role === 'admin' && branches.length === 0) {
+            const mainBranch = new Branch({
+                tenantId: tenant._id,
+                name: 'Main Branch',
+                code: 'MAIN',
+                isActive: true
+            });
+            await mainBranch.save();
+            branches = [{ id: mainBranch._id, name: mainBranch.name, code: mainBranch.code }];
+        }
 
         res.json({
             msg: 'Login successful',
