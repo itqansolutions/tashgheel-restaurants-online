@@ -55,6 +55,8 @@
         }
     }
 
+    window.apiFetch = apiFetch; // 🌍 Expose Globally
+
     window.electronAPI = {
         // Helper to get full path - In web, this is just the key name usually, managed by server
         _getPath: async (filename) => {
