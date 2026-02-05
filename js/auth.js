@@ -662,10 +662,8 @@ async function login(username, password) {
 }
 
 // Logout function
-async function logout() {
-    // Check if confirm is overridden (async) or native (sync)
-    // In our case it is overridden by tauri-adapter.js
-    if (await confirm('Are you sure you want to logout?')) {
+async function logout(force = false) {
+    if (force || await confirm('Are you sure you want to logout?')) {
         await EnhancedSecurity.storeSecureData('session', null);
         window.location.href = 'index.html';
     }
@@ -993,7 +991,7 @@ function enforcePagePermissions() {
             if (freshUser) {
                 sessionUser = { ...sessionUser, ...freshUser };
             } else {
-                logout();
+                logout(true);
                 return;
             }
         } catch (e) { console.error('Error refreshing user permissions', e); }
