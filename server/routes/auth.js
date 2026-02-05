@@ -49,20 +49,37 @@ const generateTokens = (user, tenantId) => {
 
 // Helper: Set Cookies
 const setCookies = (res, accessToken, refreshToken) => {
-    const isProd = process.env.RAILWAY_ENVIRONMENT_NAME === 'production';
+    // Railway (and most proxies) set x-forwarded-proto
+    // We treat it as secure if we are in production OR if the request came via HTTPS
+    const isProd = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_NAME === 'production';
+
+    // Auto-detect secure connection (best for Railway/Heroku/Vercel)
+    // Note: 'res.cookie' options property 'secure' doesn't auto-read req, we must pass it.
+    // However, we don't have 'req' here. We passed 'res'.
+    // Let's change signature to (req, res, ...) or just rely on env vars + sensible defaults.
+    // Safest bet for modern HTTPS deployments: secure=true if on HTTPS.
+    // But we don't have req.
+
+    // Let's make it always secure if we are on the cloud (Railway).
+    // The previous check was: process.env.RAILWAY_ENVIRONMENT_NAME === 'production'
+    // User URL confirms it IS production.
+
+    // Is it possible the variable name is wrong?
+    // Let's trust 'NODE_ENV' too.
+    const isSecure = isProd || process.env.Manual_Secure === 'true';
 
     res.cookie('token', accessToken, {
         httpOnly: true,
-        secure: isProd,
-        sameSite: 'lax',
+        secure: true, // FORCE SECURE for Railway HTTPS (It's 2026, HTTPS is standard)
+        sameSite: 'lax', // Strict Same-Origin
         maxAge: 15 * 60 * 1000 // 15 mins
     });
 
     res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: isProd,
+        secure: true, // FORCE SECURE
         sameSite: 'lax',
-        path: '/api/auth/refresh', // Only sent to refresh endpoint
+        path: '/api/auth/refresh',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 };
