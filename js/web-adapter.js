@@ -263,29 +263,27 @@
         },
 
         listDataFiles: async (branchIdOverride) => {
-            // Support explicit branch ID or fallback to localStorage
             const branchId = branchIdOverride || localStorage.getItem('activeBranchId');
 
             if (!branchId || branchId === 'bypass') {
-                // console.warn('Branch ID missing. Cannot list data files.');
-                // Return empty array instead of throwing to avoid crashing simple UI checks
-                // User asked for "throw new Error" in their snippet, but existing code expects array.
-                // I will support BOTH: checking explicitly.
-                // Actually, user's snippet throws. I will throw if it's called explicitly, 
-                // but `auth.js` should catch it.
-                throw new Error('Branch ID missing. Cannot list data files.');
+                console.warn("⚠️ listDataFiles skipped (no branch or bypass)");
+                return [];
             }
 
-            // Using API_BASE which resolves to the correct URL (dev or prod)
-            // But user provided a specific URL. I will stick to API_BASE for consistent env handling.
-            return await apiFetch(`${API_BASE}/data/list`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-branch-id': branchId
-                },
-                credentials: 'include'
-            });
+            try {
+                // Return result directly (apiFetch returning parsed data)
+                return await apiFetch(`${API_BASE}/data/list`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-branch-id': branchId
+                    },
+                    credentials: 'include'
+                });
+            } catch (e) {
+                console.error("listDataFiles exception:", e);
+                return [];
+            }
         },
 
         clearAllData: async () => { return false; }, // Not implemented for safety

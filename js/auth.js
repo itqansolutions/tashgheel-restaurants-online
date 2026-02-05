@@ -229,9 +229,106 @@ async function initializeDataSystem() {
     }
 }
 
-// Call init
+// ✅ Branch Bootstrapper
+async function resolveBranchAndStart() {
+    // Only run if we are logged in (checking index.html vs internal pages)
+    // If on index.html, we wait for login. If on internal pages (pos.html), we run this.
+    // Actually, user said: "Check Login -> Get User Profile -> Load Branches"
+    // So this should run EVERYWHERE. On index.html, if not logged in, `my-branches` will fail (401) and we stop.
+
+    try {
+        const res = await fetch("/api/auth/me", { credentials: "include" }); // Use 'me' instead of 'my-branches' to check login first
+        if (!res.ok) {
+            // Not logged in.
+            if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
+                // Redirect to login if on protected page
+                window.location.href = 'index.html';
+            }
+            return;
+        }
+
+        const user = await res.json();
+        const branches = user.branches || [];
+
+        if (!branches.length) {
+            alert("No branches assigned to your account.");
+            return;
+        }
+
+        // Auto-select single branch
+        if (branches.length === 1) {
+            localStorage.setItem("activeBranchId", branches[0].id); // User used ._id in snippet, but my schema uses .id usually. I'll stick to .id from previous code unless I see ._id
+            // verification: `showBranchPicker` used `.id`. So `.id` is correct.
+            initializeDataSystem();
+            return;
+        }
+
+        // Check if we already have a valid selection
+        const current = localStorage.getItem("activeBranchId");
+        if (current && branches.find(b => b.id === current)) {
+            initializeDataSystem();
+            return;
+        }
+
+        // Multiple branches -> prompt
+        showBranchSelector(branches);
+
+    } catch (err) {
+        console.error("❌ Branch resolution failed", err);
+    }
+}
+
+function showBranchSelector(branches) {
+    // Use existing overlay if possible, or create new simple one
+    const overlay = document.createElement("div");
+    overlay.style.cssText = `
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.9);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        z-index:9999;
+    `;
+
+    const box = document.createElement("div");
+    box.style.cssText = `
+        background:white;
+        padding:25px;
+        border-radius:10px;
+        width:320px;
+        text-align:center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    `;
+
+    box.innerHTML = `<h3 style="margin-top:0; color:#333;">Select Branch</h3><p style="color:#666; margin-bottom:15px;">Please choose a location to continue</p>`;
+
+    branches.forEach(b => {
+        const btn = document.createElement("button");
+        btn.innerHTML = `<strong>${b.name}</strong><br><small>${b.code || ''}</small>`;
+        btn.style.cssText = "display:block; width:100%; margin:8px 0; padding:12px; border:1px solid #ddd; border-radius:6px; background:#f5f5f5; cursor:pointer; text-align:left;";
+        btn.onmouseover = () => btn.style.background = '#e9e9e9';
+        btn.onmouseout = () => btn.style.background = '#f5f5f5';
+
+        btn.onclick = () => {
+            localStorage.setItem("activeBranchId", b.id);
+            document.body.removeChild(overlay);
+            initializeDataSystem();
+            // Redirect to POS if on login page
+            if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+                window.location.href = 'pos.html';
+            }
+        };
+        box.appendChild(btn);
+    });
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+}
+
+// Call init (RESOLVER)
 if (document.addEventListener) {
-    document.addEventListener('DOMContentLoaded', initializeDataSystem);
+    document.addEventListener('DOMContentLoaded', resolveBranchAndStart);
 }
 
 // === LICENSE CRYPTO MODULE ===
