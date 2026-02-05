@@ -5,6 +5,13 @@ const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
 
+// Models
+const ProductStock = require('../models/ProductStock');
+const Shift = require('../models/Shift');
+const Sale = require('../models/Sale');
+const DailySummary = require('../models/DailySummary');
+const Branch = require('../models/Branch');
+
 // === Data Storage Endpoints ===
 
 // Save Data (Replace `saveData` command)
@@ -37,11 +44,7 @@ router.get('/data/read/:key', async (req, res) => {
             if (Array.isArray(data)) {
                 // Filter by Branch ID
                 const filtered = data.filter(item => {
-                    // Legacy items might not have branchId - perform migration check?
-                    // Or just default to showing them?
-                    // Safer to only show matching branchId, OR if user is Main Branch (and item has no branch)?
-                    // For now: Strict matching.
-                    return item.branchId === req.branchId; // || !item.branchId (if we want to see legacy)
+                    return item.branchId === req.branchId;
                 });
                 return res.json(filtered);
             }
@@ -54,32 +57,27 @@ router.get('/data/read/:key', async (req, res) => {
 
             // Fetch real stock
             try {
+                // Hard check to avoid CastError
+                if (!/^[0-9a-fA-F]{24}$/.test(req.branchId)) {
+                    console.error('Bypassing merge: Invalid branchId format:', req.branchId);
+                    return res.json(products);
+                }
+
                 const stocks = await ProductStock.find({
                     tenantId: req.tenantId,
                     branchId: req.branchId
                 });
 
-                // Create Map for speed
                 const stockMap = {};
                 stocks.forEach(s => stockMap[s.productId.toString()] = s.qty);
 
-                // Merge
                 products.forEach(p => {
-                    if (stockMap[p.id]) {
-                        p.stock = stockMap[p.id];
-                    } else {
-                        // If no stock entry exists, it implies 0 or undefined?
-                        // If migrating, maybe keep original? 
-                        // But strictly speaking, it should be 0.
-                        // Let's default to 0 to be safe for multi-branch isolation.
-                        p.stock = 0;
-                    }
+                    p.stock = stockMap[p.id] || 0;
                 });
                 return res.json(products);
 
             } catch (e) {
                 console.error('Stock Merge Error', e);
-                // Fallback to original data if error
                 return res.json(products);
             }
         }
@@ -91,11 +89,10 @@ router.get('/data/read/:key', async (req, res) => {
     }
 });
 
-// List Data Files (Replace `listDataFiles` command)
+// List Data Files
 router.get('/data/list', async (req, res) => {
     try {
         const files = await storage.listDataFiles();
-        // Filtering list by tenantId prefix
         const tenantPrefix = req.tenantId ? `${req.tenantId}_` : '';
         const filtered = files
             .filter(f => f.startsWith(tenantPrefix))
@@ -106,18 +103,12 @@ router.get('/data/list', async (req, res) => {
     }
 });
 
-// Check File Exists (Replace `checkFileExists` command)
+// Check File Exists
 router.post('/file/exists', async (req, res) => {
-    const { folderPath, filename } = req.body;
+    const { filename } = req.body;
     const exists = await storage.checkFileExists(filename, req.tenantId);
     res.json(exists);
 });
-
-// === Machine ID Endpoint (REMOVED: Managed by Super Admin) ===
-
-// === Sales & Inventory ===
-const ProductStock = require('../models/ProductStock');
-const Shift = require('../models/Shift');
 
 // === SHIFT MANAGEMENT ===
 
@@ -141,7 +132,6 @@ router.post('/shifts/open', async (req, res) => {
     try {
         const { openingCash } = req.body;
 
-        // Check for existing open shift
         const existing = await Shift.findOne({
             tenantId: req.tenantId,
             branchId: req.branchId,
@@ -174,7 +164,6 @@ router.post('/shifts/close', async (req, res) => {
         const shift = await Shift.findById(shiftId);
         if (!shift || shift.status !== 'open') return res.status(404).json({ error: 'Shift not found or already closed' });
 
-        // Aggregate Sales for this Shift (SNAPSHOT at this exact moment)
         const sales = await Sale.aggregate([
             { $match: { shiftId: shift._id, status: 'finished' } },
             {
@@ -189,8 +178,6 @@ router.post('/shifts/close', async (req, res) => {
         ]);
 
         const stats = sales[0] || { cashTotal: 0, cardTotal: 0, mobileTotal: 0, totalSales: 0 };
-
-        // Voids Count
         const voids = await Sale.countDocuments({ shiftId: shift._id, status: 'void' });
         const voidsValue = await Sale.aggregate([
             { $match: { shiftId: shift._id, status: 'void' } },
@@ -200,13 +187,10 @@ router.post('/shifts/close', async (req, res) => {
         shift.closedAt = new Date();
         shift.status = 'closed';
         shift.closingCash = parseFloat(closingCash || 0);
-
-        // 🚀 SNAPSHOT: Calculate Expected Cash and lock it
         shift.expectedCash = shift.openingCash + stats.cashTotal;
         shift.difference = shift.closingCash - shift.expectedCash;
-
-        // Audit Info
         shift.notes = notes || "";
+
         if (req.userId.toString() !== shift.cashierId.toString()) {
             shift.forcedBy = req.userId;
             shift.status = 'force-closed';
@@ -226,18 +210,16 @@ router.post('/shifts/close', async (req, res) => {
     }
 });
 
-const Sale = require('../models/Sale');
+// === SALES ===
 
 router.post('/sales', async (req, res) => {
     try {
         const saleData = req.body;
         if (!saleData || !saleData.items) return res.status(400).json({ error: 'Invalid Sale Data' });
 
-        // 1. Enforce Branch Context
         saleData.branchId = req.branchId;
         saleData.tenantId = req.tenantId;
 
-        // 🚀 ENHANCEMENT: Enforce Active Shift
         const activeShift = await Shift.findOne({
             tenantId: req.tenantId,
             branchId: req.branchId,
@@ -247,7 +229,6 @@ router.post('/sales', async (req, res) => {
         if (!activeShift) return res.status(403).json({ error: 'No open shift found. Please open a shift first.' });
         saleData.shiftId = activeShift._id;
 
-        // 🚀 ENHANCEMENT: Cost Snapshots (Fetch latest costs from master data)
         try {
             const masterDataRaw = await storage.readData('spare_parts', req.tenantId);
             const masterProducts = JSON.parse(masterDataRaw || '[]');
@@ -255,26 +236,19 @@ router.post('/sales', async (req, res) => {
             masterProducts.forEach(p => costMap[String(p.id)] = p.cost || 0);
 
             saleData.items.forEach(item => {
-                item.cost = costMap[String(item.id)] || 0; // Snapshot cost
+                item.cost = costMap[String(item.id)] || 0;
             });
         } catch (e) { console.error('Cost Snapshot Error:', e); }
 
-        // 2. Persist Sale (Mongoose Collection - Primary)
         const newSale = new Sale(saleData);
         await newSale.save();
 
-        // 3. Dual-Write to Legacy Storage (Optional / Background)
-        // This ensures the old reporting views still work while we migrate
         storage.insert('sales', saleData).catch(e => console.error('Legacy Save Error:', e));
 
-        // 4. Update DailySummary (Real-time Aggregation with Timezone support)
         try {
-            const Branch = require('../models/Branch');
             const branch = await Branch.findById(req.branchId);
             const timezone = branch?.settings?.timezone || 'Africa/Cairo';
-
-            // Get Date String in Branch Local Time
-            const branchDateStr = new Date().toLocaleDateString('en-CA', { timeZone: timezone }); // YYYY-MM-DD
+            const branchDateStr = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
 
             const isVoid = newSale.status === 'void';
             const isRefund = newSale.status === 'refunded';
@@ -286,13 +260,11 @@ router.post('/sales', async (req, res) => {
                     totalDiscount: (isVoid || isRefund) ? 0 : (newSale.discount || 0),
                     totalTax: (isVoid || isRefund) ? 0 : (newSale.tax || 0),
                     totalCost: (isVoid || isRefund) ? 0 : newSale.items.reduce((sum, i) => sum + ((i.cost || 0) * (i.qty || 0)), 0),
-
                     voidsCount: isVoid ? 1 : 0,
                     voidsValue: isVoid ? newSale.total : 0
                 }
             };
 
-            // Payment Method specific increment (Skip for voids)
             if (!isVoid && !isRefund) {
                 const methodKey = `${(newSale.method || 'cash').toLowerCase()}Total`;
                 if (['cashTotal', 'cardTotal', 'mobileTotal'].includes(methodKey)) {
@@ -300,7 +272,6 @@ router.post('/sales', async (req, res) => {
                 }
             }
 
-            const DailySummary = require('../models/DailySummary');
             await DailySummary.findOneAndUpdate(
                 { tenantId: req.tenantId, branchId: req.branchId, date: branchDateStr },
                 update,
@@ -308,12 +279,8 @@ router.post('/sales', async (req, res) => {
             );
         } catch (e) { console.error('Summary Update Error:', e); }
 
-        // 5. Process Stock Deduction (Async Side Effect)
         for (const item of saleData.items) {
-            // Direct Deduction
             await deductStock(req.tenantId, req.branchId, item.id, item.qty);
-
-            // Add-ons Deduction
             if (item.addons && item.addons.length > 0) {
                 for (const addon of item.addons) {
                     await deductStock(req.tenantId, req.branchId, addon.id, item.qty);
@@ -367,7 +334,6 @@ router.post('/inventory/set', async (req, res) => {
     }
 });
 
-
 // === Utilities ===
 router.post('/utils/ensure-data-dir', async (req, res) => {
     await storage.ensureDataDir();
@@ -383,7 +349,6 @@ router.get('/reports/live', async (req, res) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // 1. Branch Global Stats (Today)
         const stats = await Sale.aggregate([
             { $match: { tenantId, branchId, date: { $gte: today }, status: 'finished' } },
             {
@@ -396,16 +361,14 @@ router.get('/reports/live', async (req, res) => {
             }
         ]);
 
-        // 2. Recent Orders (Global)
         const recentOrders = await Sale.find({ tenantId, branchId, date: { $gte: today } })
             .sort({ date: -1 })
             .limit(10);
 
-        // 3. Current User Shift Stats (NEW)
         const currentShift = await Shift.findOne({
             tenantId,
             branchId,
-            cashierId: userId,
+            cashierId: req.userId,
             status: 'open'
         });
 
@@ -438,20 +401,19 @@ router.get('/reports/history', async (req, res) => {
             }
         }
 
-        if (cashier) filter.cashier = cashier;
+        if (cashier) filter.cashierId = cashier;
         if (status) filter.status = status;
 
         const total = await Sale.countDocuments(filter);
 
-        // 🚀 ENHANCEMENT: Aggregate Summary for this Filter
         const summary = await Sale.aggregate([
             { $match: filter },
             {
                 $group: {
                     _id: null,
-                    totalCash: { $sum: { $cond: [{ $eq: ["$paymentMethod", "cash"] }, "$total", 0] } },
-                    totalCard: { $sum: { $cond: [{ $in: ["$paymentMethod", ["card", "visa"]] }, "$total", 0] } },
-                    totalMobile: { $sum: { $cond: [{ $eq: ["$paymentMethod", "mobile"] }, "$total", 0] } },
+                    totalCash: { $sum: { $cond: [{ $eq: ["$method", "cash"] }, "$total", 0] } },
+                    totalCard: { $sum: { $cond: [{ $eq: ["$method", "card"] }, "$total", 0] } },
+                    totalMobile: { $sum: { $cond: [{ $eq: ["$method", "mobile"] }, "$total", 0] } },
                     totalDiscount: { $sum: { $ifNull: ["$discount", 0] } }
                 }
             }
