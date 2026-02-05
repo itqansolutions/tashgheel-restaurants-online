@@ -91,24 +91,31 @@ async function initializeDataSystem() {
         ];
 
         // 🚀 TIMING FIX: Only list data files if we have a branch context or are post-login
-        // fetching /api/data/list requires x-branch-id. If we are on index.html with no branch, it fails.
         const currentPath = window.location.pathname;
         const branchId = localStorage.getItem('activeBranchId');
         const shouldFetchData = branchId && branchId !== 'bypass' && !currentPath.endsWith('index.html');
 
         if (shouldFetchData) {
-            try {
-                if (window.electronAPI.listDataFiles) {
-                    const files = await window.electronAPI.listDataFiles();
-                    if (files && files.length > 0) {
-                        console.log('📂 Discovered data files:', files);
-                        // Merge and deduplicate
-                        const allKeys = [...new Set([...keys, ...files])];
-                        keys = allKeys.filter(k => k !== 'session');
+            let loadedFiles = null;
+            let retries = 3;
+
+            while (retries > 0 && !loadedFiles) {
+                try {
+                    if (window.electronAPI.listDataFiles) {
+                        loadedFiles = await window.electronAPI.listDataFiles(branchId);
+                        if (loadedFiles && loadedFiles.length > 0) {
+                            console.log('📂 Discovered data files:', loadedFiles);
+                            const allKeys = [...new Set([...keys, ...loadedFiles])];
+                            keys = allKeys.filter(k => k !== 'session');
+                        }
+                    } else {
+                        break; // No API, stop retrying
                     }
+                } catch (err) {
+                    console.error(`Failed to list data files (Attempts left: ${retries - 1}):`, err);
+                    retries--;
+                    if (retries > 0) await new Promise(res => setTimeout(res, 1000)); // Wait 1s
                 }
-            } catch (err) {
-                console.error('Failed to list data files (Safely ignored if offline/pre-auth):', err);
             }
         } else {
             console.log('⏳ Skipping Data List: Waiting for Branch Selection/Login');
@@ -787,7 +794,17 @@ function showBranchPicker(branches, defaultBranchId) {
 }
 
 function selectBranch(branchId) {
+    if (!branchId) return console.error('Branch ID is required.');
+
+    // Save branch ID
     localStorage.setItem('activeBranchId', branchId);
+    console.log('✅ Branch selected:', branchId);
+
+    // Fire event to notify system
+    window.dispatchEvent(new Event('branchSelected'));
+
+    // Initialize data immediately after selection (if logical)
+    // Or just redirect to POS which triggers init
     window.location.href = 'pos.html';
 }
 
