@@ -980,9 +980,9 @@ function enforcePagePermissions() {
     // 1. Refresh permissions
     // 🚀 SaaS/API Mode: Trust the bearer token session
     if (sessionUser.token) {
-        // Token session exists, we don't strictly need to find them in local users.json
-        // But we ensure sessionUser is up to date.
-        // Skip the local find() that triggers logout
+        // We trust the API session.
+        // If we want to refresh permissions, we should fetch /api/auth/me (future improvement)
+        // For now, assume the stored session is valid and do NOT check local users.json
     } else {
         // Legacy File Mode: Find in local users.json
         try {
@@ -991,10 +991,13 @@ function enforcePagePermissions() {
             if (freshUser) {
                 sessionUser = { ...sessionUser, ...freshUser };
             } else {
+                // Only logout if NO token AND not found locally
                 logout(true);
                 return;
             }
-        } catch (e) { console.error('Error refreshing user permissions', e); }
+        } catch (e) {
+            console.error('Error refreshing user permissions', e);
+        }
     }
 
     if (sessionUser.role === 'admin') return; // Admins see everything
