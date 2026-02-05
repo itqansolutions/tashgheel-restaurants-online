@@ -2,8 +2,6 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const mongoose = require('mongoose');
-
 // Models
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
