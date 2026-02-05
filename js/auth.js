@@ -71,8 +71,12 @@ async function initializeDataSystem() {
 
     // ROBUST ERROR HANDLING WRAPPER start
     try {
-        // Ensure data directory exists
-        await window.electronAPI.ensureDataDir();
+        // Ensure data directory exists (Non-blocking for Cloud/Web)
+        try {
+            await window.electronAPI.ensureDataDir();
+        } catch (e) {
+            console.warn('⚠️ ensureDataDir failed (likely Cloud Mode), continuing...', e);
+        }
 
         // List of keys to load
         // List of known keys (fallback)

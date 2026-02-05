@@ -5,12 +5,18 @@ module.exports = async function (req, res, next) {
     const branchId = req.header('x-branch-id');
 
     // 🚀 SYSTEM BYPASS: Foundation routes don't need branch context
+    // 🚀 SYSTEM BYPASS: Foundation routes don't need branch context
+    // Using req.path to ignore query parameters and ensure exact matching
     const bypassRoutes = [
         '/api/utils/ensure-data-dir',
         '/api/file/exists',
         '/api/data/list'
     ];
-    if (bypassRoutes.includes(req.originalUrl.split('?')[0])) {
+
+    // Normalize path: remove trailing slash, lowercase
+    const normalizedPath = req.path.replace(/\/+$/, '').toLowerCase();
+
+    if (bypassRoutes.includes(normalizedPath)) {
         return next();
     }
 
