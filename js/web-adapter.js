@@ -10,6 +10,26 @@
 
     console.log('🌐 Initializing Web Adapter...');
 
+    // Helper: Enforce credentials on all requests
+    async function apiFetch(url, options = {}) {
+        const defaultOptions = {
+            credentials: 'include',
+            headers: {}
+        };
+
+        // Merge headers
+        const headers = { ...defaultOptions.headers, ...(options.headers || {}) };
+
+        // Merge other options
+        const finalOptions = {
+            ...defaultOptions,
+            ...options,
+            headers: headers
+        };
+
+        return fetch(url, finalOptions);
+    }
+
     window.electronAPI = {
         // Helper to get full path - In web, this is just the key name usually, managed by server
         _getPath: async (filename) => {
@@ -27,15 +47,10 @@
             return 'server/backups'; // Dummy path
         },
         saveBackupFile: async (folderPath, filename, data) => {
-            // Re-use save data for now, or implement specific backup endpoint?
-            // To be safe, we'll just save it as a data key for now to prevent errors
-            // or we could add a backup endpoint later.
-            // For now, let's treat it as a regular file save in data dir
             try {
-                const response = await fetch(`${API_BASE}/data/save`, {
+                const response = await apiFetch(`${API_BASE}/data/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
                     body: JSON.stringify({ key: filename.replace('.json', ''), value: data })
                 });
                 const result = await response.json();
@@ -44,10 +59,9 @@
         },
         checkFileExists: async (folderPath, filename) => {
             try {
-                const response = await fetch(`${API_BASE}/file/exists`, {
+                const response = await apiFetch(`${API_BASE}/file/exists`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
                     body: JSON.stringify({ folderPath, filename })
                 });
                 return await response.json();
@@ -56,15 +70,13 @@
 
         // Data Storage Operations
         ensureDataDir: async () => {
-            // Safety: If no branch selected yet, send "bypass" or "global" as header doesn't matter for this bypassed route
             const activeBranch = localStorage.getItem('activeBranchId') || 'bypass';
-            await fetch(`${API_BASE}/utils/ensure-data-dir`, {
+            await apiFetch(`${API_BASE}/utils/ensure-data-dir`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'x-branch-id': activeBranch
-                },
-                credentials: 'include'
+                }
             });
             return true;
         },
@@ -72,13 +84,12 @@
         saveData: async (key, value) => {
             try {
                 const cleanKey = key.replace('.json', '');
-                const response = await fetch(`${API_BASE}/data/save`, {
+                const response = await apiFetch(`${API_BASE}/data/save`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
-                    credentials: 'include',
                     body: JSON.stringify({ key: cleanKey, value: value })
                 });
                 const result = await response.json();
@@ -91,12 +102,11 @@
             if (!key) return null;
             try {
                 const cleanKey = key.replace('.json', '');
-                const response = await fetch(`${API_BASE}/data/read/${cleanKey}`, {
+                const response = await apiFetch(`${API_BASE}/data/read/${cleanKey}`, {
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
-                    },
-                    credentials: 'include'
+                    }
                 });
                 if (!response.ok) return null;
                 const text = await response.text();
@@ -107,13 +117,12 @@
         // Sales Specific Operation
         saveSale: async (sale) => {
             try {
-                const response = await fetch(`${API_BASE}/sales`, {
+                const response = await apiFetch(`${API_BASE}/sales`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
-                    credentials: 'include',
                     body: JSON.stringify(sale)
                 });
                 const result = await response.json();
@@ -125,14 +134,13 @@
         // Inventory Operation
         updateStock: async (productId, qty) => {
             try {
-                const response = await fetch(`${API_BASE}/inventory/set`, {
+                const response = await apiFetch(`${API_BASE}/inventory/set`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
-                    credentials: 'include',
-                    body: JSON.stringify({ productId, qty }) // Changed from id to productId for clarity in backend
+                    body: JSON.stringify({ productId, qty })
                 });
                 const result = await response.json();
                 return result;
@@ -142,9 +150,8 @@
         // Reporting
         getLiveReport: async () => {
             try {
-                const response = await fetch(`${API_BASE}/reports/live`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') },
-                    credentials: 'include'
+                const response = await apiFetch(`${API_BASE}/reports/live`, {
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
                 });
                 return await response.json();
             } catch (err) { return null; }
@@ -153,9 +160,8 @@
         getSalesHistory: async (filters = {}) => {
             try {
                 const params = new URLSearchParams(filters).toString();
-                const response = await fetch(`${API_BASE}/reports/history?${params}`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') },
-                    credentials: 'include'
+                const response = await apiFetch(`${API_BASE}/reports/history?${params}`, {
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
                 });
                 return await response.json();
             } catch (err) { return { sales: [], total: 0 }; }
@@ -163,9 +169,8 @@
 
         getCurrentShift: async () => {
             try {
-                const response = await fetch(`${API_BASE}/shifts/current`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') },
-                    credentials: 'include'
+                const response = await apiFetch(`${API_BASE}/shifts/current`, {
+                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
                 });
                 return await response.json();
             } catch (err) { return null; }
@@ -173,28 +178,26 @@
 
         openShift: async (openingCash) => {
             try {
-                const response = await fetch(`${API_BASE}/shifts/open`, {
+                const response = await apiFetch(`${API_BASE}/shifts/open`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
-                    credentials: 'include',
                     body: JSON.stringify({ openingCash })
                 });
                 return await response.json();
             } catch (err) { return { error: err.message }; }
         },
 
-        closeShift: async (shiftId, closingCash) => {
+        closeShift: async (shiftId, closingCash, notes) => {
             try {
-                const response = await fetch(`${API_BASE}/shifts/close`, {
+                const response = await apiFetch(`${API_BASE}/shifts/close`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
                     },
-                    credentials: 'include',
                     body: JSON.stringify({ shiftId, closingCash, notes })
                 });
                 return await response.json();
@@ -213,12 +216,11 @@
 
         listDataFiles: async () => {
             try {
-                const response = await fetch(`${API_BASE}/data/list`, {
+                const response = await apiFetch(`${API_BASE}/data/list`, {
                     headers: {
                         'Content-Type': 'application/json',
                         'x-branch-id': localStorage.getItem('activeBranchId')
-                    },
-                    credentials: 'include'
+                    }
                 });
                 if (!response.ok) return [];
                 return await response.json();
