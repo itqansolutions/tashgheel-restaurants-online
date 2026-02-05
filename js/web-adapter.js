@@ -54,11 +54,13 @@
 
         // Data Storage Operations
         ensureDataDir: async () => {
+            // Safety: If no branch selected yet, send "bypass" or "global" as header doesn't matter for this bypassed route
+            const activeBranch = localStorage.getItem('activeBranchId') || 'bypass';
             await fetch(`${API_BASE}/utils/ensure-data-dir`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-branch-id': localStorage.getItem('activeBranchId')
+                    'x-branch-id': activeBranch
                 }
             });
             return true;

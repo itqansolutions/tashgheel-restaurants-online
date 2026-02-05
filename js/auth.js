@@ -1105,7 +1105,16 @@ function enforcePagePermissions() {
         }
     }
 
-    if (sessionUser.role === 'admin') return; // Admins see everything
+    console.debug('🔒 Permission Check:', {
+        username: sessionUser.username,
+        role: sessionUser.role,
+        isAdmin: sessionUser.role === 'admin'
+    });
+
+    if (sessionUser.role === 'admin') {
+        console.debug('✅ User is Admin -> Bypassing Enforcement');
+        return;
+    }
 
     // 2. Check current page access
     const path = window.location.pathname.split('/').pop().toLowerCase(); // Normalize
