@@ -14,8 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderVendorReport() {
     const vendors = window.DB.getVendors();
-    const payments = window.DB.getVendorPayments();
-    const parts = window.DB.getParts();
+    const vendors = window.DB.getVendors();
+    // 🚀 LOGIC FIX: Use Transaction History instead of Current Stock for "Total Purchases"
+    // 'parts' only shows what's currently on shelf, not what was bought historically.
+    const transactions = window.DB.getVendorTransactions ? window.DB.getVendorTransactions() : [];
 
     // Calculate totals
     let totalDebt = 0;
@@ -23,28 +25,23 @@ function renderVendorReport() {
     let activeVendors = 0;
 
     const vendorStats = vendors.map(vendor => {
-        // Calculate total purchases (from parts with this vendor)
-        // 🚀 CONFIRMATION: 'parts' here represents Stock Inventory. 
-        // Ideally we should sum PURCHASES (Invoices), not just current stock value.
-        // But assuming 'parts' tracks simplified stock-based debt:
-        const vendorParts = parts.filter(p => p.vendorId == vendor.id);
+        // Filter transactions for this vendor
+        const vTrans = transactions.filter(t => t.vendorId == vendor.id);
 
-        // 🚀 LOGIC REFINEMENT: Ensure we only count POSITIVE cost * stock (Inventory Value)
-        // OR better: if we have a proper 'purchase_invoices' collection, use that.
-        // For now, based on existing code structure:
-        const totalPurchases = vendorParts.reduce((sum, p) => {
-            return sum + ((p.cost || 0) * (p.stock || 0));
-        }, 0);
+        // Calculate Total Purchases (History)
+        const totalPurchases = vTrans
+            .filter(t => t.type === 'purchase')
+            .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
-        // Calculate total paid to this vendor
-        const vendorPayments = payments.filter(p => p.vendorId == vendor.id);
-        const paid = vendorPayments.reduce((sum, p) => sum + p.amount, 0);
+        // Calculate Total Paid (History)
+        const paid = vTrans
+            .filter(t => t.type === 'payment')
+            .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
-        // Current balance calculation
-        // Formula: Total Purchases - Total Paid
-        // Note: vendor.credit is legacy "Starting Balance". We should ideally use that + purchases - payments.
-        const startingBalance = vendor.credit || 0; // Legacy / Opening Balance
-        const balance = (startingBalance + totalPurchases) - paid;
+        // 🚀 BALANCE LOGIC: Trust the running balance field in DB (vendor.credit)
+        // If that's missing, fall back to calculated: (Purchases - Paid)
+        // But db.js maintains vendor.credit on every transaction, so it's authoritative.
+        let balance = parseFloat(vendor.credit) || 0;
 
         if (balance > 0) {
             totalDebt += balance;
