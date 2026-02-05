@@ -138,9 +138,10 @@ async function initializeDataSystem() {
                 }
             } else {
                 if (meRes.status === 401 || meRes.status === 403) {
-                    console.warn('⚠️ Session Expired/Invalid');
+                    console.error('⛔ Session Expired/Invalid [401/403] -> Redirecting to Login');
                     await EnhancedSecurity.storeSecureData('session', null);
                     if (!window.location.pathname.includes('index.html')) {
+                        console.log('Redirecting now...');
                         window.location.href = 'index.html';
                         return;
                     }
@@ -1097,6 +1098,22 @@ function enforcePagePermissions() {
     if (!sessionUser) return; // Login page handles this
 
     // 1. Refresh permissions
+    // 🚀 INTEGRITY CHECK: If session looks like a default dummy, try to reload it
+    if (sessionUser && sessionUser.username === 'User') {
+        const rawLocal = localStorage.getItem('pos_backup_session'); // ✅ Corrected Key
+        if (rawLocal) {
+            try {
+                const refreshed = JSON.parse(rawLocal);
+                if (refreshed && refreshed.username && refreshed.username !== 'User') {
+                    console.warn('🔄 Self-Healing: Refreshed stale session found in LocalStorage (pos_backup_session)', refreshed.username);
+                    sessionUser = refreshed;
+                    // Restore to cache too
+                    EnhancedSecurity.storeSecureData('session', refreshed);
+                }
+            } catch (e) { }
+        }
+    }
+
     // 🚀 SaaS/API Mode: Trust the bearer token session
     if (sessionUser && !sessionUser.token) {
         // If no token property, it means we are using Cookie Auth (New implementation)
@@ -1121,22 +1138,7 @@ function enforcePagePermissions() {
         }
     }
 
-    // 🚀 INTEGRITY CHECK: If session looks like a default dummy, try to reload it
-    // 🚀 INTEGRITY CHECK: If session looks like a default dummy, try to reload it
-    if (sessionUser.username === 'User') {
-        const rawLocal = localStorage.getItem('pos_backup_session'); // ✅ Corrected Key
-        if (rawLocal) {
-            try {
-                const refreshed = JSON.parse(rawLocal);
-                if (refreshed && refreshed.username && refreshed.username !== 'User') {
-                    console.warn('🔄 Self-Healing: Refreshed stale session found in LocalStorage (pos_backup_session)', refreshed.username);
-                    sessionUser = refreshed;
-                    // Restore to cache too
-                    EnhancedSecurity.storeSecureData('session', refreshed);
-                }
-            } catch (e) { }
-        }
-    }
+
 
     console.warn('🔒 Permission Check:', {
         username: sessionUser.username,
