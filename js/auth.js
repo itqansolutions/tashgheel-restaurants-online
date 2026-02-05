@@ -108,7 +108,12 @@ async function initializeDataSystem() {
 
         // 🚀 SaaS Hardening: Verify Session with Server via Cookies
         try {
-            const meRes = await fetch('/api/auth/me');
+            // Include credentials to send cookies, and no-cache to avoid stale responses
+            const meRes = await fetch('/api/auth/me', {
+                credentials: 'include',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+
             if (meRes.ok) {
                 const meUser = await meRes.json();
                 console.log('✅ Session Verified:', meUser.username);
@@ -116,29 +121,13 @@ async function initializeDataSystem() {
                 await EnhancedSecurity.storeSecureData('session', meUser);
 
                 // 🚀 If on index.html but already logged in, auto-navigate
-                if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
-                    const branches = meUser.branches || [];
-                    const activeBranchId = localStorage.getItem('activeBranchId');
+                // Note: The early return for 'isLoginPage' above prevents this from running on index.html with a login form.
+                // However, if we removed the early return, the overlay would show on login page which is annoying.
+                // For now, we assume standard login flow handles redirection.
 
-                    if (activeBranchId) {
-                        console.log('Redirecting to POS (Branch active)');
-                        window.location.href = 'pos.html';
-                        return;
-                    } else if (branches.length === 1) {
-                        localStorage.setItem('activeBranchId', branches[0].id);
-                        window.location.href = 'pos.html';
-                        return;
-                    } else if (branches.length > 1) {
-                        showBranchPicker(branches, meUser.defaultBranchId);
-                        // Hide the login form if it was shown
-                        const loginForm = document.getElementById('loginForm');
-                        if (loginForm) loginForm.classList.add('hidden');
-                        return;
-                    }
-                }
             } else {
                 if (meRes.status === 401 || meRes.status === 403) {
-                    console.error('⛔ Session Expired/Invalid [401/403] -> Redirecting to Login');
+                    console.error(`⛔ Session Expired/Invalid [${meRes.status}] -> Redirecting to Login`);
                     await EnhancedSecurity.storeSecureData('session', null);
                     if (!window.location.pathname.includes('index.html')) {
                         console.log('Redirecting now...');

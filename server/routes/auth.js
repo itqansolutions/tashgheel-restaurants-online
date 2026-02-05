@@ -54,14 +54,14 @@ const setCookies = (res, accessToken, refreshToken) => {
     res.cookie('token', accessToken, {
         httpOnly: true,
         secure: isProd,
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 15 * 60 * 1000 // 15 mins
     });
 
     res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: isProd,
-        sameSite: 'strict',
+        sameSite: 'lax',
         path: '/api/auth/refresh', // Only sent to refresh endpoint
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
@@ -239,7 +239,7 @@ router.get('/refresh', async (req, res) => {
         res.cookie('token', accessToken, {
             httpOnly: true,
             secure: isProd,
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 15 * 60 * 1000
         });
 
