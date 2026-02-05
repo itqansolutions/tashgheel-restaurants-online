@@ -86,8 +86,7 @@ async function initializeDataSystem() {
         let keys = [
             'users', 'products', 'customers', 'vendors',
             'visits', 'sales', 'returns', 'expenses',
-            'shop_settings', 'license', 'spare_parts', 'vehicles', 'vendor_payments', 'employees',
-            'session'
+            'shop_settings', 'license', 'spare_parts', 'vehicles', 'vendor_payments', 'employees'
         ];
 
         // Try to get dynamic list from disk
@@ -97,7 +96,8 @@ async function initializeDataSystem() {
                 if (files && files.length > 0) {
                     console.log('📂 Discovered data files:', files);
                     // Merge and deduplicate
-                    keys = [...new Set([...keys, ...files])];
+                    const allKeys = [...new Set([...keys, ...files])];
+                    keys = allKeys.filter(k => k !== 'session');
                 }
             }
         } catch (err) {
