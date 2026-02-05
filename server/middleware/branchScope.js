@@ -8,9 +8,9 @@ module.exports = async function (req, res, next) {
     // 🚀 SYSTEM BYPASS: Foundation routes don't need branch context
     // Using req.path to ignore query parameters and ensure exact matching
     const bypassRoutes = [
-        '/api/utils/ensure-data-dir',
-        '/api/file/exists',
-        '/api/data/list'
+        '/utils/ensure-data-dir',
+        '/file/exists',
+        '/data/list'
     ];
 
     // Normalize path: remove trailing slash, lowercase
