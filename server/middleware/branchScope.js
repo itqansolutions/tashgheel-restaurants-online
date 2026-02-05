@@ -31,7 +31,14 @@ module.exports = async function (req, res, next) {
     }
 
     try {
-        // 3. Super Admin Bypass
+        // 4. Verify Branch Exists & Belongs to Tenant (Strict Security)
+        const branch = await Branch.findOne({ _id: branchId, tenantId: req.tenantId });
+        if (!branch) {
+            console.warn(`Security Alert: Tenant ${req.tenantId} user ${req.user.id} attempted to access invalid/cross-tenant branch ${branchId}`);
+            return res.status(404).json({ error: 'BRANCH_NOT_FOUND', msg: 'Branch not found or access denied' });
+        }
+
+        // 5. Super Admin Bypass
         if (req.user.role === 'SUPER_ADMIN') {
             req.branchId = branchId; // Trust the header
             return next();
