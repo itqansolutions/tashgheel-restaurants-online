@@ -618,8 +618,15 @@ async function login(username, password) {
         const data = await response.json();
 
         if (!response.ok) {
-            console.error('Login failed:', data.msg);
-            alert(data.msg || 'Login Failed');
+            const errorMsg = data.msg || 'Login Failed';
+            console.error('Login failed:', errorMsg);
+            const errorDiv = document.getElementById('loginError');
+            if (errorDiv) {
+                errorDiv.textContent = '❌ ' + errorMsg;
+                errorDiv.style.color = 'red';
+            } else {
+                alert(errorMsg);
+            }
             return false;
         }
 
