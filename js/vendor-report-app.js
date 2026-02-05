@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderVendorReport() {
     const vendors = window.DB.getVendors();
-    const vendors = window.DB.getVendors();
     // 🚀 LOGIC FIX: Use Transaction History instead of Current Stock for "Total Purchases"
     // 'parts' only shows what's currently on shelf, not what was bought historically.
     const transactions = window.DB.getVendorTransactions ? window.DB.getVendorTransactions() : [];

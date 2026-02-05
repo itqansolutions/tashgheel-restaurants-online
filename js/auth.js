@@ -83,25 +83,35 @@ async function initializeDataSystem() {
 
         // List of keys to load
         // List of known keys (fallback)
+        // List of known keys (fallback)
         let keys = [
             'users', 'products', 'customers', 'vendors',
             'visits', 'sales', 'returns', 'expenses',
             'shop_settings', 'license', 'spare_parts', 'vehicles', 'vendor_payments', 'employees'
         ];
 
-        // Try to get dynamic list from disk
-        try {
-            if (window.electronAPI.listDataFiles) {
-                const files = await window.electronAPI.listDataFiles();
-                if (files && files.length > 0) {
-                    console.log('📂 Discovered data files:', files);
-                    // Merge and deduplicate
-                    const allKeys = [...new Set([...keys, ...files])];
-                    keys = allKeys.filter(k => k !== 'session');
+        // 🚀 TIMING FIX: Only list data files if we have a branch context or are post-login
+        // fetching /api/data/list requires x-branch-id. If we are on index.html with no branch, it fails.
+        const currentPath = window.location.pathname;
+        const branchId = localStorage.getItem('activeBranchId');
+        const shouldFetchData = branchId && branchId !== 'bypass' && !currentPath.endsWith('index.html');
+
+        if (shouldFetchData) {
+            try {
+                if (window.electronAPI.listDataFiles) {
+                    const files = await window.electronAPI.listDataFiles();
+                    if (files && files.length > 0) {
+                        console.log('📂 Discovered data files:', files);
+                        // Merge and deduplicate
+                        const allKeys = [...new Set([...keys, ...files])];
+                        keys = allKeys.filter(k => k !== 'session');
+                    }
                 }
+            } catch (err) {
+                console.error('Failed to list data files (Safely ignored if offline/pre-auth):', err);
             }
-        } catch (err) {
-            console.error('Failed to list data files, using defaults:', err);
+        } else {
+            console.log('⏳ Skipping Data List: Waiting for Branch Selection/Login');
         }
 
         let migrationNeeded = false;
