@@ -19,6 +19,7 @@ const envUri = process.env.MONGO_URI || '';
 const mongoUri = envUri.trim().replace(/[\r\n"']/g, ''); // Remove newlines AND quotes
 
 console.log('🔍 Environment Check:');
+console.log('- Active Railway Environment:', process.env.RAILWAY_ENVIRONMENT_NAME || 'Unknown');
 console.log('- Keys present:', Object.keys(process.env).filter(k => !k.startsWith('npm_')).join(', '));
 console.log('- MONGO_URI present:', !!process.env.MONGO_URI);
 console.log('- MONGO_URI length:', envUri.length);
