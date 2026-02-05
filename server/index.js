@@ -48,7 +48,13 @@ app.use('/api', auth, apiRoutes);
 // Serve from the parent directory (project root)
 app.use(express.static(path.join(__dirname, '../')));
 
-// Fallback to index.html for SPA routing (if needed, though this is a multi-page app mostly)
+// Serve index.html for root explicitly
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../index.html'));
+});
+
+// Fallback to index.html for SPA routing
+
 app.get('*', (req, res, next) => {
     if (req.url.startsWith('/api')) return next();
     res.sendFile(path.join(__dirname, '../index.html'));
