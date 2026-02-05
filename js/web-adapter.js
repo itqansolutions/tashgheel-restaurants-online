@@ -62,20 +62,22 @@
 
         // Data Storage Operations
         ensureDataDir: async () => {
-            await fetch(`${API_BASE}/utils/ensure-data-dir`, { method: 'POST' });
+            await fetch(`${API_BASE}/utils/ensure-data-dir`, {
+                method: 'POST',
+                headers: { 'x-auth-token': localStorage.getItem('auth_token') }
+            });
             return true;
         },
 
         saveData: async (key, value) => {
             try {
-                // Ensure key doesn't have .json for the API if it adds it, 
-                // but if the code passes "users.json", we should strip it if the server adds it.
-                // Our server adds .json.
                 const cleanKey = key.replace('.json', '');
-
                 const response = await fetch(`${API_BASE}/data/save`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': localStorage.getItem('auth_token')
+                    },
                     body: JSON.stringify({ key: cleanKey, value: value })
                 });
                 const result = await response.json();
@@ -88,10 +90,12 @@
             if (!key) return null;
             try {
                 const cleanKey = key.replace('.json', '');
-                const response = await fetch(`${API_BASE}/data/read/${cleanKey}`);
+                const response = await fetch(`${API_BASE}/data/read/${cleanKey}`, {
+                    headers: { 'x-auth-token': localStorage.getItem('auth_token') }
+                });
                 if (!response.ok) return null;
                 const text = await response.text();
-                return text || null; // Return empty string as null or raw string
+                return text || null;
             } catch (e) { console.error("readData error", e); return null; }
         },
 
@@ -107,7 +111,9 @@
 
         listDataFiles: async () => {
             try {
-                const response = await fetch(`${API_BASE}/data/list`);
+                const response = await fetch(`${API_BASE}/data/list`, {
+                    headers: { 'x-auth-token': localStorage.getItem('auth_token') }
+                });
                 if (!response.ok) return [];
                 return await response.json();
             } catch (e) { return []; }

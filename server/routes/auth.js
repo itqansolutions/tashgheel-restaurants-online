@@ -45,6 +45,41 @@ router.post('/register', async (req, res) => {
             active: true
         });
 
+        // Send Email Notification
+        try {
+            const nodemailer = require('nodemailer');
+            if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+                const transporter = nodemailer.createTransport({
+                    service: 'gmail',
+                    auth: {
+                        user: process.env.EMAIL_USER,
+                        pass: process.env.EMAIL_PASS
+                    }
+                });
+
+                const mailOptions = {
+                    from: process.env.EMAIL_USER,
+                    to: 'info@itqansolutions.org',
+                    subject: `New Resturant Registration: ${businessName}`,
+                    text: `
+=== NEW BUSINESS REGISTRATION ===
+Business: ${businessName}
+Email: ${email}
+Phone: ${phone}
+Admin: ${username}
+Registered: ${new Date().toLocaleString()}
+Trial Ends: ${trialEndsAt.toLocaleString()}
+==================================
+                    `
+                };
+
+                await transporter.sendMail(mailOptions);
+                console.log('Registration email sent to info@itqansolutions.org');
+            }
+        } catch (emailError) {
+            console.error('Failed to send email:', emailError);
+        }
+
         // 4. Return Token
         const payload = {
             user: {

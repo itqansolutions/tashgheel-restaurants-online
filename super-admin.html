@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Super Admin Dashboard - Tashgheel Restaurants</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            background: #f0f2f5;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .super-admin-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #e6f7ef;
+            color: #27ae60;
+        }
+
+        .status-on_hold {
+            background: #fff8e6;
+            color: #f39c12;
+        }
+
+        .status-suspended {
+            background: #fee7e7;
+            color: #e74c3c;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            color: white;
+            margin: 2px;
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-info {
+            background: #3498db;
+        }
+
+        #login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .login-box {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="login-overlay">
+        <div class="login-box">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🔐</div>
+            <h2>Super Admin Access</h2>
+            <p style="color: #666; margin-bottom: 1.5rem;">Please enter administrative credentials</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <input type="text" id="username" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="password" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn btn-primary"
+                    style="width: 100%; padding: 0.8rem; margin-top: 0.5rem;">Unlock Dashboard</button>
+                <div id="loginError" style="color: red; margin-top: 10px; font-size: 0.9rem;"></div>
+            </form>
+            <p style="margin-top: 20px;"><a href="index.html"
+                    style="color: #666; text-decoration: none; font-size: 0.9em;">← Back to Client Login</a></p>
+        </div>
+    </div>
+
+    <div class="super-admin-container" id="dashboard-content" style="display: none;">
+        <div class="header">
+            <div>
+                <h1>System Dashboard</h1>
+                <p style="color: #666;">Manage clients and system configurations</p>
+            </div>
+            <button onclick="logout()" class="btn btn-danger" style="padding: 0.6rem 1.2rem;">Logout</button>
+        </div>
+
+        <div class="card">
+            <h2>Tenant Management</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Business</th>
+                        <th>Contact Info</th>
+                        <th>Status</th>
+                        <th>Expiry Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tenants-table">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="extendModal" class="modal">
+        <div class="modal-content">
+            <h3>Extend Subscription</h3>
+            <p style="color: #666; font-size: 0.9em; margin-bottom: 1.5rem;">Select the duration to extend for <span
+                    id="extendBusinessName" style="font-weight:bold;"></span></p>
+            <div class="form-group">
+                <label>Duration:</label>
+                <select id="extendDuration">
+                    <option value="1">1 Month</option>
+                    <option value="3">3 Months</option>
+                    <option value="6">6 Months</option>
+                    <option value="12">1 Year</option>
+                    <option value="999">Lifetime / Unlimited</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 2rem;">
+                <button onclick="confirmExtend()" class="btn btn-success" style="flex: 1; padding: 0.8rem;">Confirm
+                    Extension</button>
+                <button onclick="closeModal('extendModal')" class="btn btn-secondary"
+                    style="background:#666; color:white; border:none; border-radius:5px; flex: 1; cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h3>Reset Admin Password</h3>
+            <p style="color: #666; font-size: 0.9em; margin-bottom: 1.5rem;">Resetting password for <span
+                    id="resetBusinessName" style="font-weight:bold;"></span></p>
+            <div class="form-group">
+                <label>New Password:</label>
+                <input type="password" id="newPassword" placeholder="Minimum 6 characters">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 2rem;">
+                <button onclick="confirmPasswordReset()" class="btn btn-primary"
+                    style="background: #3498db; color:white; border:none; border-radius:5px; flex: 1; padding: 0.8rem; cursor:pointer;">Reset
+                    Password</button>
+                <button onclick="closeModal('passwordModal')" class="btn btn-secondary"
+                    style="background:#666; color:white; border:none; border-radius:5px; flex: 1; cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/super-admin.js"></script>
+</body>
+
+</html>

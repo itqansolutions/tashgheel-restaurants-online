@@ -13,7 +13,7 @@ router.post('/data/save', async (req, res) => {
     if (!key) return res.status(400).json({ success: false, error: 'Key is required' });
 
     try {
-        await storage.saveData(key, value);
+        await storage.saveData(key, value, req.tenantId);
         res.json({ success: true });
     } catch (err) {
         console.error(`Error saving ${key}:`, err);
@@ -25,8 +25,8 @@ router.post('/data/save', async (req, res) => {
 router.get('/data/read/:key', async (req, res) => {
     const { key } = req.params;
     try {
-        const data = await storage.readData(key);
-        res.send(data || ''); // Return raw string (or JSON string) as Tauri did
+        const data = await storage.readData(key, req.tenantId);
+        res.send(data || '');
     } catch (err) {
         console.error(`Error reading ${key}:`, err);
         res.status(500).send('');
@@ -37,7 +37,12 @@ router.get('/data/read/:key', async (req, res) => {
 router.get('/data/list', async (req, res) => {
     try {
         const files = await storage.listDataFiles();
-        res.json(files);
+        // Filtering list by tenantId prefix
+        const tenantPrefix = req.tenantId ? `${req.tenantId}_` : '';
+        const filtered = files
+            .filter(f => f.startsWith(tenantPrefix))
+            .map(f => f.replace(tenantPrefix, ''));
+        res.json(filtered);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -46,16 +51,7 @@ router.get('/data/list', async (req, res) => {
 // Check File Exists (Replace `checkFileExists` command)
 router.post('/file/exists', async (req, res) => {
     const { folderPath, filename } = req.body;
-    // Note: In Web version, we strictly control paths. 
-    // We'll interpret 'folderPath' loosely or ignore it if it's just local data.
-    // For backup logic, we might need a specific 'backups' folder.
-
-    // For safety, let's assume this only checks within permitted areas or data dir for now.
-    // If the original app used absolute paths for backups, we can't fully support that in browser 
-    // without user interaction, but here we are in a server context.
-
-    // Simplification: Check in data dir + filename
-    const exists = await storage.checkFileExists(filename); // naive implementation
+    const exists = await storage.checkFileExists(filename, req.tenantId);
     res.json(exists);
 });
 

@@ -85,4 +85,61 @@ router.put('/tenants/:id/subscription', checkSuperAdmin, async (req, res) => {
     }
 });
 
+// @route   DELETE /api/super-admin/tenants/:id
+// @desc    Terminate tenant (Delete all data)
+router.delete('/tenants/:id', checkSuperAdmin, async (req, res) => {
+    try {
+        const tenantId = req.params.id;
+
+        // Delete Tenant
+        await storage.deleteOne('tenants', { _id: tenantId });
+
+        // Delete Users
+        await storage.deleteMany('users', { tenantId });
+
+        // Delete other data associated with this tenant if applicable
+        // The storage utility handles the underlying storage mechanism
+        await storage.deleteMany('inventory', { tenantId });
+        await storage.deleteMany('sales', { tenantId });
+        await storage.deleteMany('customers', { tenantId });
+        await storage.deleteMany('vendors', { tenantId });
+        await storage.deleteMany('expenses', { tenantId });
+
+        res.json({ msg: 'Tenant terminated successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   PUT /api/super-admin/tenants/:id/password
+// @desc    Reset Tenant Admin Password
+router.put('/tenants/:id/password', checkSuperAdmin, async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        const tenantId = req.params.id;
+
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ msg: 'Password must be at least 6 characters' });
+        }
+
+        // Find the admin user for this tenant
+        const users = await storage.find('users', { tenantId, role: 'admin' });
+        const user = users[0];
+
+        if (!user) {
+            return res.status(404).json({ msg: 'Admin user not found for this tenant' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(newPassword, salt);
+        await storage.update('users', user._id, { passwordHash });
+
+        res.json({ msg: 'Password reset successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

@@ -75,7 +75,7 @@
       <!-- Login Form (shown when activated) -->
       <form class="login-form hidden" id="loginForm">
         <div class="form-group">
-          <label data-i18n-key="business_email">Business Email:</label>
+          <label id="businessEmailLabel" data-i18n-key="business_email">Business Email:</label>
           <input type="email" id="businessEmail" placeholder="owner@business.com" required />
         </div>
         <div class="form-group">
@@ -88,9 +88,16 @@
         </div>
         <button type="submit" class="btn btn-success" id="loginBtn" data-i18n-key="login_btn">🚀 Launch System</button>
         <div id="loginError" class="error"></div>
-        <p style="margin-top:15px; font-size:0.9em;">
-          <a href="#" onclick="showRegisterModal()" style="color:#2c3e50;">Register New Business</a>
-        </p>
+
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; text-align: center;">
+          <p style="margin-bottom: 10px;">
+            <a href="#" onclick="showRegisterModal(); return false;"
+              style="color: #27ae60; text-decoration: none; font-weight: bold;" data-i18n-key="no_account">Register New
+              Business</a>
+          </p>
+          <a href="super-admin.html" style="color: #666; text-decoration: none; font-size: 0.85em;"
+            data-i18n-key="super_admin_login">🔐 Super Admin Login</a>
+        </div>
       </form>
 
       <!-- Security Features -->
@@ -170,42 +177,18 @@
     }
 
     async function initLogin() {
+      // 1. Force Show Login Form (SaaS Mode)
+      document.getElementById("licenseForm").style.display = "none";
+      document.getElementById("loginForm").classList.remove("hidden");
+      document.getElementById("activationStatus").style.display = "none";
+
+      // Still load machine ID for reference if needed
       const fingerprintField = document.getElementById('fingerprintDisplay');
-
-      // FIX: Read from EnhancedSecurity or correct LocalStorage key
-      let license = null;
-      if (typeof EnhancedSecurity !== 'undefined') {
-        license = EnhancedSecurity.getLicenseData();
-      }
-      if (!license) {
-        try {
-          license = JSON.parse(localStorage.getItem("pos_backup_license"));
-        } catch (e) { console.log("No license found in backup"); }
-      }
-
-      // 1. Get Machine ID immediately
       if (window.electronAPI?.getMachineId) {
         try {
           const id = await window.electronAPI.getMachineId();
           if (fingerprintField) fingerprintField.value = id;
-          console.log("Machine ID Loaded:", id);
-        } catch (err) {
-          console.error("Failed to get machine ID:", err);
-          if (fingerprintField) fingerprintField.value = "ERROR: Failed to fetch ID";
-        }
-      }
-
-      // 2. Check Activation
-      if (license) {
-        document.getElementById("licenseForm").style.display = "none";
-        document.getElementById("loginForm").classList.remove("hidden");
-        document.getElementById("activationStatus").classList.remove("not-activated");
-        document.getElementById("activationStatus").classList.add("activated");
-        document.getElementById("statusText").textContent = "✅ System Activated";
-        document.getElementById("licenseInfo").classList.remove("hidden");
-        document.getElementById("businessDisplay").textContent = license.business;
-        document.getElementById("activationDate").textContent = new Date(license.activatedAt).toLocaleString();
-        return;
+        } catch (err) { }
       }
     }
 

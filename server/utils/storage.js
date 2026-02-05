@@ -33,37 +33,32 @@ if (IS_MONGO) {
 }
 
 // Get full path for a key (File Mode)
-function getFilePath(key) {
+function getFilePath(key, tenantId) {
+    if (tenantId) {
+        return path.join(DATA_DIR, `${tenantId}_${key}.json`);
+    }
     return path.join(DATA_DIR, `${key}.json`);
 }
 
 // Low-level: Write data to file or Mongo (key-value generic)
 // Note: This is for generic unstructured data (like 'settings.json')
 // For structured data (Users, Tenants), use the DB Helpers below.
-async function saveData(key, data) {
+// Low-level: Write data to file or Mongo (key-value generic)
+async function saveData(key, data, tenantId) {
     if (IS_MONGO) {
-        // Implement Generic Store Model if strictly fully Mongo? 
-        // For now, let's keep generic config as files even in Mongo mode 
-        // OR warn/skip. But 'sales', 'products' might be saved via this legacy method?
-        // Analyzing usage: 'window.electronAPI.saveData' calls this.
-        // We should probably create a 'GenericStore' model in Mongo or use GridFS?
-        // Simplest strategy: Generic Key-Value store collection.
-        console.warn(`[Storage] Saving generic key '${key}' to File System (Hybrid Mode)`);
+        // ... (can be extended to a generic collection)
     }
 
     await ensureDataDir();
-    const filePath = getFilePath(key);
+    const filePath = getFilePath(key, tenantId);
     const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
     await fs.writeFile(filePath, content, 'utf8');
     return { success: true };
 }
 
 // Low-level: Read data from file
-async function readData(key) {
-    if (IS_MONGO) {
-        // Return from file (Hybrid)
-    }
-    const filePath = getFilePath(key);
+async function readData(key, tenantId) {
+    const filePath = getFilePath(key, tenantId);
     try {
         const data = await fs.readFile(filePath, 'utf8');
         return data;
@@ -243,8 +238,8 @@ async function listDataFiles() {
 }
 
 // Check if file exists
-async function checkFileExists(key) {
-    const filePath = getFilePath(key);
+async function checkFileExists(key, tenantId) {
+    const filePath = getFilePath(key, tenantId);
     try {
         await fs.access(filePath);
         return true;
