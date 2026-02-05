@@ -16,17 +16,9 @@
             return filename; // Server handles paths
         },
 
-        // Machine Identity
+        // Machine Identity (REMOVED: Managed by Super Admin Dashboard)
         getMachineId: async () => {
-            try {
-                const response = await fetch(`${API_BASE}/machine-id`);
-                if (!response.ok) throw new Error('Failed to get machine ID');
-                const text = await response.text();
-                return text;
-            } catch (e) {
-                console.error("getMachineId logic failed:", e);
-                return 'web-client-' + Math.random().toString(36).substring(7);
-            }
+            return 'web-client';
         },
 
         // Backup Operations (Limited in Web)

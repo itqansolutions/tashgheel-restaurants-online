@@ -55,21 +55,7 @@ router.post('/file/exists', async (req, res) => {
     res.json(exists);
 });
 
-// === Machine ID Endpoint ===
-router.get('/machine-id', async (req, res) => {
-    // Persistent machine ID logic
-    try {
-        let machineId = await storage.readData('machine_id');
-        // storage.readData returns raw string content
-        if (!machineId) {
-            machineId = crypto.randomUUID();
-            await storage.saveData('machine_id', machineId);
-        }
-        res.send(machineId);
-    } catch (err) {
-        res.status(500).send(err.message);
-    }
-});
+// === Machine ID Endpoint (REMOVED: Managed by Super Admin) ===
 
 // === Utilities ===
 router.post('/utils/ensure-data-dir', async (req, res) => {

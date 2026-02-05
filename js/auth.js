@@ -328,13 +328,8 @@ var EnhancedSecurity = {
         return { valid: true, warning: "Crypto Missing" };
     },
 
-    // Check if system is activated (with expiry check)
+    // Check if system is activated (SaaS Mode: Always True)
     isSystemActivated: function () {
-        const result = this.checkLicenseStatus();
-        if (!result.valid) {
-            console.warn("System Activation Check Failed:", result.error);
-            return false;
-        }
         return true;
     },
 

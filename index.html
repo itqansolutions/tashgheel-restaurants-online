@@ -29,47 +29,9 @@
       <h1 id="loginTitle" data-i18n-key="shop_pos_system">Tashgeel POS System</h1>
       <p class="subtitle" id="subtitle" data-i18n-key="enhanced_security">Powered by itqan</p>
 
-      <!-- Activation Status -->
-      <div id="activationStatus" class="activation-status not-activated">
-        <span id="statusText">System Not Activated</span>
-      </div>
-
-      <!-- License Activation Form -->
-      <div id="licenseForm">
-        <h3 id="activationTitle" data-i18n-key="activation_required">System Activation Required</h3>
-
-        <!-- Machine ID Display -->
-        <div class="form-group mb-3">
-          <label id="machineIdLabel">Unique Machine ID (Provide this to Admin):</label>
-          <div class="input-group">
-            <input type="text" id="fingerprintDisplay" class="form-control" readonly style="background: #e9ecef;">
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyMachineId()">📋 Copy</button>
-          </div>
-          <small class="text-muted">The user should copy this and send it to get their license key.</small>
-        </div>
-
-        <div class="form-group">
-          <label id="licenseKeyLabel" data-i18n-key="license_key">License Key:</label>
-          <input type="text" id="licenseKey" placeholder="Enter your license key">
-        </div>
-        <div class="form-group">
-          <label id="businessNameLabel" data-i18n-key="business_name">Business Name:</label>
-          <input type="text" id="businessName" placeholder="Enter your business name">
-        </div>
-        <button type="button" class="btn btn-primary" onclick="activateLicense()" id="activateBtn"
-          data-i18n-key="activate_license">🔑 Activate
-          License</button>
-        <div id="licenseError" class="error"></div>
-      </div>
-
-      <!-- License Info (shown when activated) -->
-      <div id="licenseInfo" class="license-info hidden">
-        <h4 id="licenseInfoTitle" data-i18n-key="license_info">License Information</h4>
-        <p><strong id="businessLabel" data-i18n-key="business">Business:</strong> <span id="businessDisplay"></span></p>
-        <p><strong id="activatedLabel" data-i18n-key="activated">Activated:</strong> <span id="activationDate"></span>
-        </p>
-        <p><strong id="statusLabel" data-i18n-key="status">Status:</strong> <span style="color: #27ae60;">✅
-            Active</span></p>
+      <!-- System Status (SaaS Mode) -->
+      <div id="activationInfo" style="text-align: center; margin-bottom: 20px;">
+        <span style="color: #27ae60; font-weight: bold;">✅ SaaS Subscription Active</span>
       </div>
 
       <!-- Login Form (shown when activated) -->
@@ -176,64 +138,11 @@
       }
     }
 
-    async function initLogin() {
-      // 1. Force Show Login Form (SaaS Mode)
-      document.getElementById("licenseForm").style.display = "none";
+    function initLogin() {
+      // Show Login Form directly in SaaS Mode
       document.getElementById("loginForm").classList.remove("hidden");
-      document.getElementById("activationStatus").style.display = "none";
-
-      // Still load machine ID for reference if needed
-      const fingerprintField = document.getElementById('fingerprintDisplay');
-      if (window.electronAPI?.getMachineId) {
-        try {
-          const id = await window.electronAPI.getMachineId();
-          if (fingerprintField) fingerprintField.value = id;
-        } catch (err) { }
-      }
     }
 
-    async function activateLicense() {
-      const licenseKey = document.getElementById('licenseKey').value.trim();
-      const businessName = document.getElementById('businessName').value.trim();
-      const licenseError = document.getElementById('licenseError');
-
-      if (!licenseKey) {
-        licenseError.textContent = "❌ Please enter a license key.";
-        return;
-      }
-
-      try {
-        const realFingerprint = window.electronAPI ? await window.electronAPI.getMachineId() : 'browser-fingerprint';
-
-        if (typeof EnhancedSecurity !== 'undefined') {
-          const result = await EnhancedSecurity.activateLicenseWithFingerprint(licenseKey, realFingerprint);
-          if (result.success) {
-            // Success logic
-            document.getElementById("activationStatus").classList.remove("not-activated");
-            document.getElementById("activationStatus").classList.add("activated");
-            document.getElementById("statusText").textContent = "✅ System Activated";
-
-            document.getElementById("licenseForm").style.display = "none";
-            document.getElementById("licenseInfo").classList.remove("hidden");
-            document.getElementById("businessDisplay").textContent = result.data.businessName;
-            document.getElementById("activationDate").textContent = new Date(result.data.activatedDate).toLocaleString();
-            document.getElementById("loginForm").classList.remove("hidden");
-
-            alert("Activation Successful!");
-          } else {
-            licenseError.textContent = "❌ " + result.error;
-            licenseError.style.color = "red";
-          }
-        } else {
-          console.warn("EnhancedSecurity not found");
-          alert("Security module missing. Please refresh the page.");
-        }
-
-      } catch (e) {
-        licenseError.textContent = "❌ Error during activation process.";
-        console.error(e);
-      }
-    }
 
     document.addEventListener("DOMContentLoaded", async () => {
       // Data System auto-initializes via auth.js
