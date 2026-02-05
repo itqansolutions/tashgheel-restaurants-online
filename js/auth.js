@@ -1137,60 +1137,61 @@ function enforcePagePermissions() {
         console.warn('✅ User is Admin -> Bypassing Enforcement');
         return;
     }
-}
 
-// 2. Check current page access
-const path = window.location.pathname.split('/').pop().toLowerCase(); // Normalize
 
-// Default to empty array if undefined
-const allowed = (sessionUser.allowedPages || []).map(p => p.toLowerCase());
+    // 2. Check current page access
+    const path = window.location.pathname.split('/').pop().toLowerCase(); // Normalize
 
-console.log(`🔒 Enforcement: User=${sessionUser.username}, Path=${path}, Allowed=${JSON.stringify(allowed)}`);
+    // Default to empty array if undefined
+    const allowed = (sessionUser.allowedPages || []).map(p => p.toLowerCase());
 
-// Secured Pages List
-const securedPages = [
-    'visits.html',
-    'vendors.html',
-    'customers.html',
-    'products.html',
-    'receipts.html',
-    'reports.html',
-    'salesmen.html',
-    'expenses.html',
-    'admin.html',
-    'backup.html',
-    'upcoming-visits.html'
-];
+    console.log(`🔒 Enforcement: User=${sessionUser.username}, Path=${path}, Allowed=${JSON.stringify(allowed)}`);
 
-// If current page is secured, STRICTLY check if it's in the allowed list
-if (securedPages.includes(path)) {
-    if (!allowed.includes(path)) {
-        console.warn('⛔ Access Denied');
-        alert('Access Denied: You do not have permission for this page. \nContact Admin.');
+    // Secured Pages List
+    const securedPages = [
+        'visits.html',
+        'vendors.html',
+        'customers.html',
+        'products.html',
+        'receipts.html',
+        'reports.html',
+        'salesmen.html',
+        'expenses.html',
+        'admin.html',
+        'backup.html',
+        'upcoming-visits.html'
+    ];
 
-        // Redirect logic: Find first allowed secured page, or go to index/pos
-        const firstAllowed = sessionUser.allowedPages && sessionUser.allowedPages.length > 0
-            ? sessionUser.allowedPages[0]
-            : 'index.html';
+    // If current page is secured, STRICTLY check if it's in the allowed list
+    if (securedPages.includes(path)) {
+        if (!allowed.includes(path)) {
+            console.warn('⛔ Access Denied');
+            alert('Access Denied: You do not have permission for this page. \nContact Admin.');
 
-        window.location.href = firstAllowed;
-        return;
-    }
-}
+            // Redirect logic: Find first allowed secured page, or go to index/pos
+            const firstAllowed = sessionUser.allowedPages && sessionUser.allowedPages.length > 0
+                ? sessionUser.allowedPages[0]
+                : 'index.html';
 
-// 3. Hide Navigation Links (UI Polish)
-const navLinks = document.querySelectorAll('.nav-item');
-navLinks.forEach(link => {
-    const href = link.getAttribute('href');
-    if (href) {
-        const linkPath = href.split('/').pop().toLowerCase();
-        if (securedPages.includes(linkPath)) {
-            if (!allowed.includes(linkPath)) {
-                link.style.display = 'none';
-            }
+            window.location.href = firstAllowed;
+            return;
         }
     }
-});
+
+    // 3. Hide Navigation Links (UI Polish)
+    const navLinks = document.querySelectorAll('.nav-item');
+    navLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href) {
+            const linkPath = href.split('/').pop().toLowerCase();
+            if (securedPages.includes(linkPath)) {
+                if (!allowed.includes(linkPath)) {
+                    link.style.display = 'none';
+                }
+            }
+        }
+    });
+}
 
 
 // === Dynamic Roles Management ===
