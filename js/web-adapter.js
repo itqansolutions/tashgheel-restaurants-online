@@ -83,12 +83,13 @@
 
         saveData: async (key, value) => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const cleanKey = key.replace('.json', '');
                 const response = await apiFetch(`${API_BASE}/data/save`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-branch-id': localStorage.getItem('activeBranchId')
+                        'x-branch-id': branchId
                     },
                     body: JSON.stringify({ key: cleanKey, value: value })
                 });
@@ -101,11 +102,13 @@
         readData: async (key) => {
             if (!key) return null;
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const cleanKey = key.replace('.json', '');
                 const response = await apiFetch(`${API_BASE}/data/read/${cleanKey}`, {
+                    method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-branch-id': localStorage.getItem('activeBranchId')
+                        'x-branch-id': branchId
                     }
                 });
                 if (!response.ok) return null;
@@ -117,11 +120,12 @@
         // Sales Specific Operation
         saveSale: async (sale) => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const response = await apiFetch(`${API_BASE}/sales`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-branch-id': localStorage.getItem('activeBranchId')
+                        'x-branch-id': branchId
                     },
                     body: JSON.stringify(sale)
                 });
@@ -134,11 +138,12 @@
         // Inventory Operation
         updateStock: async (productId, qty) => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const response = await apiFetch(`${API_BASE}/inventory/set`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-branch-id': localStorage.getItem('activeBranchId')
+                        'x-branch-id': branchId
                     },
                     body: JSON.stringify({ productId, qty })
                 });
@@ -150,8 +155,10 @@
         // Reporting
         getLiveReport: async () => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const response = await apiFetch(`${API_BASE}/reports/live`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                    method: 'GET',
+                    headers: { 'x-branch-id': branchId }
                 });
                 return await response.json();
             } catch (err) { return null; }
@@ -159,9 +166,11 @@
 
         getSalesHistory: async (filters = {}) => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const params = new URLSearchParams(filters).toString();
                 const response = await apiFetch(`${API_BASE}/reports/history?${params}`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                    method: 'GET',
+                    headers: { 'x-branch-id': branchId }
                 });
                 return await response.json();
             } catch (err) { return { sales: [], total: 0 }; }
@@ -169,8 +178,10 @@
 
         getCurrentShift: async () => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const response = await apiFetch(`${API_BASE}/shifts/current`, {
-                    headers: { 'x-branch-id': localStorage.getItem('activeBranchId') }
+                    method: 'GET',
+                    headers: { 'x-branch-id': branchId }
                 });
                 return await response.json();
             } catch (err) { return null; }
@@ -178,11 +189,12 @@
 
         openShift: async (openingCash) => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const response = await apiFetch(`${API_BASE}/shifts/open`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-branch-id': localStorage.getItem('activeBranchId')
+                        'x-branch-id': branchId
                     },
                     body: JSON.stringify({ openingCash })
                 });
@@ -192,11 +204,12 @@
 
         closeShift: async (shiftId, closingCash, notes) => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const response = await apiFetch(`${API_BASE}/shifts/close`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-branch-id': localStorage.getItem('activeBranchId')
+                        'x-branch-id': branchId
                     },
                     body: JSON.stringify({ shiftId, closingCash, notes })
                 });
@@ -216,15 +229,23 @@
 
         listDataFiles: async () => {
             try {
+                const branchId = localStorage.getItem('activeBranchId') || 'bypass';
                 const response = await apiFetch(`${API_BASE}/data/list`, {
+                    method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-branch-id': localStorage.getItem('activeBranchId')
+                        'x-branch-id': branchId
                     }
                 });
-                if (!response.ok) return [];
+                if (!response.ok) {
+                    console.error('listDataFiles failed:', response.status, response.statusText);
+                    return [];
+                }
                 return await response.json();
-            } catch (e) { return []; }
+            } catch (e) {
+                console.error('listDataFiles exception:', e);
+                return [];
+            }
         },
 
         clearAllData: async () => { return false; }, // Not implemented for safety
