@@ -26,6 +26,13 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// 🛡️ Extra Safety: Explicitly Allow Headers (Fixes Proxy/Preflight strippings)
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, x-branch-id");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    next();
+});
+
 // Connect to MongoDB
 // Connect to MongoDB
 const envUri = process.env.MONGO_URI || '';

@@ -12,23 +12,24 @@
 
     // Helper: Enforce credentials and standardize requests
     // Helper: Enforce credentials and standardize requests
+    // Helper: Enforce credentials and standardize requests
     async function apiFetch(path, options = {}) {
         const branchId = localStorage.getItem("activeBranchId");
 
         const fetchOptions = {
             method: options.method || "GET",
             credentials: "include",
-            headers: {
-                "Content-Type": "application/json"
-            }
+            headers: {}
         };
 
-        if (branchId) {
-            fetchOptions.headers["x-branch-id"] = branchId;
+        // ONLY attach content-type if body exists (Avoids Preflight OPTIONS on GET)
+        if (options.body) {
+            fetchOptions.headers["Content-Type"] = "application/json";
+            fetchOptions.body = options.body;
         }
 
-        if (options.body) {
-            fetchOptions.body = options.body;
+        if (branchId && branchId !== "bypass") {
+            fetchOptions.headers["x-branch-id"] = branchId;
         }
 
         try {
@@ -42,12 +43,12 @@
             // 🔒 SAFETY: Some endpoints return empty body
             const text = await response.text();
             if (!text) return null;
-
             return JSON.parse(text);
 
         } catch (err) {
             console.error("❌ apiFetch Network Error:", {
                 url: API_BASE + path,
+                options: fetchOptions,
                 error: err
             });
             throw err;
