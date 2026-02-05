@@ -42,3 +42,5 @@ app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Serving static files from ${path.join(__dirname, '../')}`);
 });
+
+module.exports = app;
