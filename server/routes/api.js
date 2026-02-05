@@ -115,6 +115,11 @@ router.post('/file/exists', async (req, res) => {
 // 1. Get Current Shift
 router.get('/shifts/current', async (req, res) => {
     try {
+        console.log('🔍 Checking Current Shift:', {
+            tenantId: req.tenantId,
+            branchId: req.branchId,
+            userId: req.userId
+        });
         const shift = await Shift.findOne({
             tenantId: req.tenantId,
             branchId: req.branchId,
