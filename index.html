@@ -110,6 +110,22 @@
     </div>
   </div>
 
+  <!-- Branch Selection Modal -->
+  <div id="branchModal" class="modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; z-index:2000;">
+    <div class="modal-content"
+      style="background:white; padding:30px; border-radius:10px; width:400px; max-width:90%; text-align:center;">
+      <h3 style="margin-bottom: 20px;">🏢 Select Branch</h3>
+      <p style="margin-bottom: 20px; color:#666;">Please choose a branch to continue.</p>
+      <div id="branchList"
+        style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;">
+        <!-- Branch buttons will be injected here via auth.js -->
+      </div>
+      <button onclick="logout(true)" class="btn btn-secondary"
+        style="margin-top:20px; width:100%; background:#e74c3c; color:white; border:none; padding:10px; border-radius:5px;">Logout</button>
+    </div>
+  </div>
+
   <!-- Footer -->
   <div class="footer">
     Tashgheel POS© 2025</strong> |

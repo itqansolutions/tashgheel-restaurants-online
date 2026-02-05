@@ -120,10 +120,25 @@ async function initializeDataSystem() {
                 // Update local session cache
                 await EnhancedSecurity.storeSecureData('session', meUser);
 
-                // 🚀 If on index.html but already logged in, auto-navigate
-                // Note: The early return for 'isLoginPage' above prevents this from running on index.html with a login form.
-                // However, if we removed the early return, the overlay would show on login page which is annoying.
-                // For now, we assume standard login flow handles redirection.
+                // 🚀 If on index.html but already logged in, handle navigation
+                if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+                    const activeBranch = localStorage.getItem('activeBranchId');
+                    // If we have a branch, go to POS
+                    if (activeBranch && activeBranch !== 'bypass' && activeBranch !== 'null') {
+                        console.log('🔄 Already logged in with branch -> Redirecting to POS');
+                        window.location.href = 'pos.html';
+                    } else {
+                        // Logged in but no branch? Show picker
+                        console.log('⚠️ Logged in but no branch selected -> Showing Picker');
+                        const branches = meUser.branches || [];
+                        if (branches.length > 0) {
+                            showBranchPicker(branches, meUser.defaultBranchId);
+                        } else {
+                            console.warn('User has no branches? Redirecting to POS (Legacy Mode).');
+                            window.location.href = 'pos.html';
+                        }
+                    }
+                }
 
             } else {
                 if (meRes.status === 401 || meRes.status === 403) {
