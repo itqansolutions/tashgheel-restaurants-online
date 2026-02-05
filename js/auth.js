@@ -308,6 +308,11 @@ var EnhancedSecurity = {
 
     // Store encrypted data
     storeSecureData: async function (key, data) {
+        // 🔍 DEBUG: Trace who is writing to session
+        if (key === 'session') {
+            console.warn(`💾 WRITING DATA to session:`, data);
+        }
+
         // 1. Update Memory Cache immediately
         if (!window.DataCache) window.DataCache = {};
         window.DataCache[key] = data;
@@ -1117,14 +1122,17 @@ function enforcePagePermissions() {
     }
 
     // 🚀 INTEGRITY CHECK: If session looks like a default dummy, try to reload it
+    // 🚀 INTEGRITY CHECK: If session looks like a default dummy, try to reload it
     if (sessionUser.username === 'User') {
-        const rawLocal = localStorage.getItem('session'); // Direct fallback
+        const rawLocal = localStorage.getItem('pos_backup_session'); // ✅ Corrected Key
         if (rawLocal) {
             try {
                 const refreshed = JSON.parse(rawLocal);
                 if (refreshed && refreshed.username && refreshed.username !== 'User') {
-                    console.warn('🔄 Self-Healing: Refreshed stale session found in LocalStorage', refreshed.username);
+                    console.warn('🔄 Self-Healing: Refreshed stale session found in LocalStorage (pos_backup_session)', refreshed.username);
                     sessionUser = refreshed;
+                    // Restore to cache too
+                    EnhancedSecurity.storeSecureData('session', refreshed);
                 }
             } catch (e) { }
         }
