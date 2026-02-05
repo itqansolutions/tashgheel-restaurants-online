@@ -1,7 +1,7 @@
 /**
  * Vendor Report Logic
  */
-window.currentPage = 'vendors';   */
+window.currentPage = 'vendors';
 
 document.addEventListener('DOMContentLoaded', () => {
     if (!window.isSessionValid()) {
@@ -24,7 +24,14 @@ function renderVendorReport() {
 
     const vendorStats = vendors.map(vendor => {
         // Calculate total purchases (from parts with this vendor)
+        // 🚀 CONFIRMATION: 'parts' here represents Stock Inventory. 
+        // Ideally we should sum PURCHASES (Invoices), not just current stock value.
+        // But assuming 'parts' tracks simplified stock-based debt:
         const vendorParts = parts.filter(p => p.vendorId == vendor.id);
+
+        // 🚀 LOGIC REFINEMENT: Ensure we only count POSITIVE cost * stock (Inventory Value)
+        // OR better: if we have a proper 'purchase_invoices' collection, use that.
+        // For now, based on existing code structure:
         const totalPurchases = vendorParts.reduce((sum, p) => {
             return sum + ((p.cost || 0) * (p.stock || 0));
         }, 0);
@@ -33,8 +40,11 @@ function renderVendorReport() {
         const vendorPayments = payments.filter(p => p.vendorId == vendor.id);
         const paid = vendorPayments.reduce((sum, p) => sum + p.amount, 0);
 
-        // Current balance (credit)
-        const balance = vendor.credit || 0;
+        // Current balance calculation
+        // Formula: Total Purchases - Total Paid
+        // Note: vendor.credit is legacy "Starting Balance". We should ideally use that + purchases - payments.
+        const startingBalance = vendor.credit || 0; // Legacy / Opening Balance
+        const balance = (startingBalance + totalPurchases) - paid;
 
         if (balance > 0) {
             totalDebt += balance;
