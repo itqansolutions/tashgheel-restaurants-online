@@ -71,12 +71,15 @@ async function initializeDataSystem() {
 
     // ROBUST ERROR HANDLING WRAPPER start
     try {
-        // Ensure data directory exists (Non-blocking for Cloud/Web)
-        try {
-            await window.electronAPI.ensureDataDir();
-        } catch (e) {
-            console.warn('⚠️ ensureDataDir failed (likely Cloud Mode), continuing...', e);
-        }
+        // Ensure data directory exists (Skip on Cloud/Railway to reduce noise)
+        const isCloud = window.location.hostname.includes('railway.app') || window.location.hostname.includes('vercel.app');
+        if (!isCloud) {
+            try {
+                await window.electronAPI.ensureDataDir();
+            } catch (e) {
+                console.warn('⚠️ ensureDataDir failed, continuing...', e);
+            }
+        } // Else: Cloud mode assumes environment is ready
 
         // List of keys to load
         // List of known keys (fallback)
