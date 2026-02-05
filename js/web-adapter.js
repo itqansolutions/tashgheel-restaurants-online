@@ -6,28 +6,43 @@
         return;
     }
 
-    const API_BASE = '/api';
+    const API_BASE = window.location.origin + '/api';
 
-    console.log('🌐 Initializing Web Adapter...');
+    console.log('🌐 Initializing Web Adapter with API_BASE:', API_BASE);
 
-    // Helper: Enforce credentials on all requests
+    // Helper: Enforce credentials and standardize requests
     async function apiFetch(url, options = {}) {
         const defaultOptions = {
             credentials: 'include',
+            method: 'GET',
             headers: {}
         };
 
-        // Merge headers
-        const headers = { ...defaultOptions.headers, ...(options.headers || {}) };
+        const finalHeaders = { ...defaultOptions.headers, ...(options.headers || {}) };
 
-        // Merge other options
         const finalOptions = {
             ...defaultOptions,
             ...options,
-            headers: headers
+            headers: finalHeaders
         };
 
-        return fetch(url, finalOptions);
+        // 🚀 SMART HEADERS: Only add Content-Type if there is a body 
+        // AND it hasn't been explicitly set yet.
+        // This prevents unnecessary OPTIONS preflight requests for simple GETs.
+        if (finalOptions.body && !finalOptions.headers['Content-Type']) {
+            finalOptions.headers['Content-Type'] = 'application/json';
+        }
+
+        try {
+            return await fetch(url, finalOptions);
+        } catch (err) {
+            console.error('❌ apiFetch Network Error:', {
+                url,
+                options: finalOptions,
+                error: err
+            });
+            throw err;
+        }
     }
 
     window.electronAPI = {
@@ -107,7 +122,6 @@
                 const response = await apiFetch(`${API_BASE}/data/read/${cleanKey}`, {
                     method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json',
                         'x-branch-id': branchId
                     }
                 });
@@ -233,7 +247,6 @@
                 const response = await apiFetch(`${API_BASE}/data/list`, {
                     method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json',
                         'x-branch-id': branchId
                     }
                 });
