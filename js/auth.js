@@ -29,10 +29,10 @@ async function initializeDataSystem() {
     // FAILSAFE: Force remove overlay after 5 seconds no matter what
     setTimeout(() => {
         const overlay = document.getElementById('loadingOverlay');
-        if (overlay && overlay.style.display !== 'none') {
-            console.warn('⚠️ Safety Timeout: Force hiding loading overlay after 5s.');
+        if (overlay && (overlay.classList.contains('active') || overlay.style.display !== 'none')) {
+            console.log('🛡️ Safety: Ensuring loading overlay is hidden.');
+            overlay.classList.remove('active');
             overlay.style.display = 'none';
-            if (window.hideLoading) window.hideLoading();
         }
     }, 5000);
 
