@@ -39,8 +39,7 @@ app.get('*', (req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Serving static files from ${path.join(__dirname, '../')}`);
+    console.log(`Server started on port ${PORT} [v2]`);
 });
 
 module.exports = app;
