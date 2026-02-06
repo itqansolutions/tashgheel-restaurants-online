@@ -89,10 +89,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const navContainer = document.querySelector('.sidebar nav');
     if (navContainer && typeof window.currentPage !== 'undefined') {
         navContainer.innerHTML = renderNavigation(window.currentPage);
+    } else {
+        // Fallback for pages where .sidebar nav might be just <nav> inside aside
+        const plainNav = document.querySelector('aside nav');
+        if (plainNav && typeof window.currentPage !== 'undefined') {
+            plainNav.innerHTML = renderNavigation(window.currentPage);
+        }
     }
 
     // Apply footer if sidebar exists
-    const sidebar = document.querySelector('.sidebar');
+    const sidebar = document.querySelector('.sidebar') || document.querySelector('aside');
     if (sidebar) {
         // Remove old footer if exists
         const oldFooter = sidebar.querySelector('.sidebar-footer');
@@ -101,4 +107,40 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add new footer
         sidebar.innerHTML += renderFooter();
     }
+
+    setupMobileNav();
 });
+
+function setupMobileNav() {
+    // 1. Check if sidebar exists
+    const sidebar = document.querySelector('aside');
+    if (!sidebar) return;
+
+    // 2. Ensure Sidebar has ID
+    if (!sidebar.id) sidebar.id = 'sidebar';
+
+    // 3. Inject Mobile Overlay if missing
+    if (!document.getElementById('mobile-overlay')) {
+        const overlay = document.createElement('div');
+        overlay.id = 'mobile-overlay';
+        overlay.className = 'fixed inset-0 bg-black/50 z-30 hidden lg:hidden glass transition-opacity';
+        overlay.onclick = toggleSidebar;
+        document.body.appendChild(overlay);
+    }
+
+    // 4. Create Toggle Function globally
+    window.toggleSidebar = function () {
+        const s = document.getElementById('sidebar');
+        const o = document.getElementById('mobile-overlay');
+        const isClosed = s.classList.contains('-translate-x-full');
+
+        if (isClosed) {
+            s.classList.remove('-translate-x-full');
+            o.classList.remove('hidden');
+        } else {
+            s.classList.add('-translate-x-full');
+            o.classList.add('hidden');
+        }
+    }
+}
+
