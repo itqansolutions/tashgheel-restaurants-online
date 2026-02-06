@@ -18,10 +18,11 @@ document.addEventListener("DOMContentLoaded", () => {
 async function initApp() {
     // EnhancedSecurity.init() is now auto-handled by auth.js
 
-    if (window.isSessionValid && !window.isSessionValid()) {
-        window.location.href = 'index.html';
-        return;
-    }
+    // REMOVED: Legacy session check - auth.js handles this via cookies
+    // if (window.isSessionValid && !window.isSessionValid()) {
+    //     window.location.href = 'index.html';
+    //     return;
+    // }
 
     loadVendors();
     loadInventory();

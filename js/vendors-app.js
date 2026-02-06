@@ -17,11 +17,12 @@ window.currentPage = 'vendors';
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Vendors page loading...');
 
-    if (!window.isSessionValid()) {
-        console.log('Session invalid, redirecting...');
-        window.location.href = 'index.html';
-        return;
-    }
+    // REMOVED: Legacy session check - auth.js handles this via cookies
+    // if (!window.isSessionValid()) {
+    //     console.log('Session invalid, redirecting...');
+    //     window.location.href = 'index.html';
+    //     return;
+    // }
 
     console.log('Session valid, rendering vendors...');
     try {

@@ -4,10 +4,11 @@
 window.currentPage = 'vendors';
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (!window.isSessionValid()) {
-        window.location.href = 'index.html';
-        return;
-    }
+    // REMOVED: Legacy session check - auth.js handles this via cookies
+    // if (!window.isSessionValid()) {
+    //     window.location.href = 'index.html';
+    //     return;
+    // }
 
     renderVendorReport();
 });
