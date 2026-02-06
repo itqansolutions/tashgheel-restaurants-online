@@ -141,8 +141,10 @@ window.DB = window.DB || {
     getParts: function () {
         // Reuse existing 'products' key if preferred, or use new 'spare_parts'
         // Plan said 'spare_parts', but let's migrate default products to it if empty?
-        // For now, let's use 'spare_parts' to keep it clean.
-        return window.EnhancedSecurity.getSecureData('spare_parts') || window.EnhancedSecurity.getSecureData('products') || [];
+        const sp = window.EnhancedSecurity.getSecureData('spare_parts');
+        if (sp && sp.length > 0) return sp;
+
+        return window.EnhancedSecurity.getSecureData('products') || [];
     },
 
     getPart: function (id) {
