@@ -185,6 +185,175 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (type === 'stock-value') generateStockValueReport();
+    if (type === 'daily-summary') generateDailySummary(finished, filteredReceipts);
+    if (type === 'shifts') generateShiftReport();
+    if (type === 'inventory-report') generateInventoryReport();
+  }
+
+  // === DAILY SUMMARY REPORT ===
+  function generateDailySummary(finished, allReceipts) {
+    // Calculate totals
+    let totalRevenue = 0, totalCash = 0, totalCard = 0, totalMobile = 0, totalDiscounts = 0, totalDelivery = 0;
+
+    finished.forEach(r => {
+      totalRevenue += r.total || 0;
+      totalDiscounts += r.discount || 0;
+      totalDelivery += r.deliveryFee || 0;
+
+      const method = (r.paymentMethod || r.method || 'cash').toLowerCase();
+      if (method === 'cash') totalCash += r.total || 0;
+      else if (method === 'card') totalCard += r.total || 0;
+      else if (method === 'mobile') totalMobile += r.total || 0;
+    });
+
+    const orderCount = finished.length;
+    const avgTicket = orderCount > 0 ? totalRevenue / orderCount : 0;
+    const netRevenue = totalRevenue - totalDiscounts;
+
+    // Update summary boxes
+    document.getElementById('ds-revenue').textContent = `${totalRevenue.toFixed(2)} EGP`;
+    document.getElementById('ds-orders').textContent = orderCount;
+    document.getElementById('ds-avg').textContent = `${avgTicket.toFixed(2)} EGP`;
+    document.getElementById('ds-discounts').textContent = `${totalDiscounts.toFixed(2)} EGP`;
+
+    // Payment breakdown
+    document.getElementById('ds-cash').textContent = `${totalCash.toFixed(2)} EGP`;
+    document.getElementById('ds-card').textContent = `${totalCard.toFixed(2)} EGP`;
+    document.getElementById('ds-mobile').textContent = `${totalMobile.toFixed(2)} EGP`;
+
+    // Net revenue table
+    const tbody = document.getElementById('daily-summary-body');
+    tbody.innerHTML = `
+      <tr><td>Gross Sales</td><td style="font-weight:bold; color:#047857;">+${totalRevenue.toFixed(2)}</td></tr>
+      <tr><td>Discounts Applied</td><td style="color:#dc2626;">-${totalDiscounts.toFixed(2)}</td></tr>
+      <tr><td>Delivery Fees Collected</td><td style="color:#0369a1;">+${totalDelivery.toFixed(2)}</td></tr>
+      <tr style="background:#f0fdf4;"><td style="font-weight:bold;">Net Revenue</td><td style="font-weight:bold; font-size:1.2rem; color:#065f46;">${(netRevenue + totalDelivery).toFixed(2)}</td></tr>
+      <tr><td>Cash Collected</td><td>${totalCash.toFixed(2)}</td></tr>
+      <tr><td>Card Collected</td><td>${totalCard.toFixed(2)}</td></tr>
+      <tr><td>Mobile Payments</td><td>${totalMobile.toFixed(2)}</td></tr>
+    `;
+  }
+
+  // === SHIFT REPORT ===
+  async function generateShiftReport() {
+    const tbody = document.getElementById('shifts-body');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Loading shifts...</td></tr>';
+
+    let shifts = [];
+
+    // Try API first
+    if (window.apiFetch) {
+      try {
+        const result = await window.apiFetch('/data/load?collection=shifts');
+        shifts = result.data || [];
+      } catch (e) {
+        shifts = JSON.parse(localStorage.getItem('shifts') || '[]');
+      }
+    } else if (window.electronAPI?.getShifts) {
+      shifts = await window.electronAPI.getShifts();
+    } else {
+      shifts = JSON.parse(localStorage.getItem('shifts') || '[]');
+    }
+
+    // Filter by date range
+    const fromDate = document.getElementById('from-date').value ? new Date(document.getElementById('from-date').value) : null;
+    const toDate = document.getElementById('to-date').value ? new Date(document.getElementById('to-date').value) : null;
+    if (toDate) toDate.setHours(23, 59, 59, 999);
+
+    shifts = shifts.filter(s => {
+      const d = new Date(s.openedAt || s.createdAt);
+      return (!fromDate || d >= fromDate) && (!toDate || d <= toDate);
+    });
+
+    tbody.innerHTML = '';
+
+    if (shifts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#666;">No shifts found for this period.</td></tr>';
+      return;
+    }
+
+    // Sort by date descending
+    shifts.sort((a, b) => new Date(b.openedAt) - new Date(a.openedAt));
+
+    shifts.forEach(shift => {
+      const tr = document.createElement('tr');
+      const openedAt = shift.openedAt ? new Date(shift.openedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '-';
+      const closedAt = shift.closedAt ? new Date(shift.closedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Open';
+      const openingCash = shift.openingCash || 0;
+      const expectedCash = openingCash + (shift.totals?.cashTotal || 0);
+      const closingCash = shift.closingCash || 0;
+      const difference = shift.difference || (closingCash - expectedCash);
+      const status = shift.status || 'unknown';
+
+      const diffClass = difference >= 0 ? 'color:#047857;' : 'color:#dc2626;';
+      const diffSign = difference >= 0 ? '+' : '';
+      const statusBadge = status === 'open'
+        ? '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:0.8rem;">Open</span>'
+        : status === 'closed'
+          ? '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:0.8rem;">Closed</span>'
+          : '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-size:0.8rem;">' + status + '</span>';
+
+      tr.innerHTML = `
+        <td>${shift.cashierName || shift.cashierId || '-'}</td>
+        <td>${openedAt}</td>
+        <td>${closedAt}</td>
+        <td>${openingCash.toFixed(2)}</td>
+        <td>${expectedCash.toFixed(2)}</td>
+        <td>${status === 'open' ? '-' : closingCash.toFixed(2)}</td>
+        <td style="${diffClass}">${status === 'open' ? '-' : diffSign + difference.toFixed(2)}</td>
+        <td>${statusBadge}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // === INVENTORY REPORT ===
+  function generateInventoryReport() {
+    const products = window.DB ? window.DB.getParts() : JSON.parse(localStorage.getItem('products') || '[]');
+    const inventory = window.DB ? window.DB.getInventory() : JSON.parse(localStorage.getItem('inventory') || '[]');
+
+    // Combine products and inventory
+    const allItems = [...products, ...inventory];
+
+    let lowStockCount = 0;
+    let totalValue = 0;
+    const LOW_STOCK_THRESHOLD = 5;
+
+    const tbody = document.getElementById('inventory-report-body');
+    tbody.innerHTML = '';
+
+    allItems.forEach(item => {
+      const qty = item.stock || item.quantity || 0;
+      const cost = item.cost || item.unitCost || 0;
+      const value = qty * cost;
+      const isLow = qty <= LOW_STOCK_THRESHOLD && qty > 0;
+      const isOut = qty === 0;
+
+      if (isLow || isOut) lowStockCount++;
+      totalValue += value;
+
+      const tr = document.createElement('tr');
+      tr.style.background = isOut ? '#fef2f2' : isLow ? '#fffbeb' : '';
+
+      let statusBadge = '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:0.75rem;">In Stock</span>';
+      if (isOut) statusBadge = '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-size:0.75rem;">Out of Stock</span>';
+      else if (isLow) statusBadge = '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:0.75rem;">Low Stock</span>';
+
+      tr.innerHTML = `
+        <td style="font-weight:500;">${item.name || 'Unnamed'}</td>
+        <td>${item.category || '-'}</td>
+        <td>${qty}</td>
+        <td>${cost.toFixed(2)}</td>
+        <td style="font-weight:bold;">${value.toFixed(2)}</td>
+        <td>${statusBadge}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Update summary
+    document.getElementById('inv-low').textContent = lowStockCount;
+    document.getElementById('inv-total').textContent = allItems.length;
+    document.getElementById('inv-value').textContent = totalValue.toFixed(2) + ' EGP';
   }
 
   function generateStockValueReport() {
