@@ -159,6 +159,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const allowedPages = Array.from(document.querySelectorAll('input[name="access"]:checked')).map(cb => cb.value);
 
+    // Get selected branch
+    const branchSelect = document.getElementById('user-branch-select');
+    const assignedBranchId = branchSelect ? branchSelect.value : '';
+
     if (!username || !password || !fullName || !role) return alert('Fill all fields');
 
     try {
@@ -167,7 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
         password,
         role,
         fullName: fullName,
-        allowedPages
+        allowedPages,
+        branchIds: assignedBranchId ? [assignedBranchId] : [],
+        defaultBranchId: assignedBranchId || null
       });
 
       showToast('✅ User created successfully');
@@ -214,8 +220,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const branchTableBody = document.getElementById('branch-table-body');
 
   async function loadBranches() {
-    if (!branchTableBody) return;
-
     try {
       let branches = [];
       if (window.apiFetch) {
@@ -229,18 +233,20 @@ document.addEventListener('DOMContentLoaded', () => {
         branches = JSON.parse(localStorage.getItem('branches') || '[]');
       }
 
-      branchTableBody.innerHTML = '';
+      // Populate branch table (if exists)
+      if (branchTableBody) {
+        branchTableBody.innerHTML = '';
 
-      if (branches.length === 0) {
-        branchTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#777;">No branches yet. Add one above!</td></tr>';
-        return;
-      }
+        if (branches.length === 0) {
+          branchTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#777;">No branches yet. Add one above!</td></tr>';
+          return;
+        }
 
-      branches.forEach((branch) => {
-        const row = document.createElement('tr');
-        const branchId = branch._id || branch.id;
+        branches.forEach((branch) => {
+          const row = document.createElement('tr');
+          const branchId = branch._id || branch.id;
 
-        row.innerHTML = `
+          row.innerHTML = `
           <td>
             <div style="font-weight:bold;">${branch.name || 'Unnamed'}</div>
             <div style="font-size:0.85em; color:#777;">${branch.address || '-'}</div>
@@ -252,8 +258,22 @@ document.addEventListener('DOMContentLoaded', () => {
             <button onclick="handleDeleteBranch('${branchId}')" class="btn btn-sm btn-danger" title="Delete" style="padding:4px 8px; font-size:0.8rem;">🗑️</button>
           </td>
         `;
-        branchTableBody.appendChild(row);
-      });
+          branchTableBody.appendChild(row);
+        });
+      }
+
+      // Also populate user branch dropdown (if exists)
+      const userBranchSelect = document.getElementById('user-branch-select');
+      if (userBranchSelect) {
+        userBranchSelect.innerHTML = '<option value="">-- Select Branch --</option>';
+        branches.forEach(branch => {
+          const opt = document.createElement('option');
+          opt.value = branch._id || branch.id;
+          opt.textContent = branch.name + (branch.code ? ` (${branch.code})` : '');
+          userBranchSelect.appendChild(opt);
+        });
+      }
+
     } catch (e) {
       console.error('Error loading branches:', e);
     }
