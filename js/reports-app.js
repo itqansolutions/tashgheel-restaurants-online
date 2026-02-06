@@ -1,22 +1,26 @@
-// reports-app.js
+/**
+ * TASGHHEEL REPORTS APP
+ * Main Controller & UI Binding
+ * Phase 7: Final Architecture
+ */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // === 1. HYBRID TRANSLATION HELPER ===
+  // === 1. HELPER: Current Tab ===
+  window.getCurrentTab = () => document.querySelector('.report-tab.active')?.dataset.tab || 'live';
+
+  // === 2. TRANSLATION ===
   const t = (keyOrEn, ar) => {
     const lang = localStorage.getItem('pos_language') || 'en';
     if (ar) return lang === 'ar' ? ar : keyOrEn;
-    if (window.translations && window.translations[keyOrEn]) {
-      return window.translations[keyOrEn][lang];
-    }
+    if (window.translations && window.translations[keyOrEn]) return window.translations[keyOrEn][lang];
     return keyOrEn;
   };
 
-  // === 2. INITIALIZATION & LISTENERS ===
+  // === 3. INITIALIZATION ===
   const branchFilter = document.getElementById('branchFilter');
   const fromDateInput = document.getElementById('from-date');
-  const toDateInput = document.getElementById('to-date');
 
-  // Default Date Range: Today
+  // Set Default Date Range
   setDateRange('today');
 
   // Load Branches
@@ -26,11 +30,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('languageChanged', () => refreshReports());
   if (branchFilter) branchFilter.addEventListener('change', () => refreshReports());
 
-  // Global Access for HTML Buttons
+  // Global Access
   window.refreshReports = refreshReports;
   window.setDateRange = setDateRange;
 
-  // Tab Switching Logic
+  // Tab Switching
   document.querySelectorAll('.report-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.report-tab').forEach(btn => btn.classList.remove('active'));
@@ -38,20 +42,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const selected = tab.dataset.tab;
       document.querySelectorAll('.report-card').forEach(card => card.style.display = 'none');
+
       const card = document.getElementById('card-' + selected);
       if (card) card.style.display = 'block';
 
-      refreshReports(); // Re-run report in context
+      refreshReports();
     });
   });
 
-  // === 3. CORE: BRANCH LOADING ===
+  // === 4. BRANCH LOADER ===
   async function loadBranches() {
     if (!branchFilter) return;
-
     try {
-      // Fetch branches from authenticated user session or API
-      // Using API if available, else session
       let branches = [];
       const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
@@ -63,7 +65,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       branchFilter.innerHTML = `<option value="all">${t('All Branches', 'كل الفروع')}</option>`;
-
       branches.forEach(b => {
         const opt = document.createElement('option');
         opt.value = b.id;
@@ -71,763 +72,329 @@ document.addEventListener('DOMContentLoaded', async () => {
         branchFilter.appendChild(opt);
       });
 
-      // Restore previous selection
       const saved = localStorage.getItem('report_branch_filter');
-      if (saved && branchFilter.querySelector(`option[value="${saved}"]`)) {
-        branchFilter.value = saved;
-      }
-
+      if (saved && branchFilter.querySelector(`option[value="${saved}"]`)) branchFilter.value = saved;
     } catch (e) {
-      console.error("Failed to load branches for filter", e);
+      console.error("Failed to load branches", e);
       branchFilter.innerHTML = `<option value="all">${t('All Branches', 'كل الفروع')}</option>`;
     }
   }
 
-  // === 4. CORE: DATE PRESETS ===
+  // === 5. DATE PRESETS ===
   function setDateRange(preset) {
-    const today = new Date();
-    let from = new Date();
-    let to = new Date();
+    if (!window.ReportDateUtils) return;
+    const range = window.ReportDateUtils.getRange(preset);
 
-    switch (preset) {
-      case 'today':
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
-        break;
-      case 'yesterday':
-        from.setDate(today.getDate() - 1);
-        from.setHours(0, 0, 0, 0);
-        to.setDate(today.getDate() - 1);
-        to.setHours(23, 59, 59, 999);
-        break;
-      case 'thisWeek':
-        const day = today.getDay(); // 0 (Sun) to 6 (Sat)
-        const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Start Monday/Sunday? Let's assume Sat/Sun start or standard localized
-        // Simple version: last 7 days including today
-        from.setDate(today.getDate() - 6);
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
-        break;
-      case 'thisMonth':
-        from.setDate(1);
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
-        break;
-      case 'lastMonth':
-        from.setMonth(today.getMonth() - 1);
-        from.setDate(1);
-        from.setHours(0, 0, 0, 0);
-        to.setDate(0); // Last day of prev month
-        to.setHours(23, 59, 59, 999);
-        break;
-    }
+    // Update Hidden Inputs or Global State? 
+    // The implementation plan says buildReportContext reads inputs.
+    // So we must update the specific inputs found in reports.html
+    const sInput = document.getElementById('startDate');
+    const eInput = document.getElementById('endDate'); // Assuming these exist or we use the ones from HTML
 
-    // Helper to format Input Date (YYYY-MM-DD)
+    // Wait, the HTML has hidden custom inputs or just uses date preset logic internally?
+    // Let's check reports.html inputs. Ah, previously we wrote setDateRange to update fromDateInput and toDateInput
+
     const fmt = d => d.toISOString().split('T')[0];
-    fromDateInput.value = fmt(from);
-    toDateInput.value = fmt(to);
+    if (document.getElementById('from-date')) document.getElementById('from-date').value = fmt(range.start);
+    if (document.getElementById('to-date')) document.getElementById('to-date').value = fmt(range.end);
+
+    // Also update custom range picker inputs if they exist, to stay in sync
+    if (document.getElementById('startDate')) document.getElementById('startDate').value = fmt(range.start);
+    if (document.getElementById('endDate')) document.getElementById('endDate').value = fmt(range.end);
 
     refreshReports();
   }
 
-  // === 5. CORE: UNIFIED DATA CONTEXT LAYER ===
-  async function buildReportContext() {
-    const branchId = branchFilter ? branchFilter.value : 'all';
-    localStorage.setItem('report_branch_filter', branchId);
-
-    const fromDate = fromDateInput.value ? new Date(fromDateInput.value) : null;
-    const toDate = toDateInput.value ? new Date(toDateInput.value) : null;
-    if (toDate) toDate.setHours(23, 59, 59, 999);
-
-    // --- DATA FETCHING ---
-    let rawReceipts = [];
-    let rawReturns = [];
-    let rawProducts = [];
-    let rawExpenses = [];
-    let shifts = [];
-    let users = []; // For cashier names if needed
-
-    // LOAD DATA
-    if (window.electronAPI) {
-      try {
-        if (window.DB) {
-          rawReceipts = window.DB.getSales();
-          rawProducts = window.DB.getParts();
-        } else if (window.DataCache) {
-          rawReceipts = window.DataCache.sales || [];
-          rawProducts = window.DataCache.products || [];
-          rawExpenses = window.DataCache.expenses || [];
-        }
-      } catch (e) { console.error("Data load error", e); }
-    }
-
-    // --- FILTERING ---
-    // 1. Filter by Branch
-    let receipts = rawReceipts;
-    if (branchId !== 'all') {
-      receipts = receipts.filter(r => r.branchId === branchId); // Strict branch check
-    }
-
-    // 2. Filter by Date
-    if (fromDate && toDate) {
-      receipts = receipts.filter(r => {
-        const d = new Date(r.date);
-        return d >= fromDate && d <= toDate;
-      });
-      // Also filter expenses to be added later
-      rawExpenses = rawExpenses.filter(e => {
-        const d = new Date(e.date);
-        return d >= fromDate && d <= toDate;
-      });
-    }
-
-    // --- SEGMENTATION ---
-    const finishedSales = receipts.filter(r => r.status === 'finished');
-
-    // Returns Logic:
-    // Case A: Returns are negative receipts in same list
-    // Case B: Returns are separate collection (DataCache.returns).
-    // Let's assume standard POS: Returns obtained from separate list usually or status check
-    let returns = receipts.filter(r => r.status === 'full_return' || r.status === 'partial_return'); // Simple status check first
-
-    // --- GOLDEN FORMULAS ---
-    let grossSales = 0;
-    let totalDiscounts = 0;
-    let totalReturns = 0;
-    let cogs = 0;
-    let totalTax = 0;
-
-    // Aggregation Containers
-    const catMap = {};
-    const cashierMap = {};
-    const prodMap = {};
-    const payMap = {};
-
-    finishedSales.forEach(r => {
-      // Financials
-      const subtotal = r.subtotal || r.total; // Prefer subtotal (pre-tax/disc)
-      const discount = r.discount || 0;
-      const tax = r.tax || 0; // Assuming receipt has tax field
-      const total = r.total || (subtotal - discount + tax);
-
-      grossSales += subtotal;
-      totalDiscounts += discount;
-      totalTax += tax;
-
-      // Payment Map
-      const method = (r.paymentMethod || 'cash').toLowerCase();
-      let pKey = 'cash';
-      if (method.includes('card') || method.includes('visa')) pKey = 'card';
-      else if (method.includes('wallet') || method.includes('mobile')) pKey = 'wallet';
-      else pKey = 'cash';
-
-      payMap[pKey] = (payMap[pKey] || 0) + total;
-
-      // Cashier Map
-      const cashier = r.cashier || 'Unknown';
-      if (!cashierMap[cashier]) cashierMap[cashier] = { count: 0, gross: 0, discount: 0, net: 0 };
-      cashierMap[cashier].count++;
-      cashierMap[cashier].gross += subtotal;
-      cashierMap[cashier].discount += discount;
-      cashierMap[cashier].net += (subtotal - discount); // Net for cashier usually excludes tax in some systems, but simple net = gross - disc
-
-      // Items Loop (Category & Products)
-      if (r.items) {
-        r.items.forEach(item => {
-          // Check for service items (non-stock)
-          if (item.code && item.code.startsWith('SVC-')) return;
-          const qty = item.qty || 1;
-          const cost = item.cost || item.unitCost || 0;
-          const price = item.price || 0;
-          const lineTotal = price * qty;
-          const lineCost = cost * qty;
-          const lineProfit = lineTotal - lineCost;
-
-          cogs += lineCost;
-
-          // Product Key
-          const pName = item.name || item.description || 'Unknown Item';
-          if (!prodMap[pName]) prodMap[pName] = { qty: 0, gross: 0, net: 0, cost: 0, profit: 0 };
-          prodMap[pName].qty += qty;
-          prodMap[pName].gross += lineTotal;
-          prodMap[pName].net += lineTotal; // Approx net for item
-          prodMap[pName].cost += lineCost;
-          prodMap[pName].profit += lineProfit;
-
-          // Category Key
-          const cat = item.category || 'Uncategorized';
-          if (!catMap[cat]) catMap[cat] = { qty: 0, gross: 0, net: 0, cost: 0, profit: 0 };
-          catMap[cat].qty += qty;
-          catMap[cat].gross += lineTotal;
-          catMap[cat].net += lineTotal;
-          catMap[cat].cost += lineCost;
-          catMap[cat].profit += lineProfit;
-        });
-      }
-    });
-
-    // Sum Returns Value
-    returns.forEach(r => {
-      totalReturns += (r.total || 0);
-    });
-
-    const netSales = grossSales - totalDiscounts - totalReturns;
-    const profit = netSales - cogs;
-    // Expense Aggregation
-    let totalExpenses = 0;
-    let largestExp = 0;
-    let largestExpName = '-';
-    const expCatMap = {};
-    const dailyExpMap = {};
-
-    rawExpenses.forEach(e => {
-      const amt = parseFloat(e.amount) || 0;
-      totalExpenses += amt;
-
-      // Largest
-      if (amt > largestExp) {
-        largestExp = amt;
-        largestExpName = e.description || e.category;
-      }
-
-      // By Category
-      const cat = e.category || 'Other';
-      expCatMap[cat] = (expCatMap[cat] || 0) + amt;
-
-      // Daily Trend
-      const day = new Date(e.date).toLocaleDateString();
-      dailyExpMap[day] = (dailyExpMap[day] || 0) + amt;
-    });
-
-    // Golden Net Profit
-    const netProfit = profit - totalExpenses; // Gross Profit (from Sales) - Expenses
-
-    // === INVENTORY VALUATION (Phase 6) ===
-    let totalStockCost = 0;
-    let totalRetailValue = 0;
-    let lowStockCount = 0;
-    const stockCatMap = {};
-    const agingBuckets = { '0-7': 0, '8-30': 0, '31-90': 0, '90+': 0 };
-
-    rawProducts.forEach(p => {
-      const qty = parseFloat(p.qty) || 0;
-      const cost = parseFloat(p.cost || p.unitCost) || 0;
-      const price = parseFloat(p.price) || 0;
-      const min = parseFloat(p.minStock || 5); // Default min 5
-
-      // Only count positive stock for value? 
-      // Usually we value what we have. Negative stock is an anomaly (overselling)
-      if (qty > 0) {
-        totalStockCost += (qty * cost);
-        totalRetailValue += (qty * price);
-
-        // Category Map
-        const cat = p.category || 'Uncategorized';
-        stockCatMap[cat] = (stockCatMap[cat] || 0) + (qty * cost); // Value by Cost usually
-      }
-
-      if (qty <= min) lowStockCount++;
-
-      // Aging Analysis
-      // Assuming p.lastSoldAt exists. If not, check receipts? 
-      // Phase 6 asks to treat missing lastSoldAt as "very old"
-      let daysIdle = 999;
-      if (p.lastSoldAt) {
-        const diff = new Date() - new Date(p.lastSoldAt);
-        daysIdle = Math.floor(diff / (1000 * 60 * 60 * 24));
-      }
-
-      if (daysIdle <= 7) agingBuckets['0-7']++;
-      else if (daysIdle <= 30) agingBuckets['8-30']++;
-      else if (daysIdle <= 90) agingBuckets['31-90']++;
-      else agingBuckets['90+']++;
-
-      // Attach temporary computed props for the report renderer
-      p._computed = {
-        stockCost: qty * cost,
-        retailValue: qty * price,
-        daysIdle: daysIdle,
-        health: daysIdle <= 7 ? 'Healthy' : (daysIdle <= 30 ? 'Slow' : 'Dead')
-      };
-    });
-
-    const expectedStockProfit = totalRetailValue - totalStockCost;
-
-    return {
-      meta: { branchId, fromDate, toDate },
-      receipts: finishedSales,
-      allReceipts: receipts,
-      returns: returns,
-      products: rawProducts,
-      expenses: rawExpenses, // The filtered list
-      shifts: shifts,
-      // Pre-calculated Golden Numbers
-      totals: {
-        grossSales,
-        netSales,
-        cogs,
-        profit: profit, // Gross Profit
-        netProfit: netProfit, // Real Bottom Line
-        marginPercent,
-        discounts: totalDiscounts,
-        returns: totalReturns,
-        tax: totalTax,
-        expenses: totalExpenses,
-        largestExpense: largestExp,
-        largestExpenseName: largestExpName,
-        // Inventory
-        stockCost: totalStockCost,
-        retailValue: totalRetailValue,
-        expectedStockProfit: expectedStockProfit,
-        lowStockCount: lowStockCount
-      },
-      // Aggregates
-      aggs: {
-        category: catMap,
-        cashier: cashierMap,
-        product: prodMap,
-        payment: payMap,
-        expenseCategory: expCatMap,
-        expenseDaily: dailyExpMap,
-        stockCategory: stockCatMap,
-        stockAging: agingBuckets
-      }
-    };
-  }
-
-  // === 6. MAIN RENDER CONTROLLER ===
+  // === 6. MAIN CONTROLLER ===
   async function refreshReports() {
     const btn = document.querySelector('button[onclick="refreshReports()"] .material-symbols-outlined');
     if (btn) btn.classList.add('animate-spin');
 
     try {
-      const context = await buildReportContext();
-      console.log("📊 Report Context Built:", context);
+      // 1. Build Context using Engine
+      // Check if Engine is loaded
+      if (!window.buildReportContext) {
+        console.error("Report Engine not loaded!");
+        return;
+      }
 
-      const activeTab = document.querySelector('.report-tab.active')?.dataset.tab || 'live';
+      const ctx = await window.buildReportContext();
+      console.log("📊 Context:", ctx);
 
-      // Check Permissions for Add Button
+      const activeTab = getCurrentTab();
+
+      // Permission Check for Add Button
       const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
       const canEdit = user.role === 'admin' || user.role === 'manager' || user.isAdmin;
       const addBtn = document.getElementById('btn-add-expense');
-      if (addBtn) {
-        if (canEdit) addBtn.classList.remove('hidden');
-        else addBtn.classList.add('hidden');
-      }
+      if (addBtn) addBtn.classList.toggle('hidden', !canEdit);
 
+      // 2. Render View
       switch (activeTab) {
-        case 'live':
-          renderLiveMonitor(context);
-          break;
-        case 'sales':
-          renderSalesStats(context);
-          break;
+        case 'live': renderLiveMonitor(ctx); break;
+        case 'sales': renderSalesStats(ctx); break;
         case 'cogs':
-          if (user.role === 'admin' || user.isAdmin) renderCOGSReport(context);
-          else alert("Access Denied");
+          if (user.role === 'admin' || user.isAdmin) renderCOGSReport(ctx);
+          else { alert("Access Denied"); document.querySelector('[data-tab="live"]').click(); }
           break;
-        case 'expenses':
-          renderExpensesReport(context);
-          break;
-        case 'inventory-report':
-          renderInventoryReport(context);
-          break;
+        case 'expenses': renderExpensesReport(ctx); break;
+        case 'inventory-report': renderInventoryReport(ctx); break;
       }
 
     } catch (error) {
-      console.error("❌ Report Refresh Failed:", error);
+      console.error("❌ Refresh Failed:", error);
     } finally {
       if (btn) btn.classList.remove('animate-spin');
     }
   }
 
-  function renderCOGSReport(ctx) {
-    const { totals, receipts, aggs } = ctx;
+  // === 7. VIEW RENDERERS ===
 
-    // 1. Summary Cards
-    document.getElementById('cogs-total').textContent = totals.cogs.toFixed(2) + ' EGP';
-    document.getElementById('cogs-profit').textContent = totals.profit.toFixed(2) + ' EGP';
-    document.getElementById('cogs-margin').textContent = totals.marginPercent.toFixed(1) + '%';
-
-    const avgCost = receipts.length > 0 ? totals.cogs / receipts.length : 0;
-    document.getElementById('cogs-avg-cost').textContent = avgCost.toFixed(2) + ' EGP';
-
-    // 2. Charts
-    // Breakdown Bar Chart
-    const chartBreakdown = document.getElementById('chart-cogs-breakdown');
-    if (chartBreakdown) {
-      if (window.cogsBreakdownChart) window.cogsBreakdownChart.destroy();
-      window.cogsBreakdownChart = new Chart(chartBreakdown, {
-        type: 'bar',
-        data: {
-          labels: ['Financial Overview'],
-          datasets: [
-            { label: 'COGS', data: [totals.cogs], backgroundColor: '#f59e0b' }, // Amber
-            { label: 'Net Sales', data: [totals.netSales], backgroundColor: '#3b82f6' }, // Blue
-            { label: 'Gross Profit', data: [totals.profit], backgroundColor: '#10b981' } // Green
-          ]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
-
-    // COGS by Category Pie
-    const chartCategory = document.getElementById('chart-cogs-category');
-    if (chartCategory) {
-      if (window.cogsCategoryChart) window.cogsCategoryChart.destroy();
-
-      const labels = Object.keys(aggs.category);
-      const data = Object.values(aggs.category).map(c => c.cost);
-
-      window.cogsCategoryChart = new Chart(chartCategory, {
-        type: 'doughnut',
-        data: {
-          labels: labels,
-          datasets: [{ data: data, backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981'], borderWidth: 0 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: false } } }
-      });
-    }
-
-    // 3. Tables
-    renderProductProfitability(aggs.product);
-    renderCategoryProfitability(aggs.category);
-    renderLowMarginAlerts(aggs.product);
-  }
-
-  function renderProductProfitability(prodMap) {
-    const tbody = document.getElementById('table-cogs-products');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    Object.entries(prodMap)
-      .sort((a, b) => b[1].profit - a[1].profit)
-      .slice(0, 50)
-      .forEach(([name, s]) => {
-        const margin = s.net > 0 ? (s.profit / s.net) * 100 : 0;
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-50 border-b border-slate-50";
-        tr.innerHTML = `
-                    <td class="px-4 py-2 font-medium">${name}</td>
-                    <td class="px-4 py-2">${s.qty}</td>
-                    <td class="px-4 py-2 text-amber-600">${s.cost.toFixed(2)}</td>
-                    <td class="px-4 py-2 text-green-600 font-bold">${s.profit.toFixed(2)}</td>
-                    <td class="px-4 py-2 text-xs font-bold ${margin < 20 ? 'text-red-500' : 'text-slate-500'}">${margin.toFixed(1)}%</td>
-                `;
-        tbody.appendChild(tr);
-      });
-  }
-
-  function renderCategoryProfitability(catMap) {
-    const tbody = document.getElementById('table-cogs-categories');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    Object.entries(catMap)
-      .sort((a, b) => b[1].profit - a[1].profit)
-      .forEach(([name, s]) => {
-        const margin = s.net > 0 ? (s.profit / s.net) * 100 : 0;
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-50 border-b border-slate-50";
-        tr.innerHTML = `
-                    <td class="px-4 py-2 font-medium">${name}</td>
-                    <td class="px-4 py-2 text-amber-600">${s.cost.toFixed(2)}</td>
-                    <td class="px-4 py-2">${s.net.toFixed(2)}</td>
-                    <td class="px-4 py-2 text-green-600 font-bold">${s.profit.toFixed(2)}</td>
-                    <td class="px-4 py-2 text-xs font-bold ${margin < 20 ? 'text-red-500' : 'text-slate-500'}">${margin.toFixed(1)}%</td>
-                `;
-        tbody.appendChild(tr);
-      });
-  }
-
-  function renderLowMarginAlerts(prodMap) {
-    const tbody = document.getElementById('table-cogs-alerts');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    Object.entries(prodMap)
-      .filter(([_, s]) => {
-        const margin = s.net > 0 ? (s.profit / s.net) * 100 : 0;
-        return margin < 20 && s.qty > 0;
-      })
-      .forEach(([name, s]) => {
-        const margin = s.net > 0 ? (s.profit / s.net) * 100 : 0;
-        const unitCost = s.qty > 0 ? s.cost / s.qty : 0;
-        const unitPrice = s.qty > 0 ? s.net / s.qty : 0;
-        const suggested = unitCost / 0.7; // Target 30% margin
-
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-red-50 border-b border-red-100 bg-red-50/30";
-        tr.innerHTML = `
-                    <td class="px-6 py-3 font-medium text-slate-800">${name}</td>
-                    <td class="px-6 py-3 text-slate-500">${unitCost.toFixed(2)}</td>
-                    <td class="px-6 py-3 text-red-600 font-bold">${unitPrice.toFixed(2)}</td>
-                    <td class="px-6 py-3 text-xs font-bold text-red-600">${margin.toFixed(1)}%</td>
-                    <td class="px-6 py-3 font-bold text-green-700">${suggested.toFixed(2)}</td>
-                `;
-        tbody.appendChild(tr);
-      });
-  }
-
-  // === 7. LIVE MONITOR RENDERER (Phase 2) ===
+  // --- LIVE MONITOR ---
   function renderLiveMonitor(ctx) {
     const { receipts, totals } = ctx;
 
-    // 1. KPI Cards
     document.getElementById('live-net-sales').textContent = totals.netSales.toFixed(2);
     document.getElementById('live-orders-count').textContent = receipts.length;
-
-    const avgTicket = receipts.length > 0 ? (totals.netSales / receipts.length) : 0;
-    document.getElementById('live-avg-ticket').textContent = avgTicket.toFixed(2);
-
+    document.getElementById('live-avg-ticket').textContent = receipts.length > 0 ? (totals.netSales / receipts.length).toFixed(2) : "0.00";
     document.getElementById('live-gross-profit').textContent = totals.profit.toFixed(2);
     document.getElementById('live-discounts').textContent = totals.discounts.toFixed(2);
     document.getElementById('live-returns').textContent = totals.returns.toFixed(2);
 
-    // 2. Charts
-    renderSalesPerHourChart(receipts);
-    renderPaymentPie(receipts, 'chart-payment-method');
+    window.ReportCharts.renderSalesPerHour(receipts);
+    window.ReportCharts.renderPaymentDistribution(receipts, 'chart-payment-method');
 
-    // 3. Recent Orders
-    renderRecentOrders(ctx.allReceipts);
-
-    // 4. Shift Bar (Mock for now, will connect to real session later)
-    // If we have shift data in context
-    const shiftBar = document.getElementById('live-shift-bar');
-    if (shiftBar) {
-      // Check for active shift logic if available
-      // For now, hide it unless we have explicit shift obj
-      shiftBar.classList.add('hidden');
+    // Recent Orders Table
+    const tbody = document.getElementById('live-recent-body');
+    if (tbody) {
+      tbody.innerHTML = '';
+      ctx.receipts.slice(0, 10).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-50 transition-colors cursor-pointer";
+        tr.onclick = () => showReceiptModal ? showReceiptModal(r) : alert('Receipt detail not implemented');
+        tr.innerHTML = `
+                <td class="px-4 py-3 font-medium">#${r.invoiceNumber || r.id.slice(-6)}</td>
+                <td class="px-4 py-3 text-slate-500 text-xs">${new Date(r.date || r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                <td class="px-4 py-3 text-slate-500 text-xs">${r.branchId || 'Main'}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Finished</span></td>
+                <td class="px-4 py-3 font-bold text-slate-800">${(r.total || 0).toFixed(2)}</td>
+             `;
+        tbody.appendChild(tr);
+      });
     }
   }
 
-  // === 8. SALES DEEP DIVE RENDERER (Phase 3) ===
+  // --- SALES TAB ---
   function renderSalesStats(ctx) {
     const { totals, receipts, aggs } = ctx;
 
-    // 1. Summary Cards
     document.getElementById('sales-gross').textContent = totals.grossSales.toFixed(2);
     document.getElementById('sales-net').textContent = totals.netSales.toFixed(2);
     document.getElementById('sales-tax').textContent = totals.tax.toFixed(2);
     document.getElementById('sales-orders').textContent = receipts.length;
+    document.getElementById('sales-avg').textContent = receipts.length > 0 ? (totals.netSales / receipts.length).toFixed(2) : "0.00";
 
-    const avg = receipts.length > 0 ? (totals.netSales / receipts.length) : 0;
-    document.getElementById('sales-avg').textContent = avg.toFixed(2);
+    window.ReportCharts.renderPaymentDistribution(receipts, 'chart-sales-payment');
+    window.ReportCharts.renderCategorySales(aggs.category);
 
-    // 2. Charts
-    renderPaymentPie(receipts, 'chart-sales-payment');
-    renderCategoryChart(aggs.category);
+    // Tables
+    renderGenericTable('table-sales-category', Object.entries(aggs.category).sort((a, b) => b[1].net - a[1].net), (k, v) => [
+      k, v.qty, v.net.toFixed(2), ((v.net / totals.netSales) * 100).toFixed(1) + '%'
+    ]);
 
-    // 3. Tables
-    renderCategoryTable(aggs.category, totals.netSales);
-    renderCashierTable(aggs.cashier);
-    renderTopProductsTable(aggs.product);
+    renderGenericTable('table-sales-cashier', Object.entries(aggs.cashier).sort((a, b) => b[1].net - a[1].net), (k, v) => [
+      k, v.count, v.net.toFixed(2), (v.count > 0 ? v.net / v.count : 0).toFixed(2)
+    ]);
+
+    renderGenericTable('table-sales-products', Object.entries(aggs.product).sort((a, b) => b[1].net - a[1].net).slice(0, 20), (k, v) => [
+      k, v.qty, v.gross.toFixed(2), v.net.toFixed(2)
+    ]);
   }
 
-  // --- CHART HELPERS ---
-  function renderSalesPerHourChart(receipts) {
-    const canvas = document.getElementById('chart-sales-hour');
-    if (!canvas) return;
+  // --- COGS TAB ---
+  function renderCOGSReport(ctx) {
+    const { totals, receipts, aggs } = ctx;
 
-    // Destroy old
-    if (window.salesHourChart) window.salesHourChart.destroy();
+    document.getElementById('cogs-total').textContent = totals.cogs.toFixed(2) + ' EGP';
+    document.getElementById('cogs-profit').textContent = totals.profit.toFixed(2) + ' EGP';
+    document.getElementById('cogs-margin').textContent = totals.marginPercent.toFixed(1) + '%';
 
-    // 24-hour buckets
-    const buckets = new Array(24).fill(0);
-    receipts.forEach(r => {
-      const h = new Date(r.date).getHours();
-      buckets[h] += (r.total || 0);
+    const avg = receipts.length > 0 ? totals.cogs / receipts.length : 0;
+    document.getElementById('cogs-avg-cost').textContent = avg.toFixed(2) + ' EGP';
+
+    window.ReportCharts.renderCOGSBreakdown(totals);
+    window.ReportCharts.renderCOGSCategory(aggs.category);
+
+    // Tables
+    renderGenericTable('table-cogs-products', Object.entries(aggs.product).sort((a, b) => b[1].profit - a[1].profit).slice(0, 50), (k, v) => {
+      const margin = v.net > 0 ? (v.profit / v.net) * 100 : 0;
+      return [k, v.qty, v.cost.toFixed(2), v.profit.toFixed(2), margin.toFixed(1) + '%'];
     });
 
-    // Create Labels (00:00 - 23:00)
-    const labels = buckets.map((_, i) => `${i}:00`);
-
-    window.salesHourChart = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Sales (EGP)',
-          data: buckets,
-          borderColor: '#2563eb', // Blue-600
-          backgroundColor: 'rgba(37, 99, 235, 0.1)',
-          tension: 0.3,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { borderDash: [2, 2] } },
-          x: { grid: { display: false } }
-        }
-      }
-    });
-  }
-
-  function renderPaymentPie(receipts, canvasId) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-
-    // We reuse this logic for both Live and Sales tabs, keep robust
-    // Store instances in a map/window prop to destroy correctly or unique IDs
-    // For simplicity, we attach to window by ID
-    const chartKey = canvasId === 'chart-payment-method' ? 'paymentPieChartLive' : 'paymentPieChartSales';
-    if (window[chartKey]) window[chartKey].destroy();
-
-    let cash = 0, card = 0, wallet = 0;
-    receipts.forEach(r => {
-      const m = (r.paymentMethod || 'cash').toLowerCase();
-      if (m.includes('card') || m.includes('visa')) card += r.total;
-      else if (m.includes('wallet') || m.includes('mobile')) wallet += r.total;
-      else cash += r.total;
+    renderGenericTable('table-cogs-categories', Object.entries(aggs.category).sort((a, b) => b[1].profit - a[1].profit), (k, v) => {
+      const margin = v.net > 0 ? (v.profit / v.net) * 100 : 0;
+      return [k, v.cost.toFixed(2), v.net.toFixed(2), v.profit.toFixed(2), margin.toFixed(1) + '%'];
     });
 
-    window[chartKey] = new Chart(canvas, {
-      type: 'doughnut',
-      data: {
-        labels: ['Cash', 'Card', 'Wallet'],
-        datasets: [{
-          data: [cash, card, wallet],
-          backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6'], // Green, Blue, Purple
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '70%',
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
-      }
-    });
-  }
+    // Low Margin Alerts
+    const tbody = document.getElementById('table-cogs-alerts');
+    if (tbody) {
+      tbody.innerHTML = '';
+      Object.entries(aggs.product).filter(([_, v]) => {
+        const m = v.net > 0 ? (v.profit / v.net) * 100 : 0;
+        return m < 20 && v.qty > 0;
+      }).forEach(([k, v]) => {
+        const unitCost = v.qty > 0 ? v.cost / v.qty : 0;
+        const unitPrice = v.qty > 0 ? v.net / v.qty : 0;
+        const margin = v.net > 0 ? (v.profit / v.net) * 100 : 0;
+        const sugg = unitCost / 0.7;
 
-  function renderCategoryChart(catMap) {
-    const canvas = document.getElementById('chart-sales-category');
-    if (!canvas) return;
-    if (window.categoryChart) window.categoryChart.destroy();
-
-    const labels = Object.keys(catMap);
-    const data = Object.values(catMap).map(c => c.net);
-
-    window.categoryChart = new Chart(canvas, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Sales',
-          data: data,
-          backgroundColor: '#3b82f6',
-          borderRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { x: { grid: { display: false } } },
-        plugins: { legend: { display: false } }
-      }
-    });
-  }
-
-  // --- TABLE HELPERS ---
-  function renderCategoryTable(catMap, totalNet) {
-    const tbody = document.getElementById('table-sales-category');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    Object.entries(catMap)
-      .sort((a, b) => b[1].net - a[1].net)
-      .forEach(([cat, stats]) => {
-        const pct = totalNet > 0 ? (stats.net / totalNet) * 100 : 0;
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-50 border-b border-slate-50";
+        tr.className = "hover:bg-red-50 border-b border-red-100 bg-red-50/30";
         tr.innerHTML = `
-                <td class="px-4 py-2 font-medium text-slate-700">${cat}</td>
-                <td class="px-4 py-2">${stats.qty}</td>
-                <td class="px-4 py-2 font-bold">${stats.net.toFixed(2)}</td>
-                <td class="px-4 py-2 text-slate-400">${pct.toFixed(1)}%</td>
+                 <td class="px-6 py-3 font-medium">${k}</td>
+                 <td class="px-6 py-3 text-slate-500">${unitCost.toFixed(2)}</td>
+                 <td class="px-6 py-3 text-red-600 font-bold">${unitPrice.toFixed(2)}</td>
+                 <td class="px-6 py-3 text-xs font-bold text-red-600">${margin.toFixed(1)}%</td>
+                 <td class="px-6 py-3 font-bold text-green-700">${sugg.toFixed(2)}</td>
               `;
         tbody.appendChild(tr);
       });
+    }
   }
 
-  function renderCashierTable(cashierMap) {
-    const tbody = document.getElementById('table-sales-cashier');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+  // --- EXPENSES TAB ---
+  function renderExpensesReport(ctx) {
+    const { totals, expenses, aggs, meta } = ctx;
 
-    Object.entries(cashierMap)
-      .sort((a, b) => b[1].net - a[1].net)
-      .forEach(([name, stats]) => {
-        const avg = stats.count > 0 ? stats.net / stats.count : 0;
+    document.getElementById('expenses-total').textContent = totals.expenses.toFixed(2);
+    const days = Math.max(1, Math.ceil((meta.toDate - meta.fromDate) / (1000 * 60 * 60 * 24)));
+    document.getElementById('expenses-daily-avg').textContent = (totals.expenses / days).toFixed(2);
+    document.getElementById('expenses-largest').textContent = totals.largestExpense.toFixed(2);
+    document.getElementById('expenses-largest-name').textContent = totals.largestExpenseName;
+    document.getElementById('expenses-net-profit').textContent = totals.netProfit.toFixed(2);
+
+    window.ReportCharts.renderExpenseCategory(aggs.expenseCategory);
+    window.ReportCharts.renderExpenseTrend(aggs.expenseDaily);
+
+    // Table
+    const tbody = document.getElementById('table-expenses');
+    if (tbody) {
+      tbody.innerHTML = '';
+      expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(e => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50 border-b border-slate-50";
         tr.innerHTML = `
-                <td class="px-4 py-2 font-medium text-slate-700">${name}</td>
-                <td class="px-4 py-2">${stats.count}</td>
-                <td class="px-4 py-2 font-bold">${stats.net.toFixed(2)}</td>
-                <td class="px-4 py-2 text-slate-400">${avg.toFixed(2)}</td>
+                  <td class="px-6 py-3">${new Date(e.date).toLocaleDateString()}</td>
+                  <td class="px-6 py-3"><span class="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">${e.category}</span></td>
+                  <td class="px-6 py-3 font-medium text-slate-800">${e.description}</td>
+                  <td class="px-6 py-3 text-xs text-slate-400">${e.branchId || 'All'}</td>
+                  <td class="px-6 py-3 text-xs text-slate-400">${e.createdBy || '-'}</td>
+                  <td class="px-6 py-3 font-bold text-red-600">-${parseFloat(e.amount).toFixed(2)}</td>
               `;
         tbody.appendChild(tr);
       });
+    }
   }
 
-  function renderTopProductsTable(prodMap) {
-    const tbody = document.getElementById('table-sales-products');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+  // --- INVENTORY TAB ---
+  function renderInventoryReport(ctx) {
+    const { totals, products, aggs } = ctx;
 
-    Object.entries(prodMap)
-      .sort((a, b) => b[1].net - a[1].net)
-      .slice(0, 20) // Top 20
-      .forEach(([name, stats]) => {
+    document.getElementById('inv-stock-cost').textContent = totals.stockCost.toFixed(2) + ' EGP';
+    document.getElementById('inv-retail-value').textContent = totals.retailValue.toFixed(2) + ' EGP';
+    document.getElementById('inv-expected-profit').textContent = totals.expectedStockProfit.toFixed(2) + ' EGP';
+    document.getElementById('inv-low-stock').textContent = totals.lowStockCount;
+
+    window.ReportCharts.renderStockCategory(aggs.stockCategory);
+    window.ReportCharts.renderTopAssets(products);
+
+    document.getElementById('aging-0-7').textContent = aggs.stockAging['0-7'] + ' Items';
+    document.getElementById('aging-8-30').textContent = aggs.stockAging['8-30'] + ' Items';
+    document.getElementById('aging-31-90').textContent = aggs.stockAging['31-90'] + ' Items';
+    document.getElementById('aging-90').textContent = aggs.stockAging['90+'] + ' Items';
+
+    // Table
+    const tbody = document.getElementById('table-inventory-health');
+    if (tbody) {
+      tbody.innerHTML = '';
+      products.sort((a, b) => b._computed.stockCost - a._computed.stockCost).slice(0, 100).forEach(p => {
+        const c = p._computed;
+        const color = c.health === 'Healthy' ? 'text-green-600' : c.health === 'Slow' ? 'text-amber-600' : 'text-red-600';
+        const icon = c.health === 'Healthy' ? 'check_circle' : c.health === 'Slow' ? 'warning' : 'dangerous';
+
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50 border-b border-slate-50";
         tr.innerHTML = `
-                <td class="px-6 py-3 font-medium text-slate-700">${name}</td>
-                <td class="px-6 py-3">${stats.qty}</td>
-                <td class="px-6 py-3 text-slate-500">${stats.gross.toFixed(2)}</td>
-                <td class="px-6 py-3 font-bold text-slate-800">${stats.net.toFixed(2)}</td>
+                  <td class="px-6 py-3 font-medium text-slate-800">${p.name}</td>
+                  <td class="px-6 py-3 text-xs text-slate-500">${p.category || '-'}</td>
+                  <td class="px-6 py-3">${p.qty}</td>
+                  <td class="px-6 py-3 text-amber-600">${parseFloat(p.cost || 0).toFixed(2)}</td>
+                  <td class="px-6 py-3 font-bold">${c.stockCost.toFixed(2)}</td>
+                  <td class="px-6 py-3 text-xs text-slate-400">${p.lastSoldAt ? new Date(p.lastSoldAt).toLocaleDateString() : 'Never'}</td>
+                  <td class="px-6 py-3 text-xs">${c.daysIdle > 900 ? '999+' : c.daysIdle} days</td>
+                  <td class="px-6 py-3 flex items-center gap-1 font-bold text-xs ${color}">
+                      <span class="material-symbols-outlined text-[16px]">${icon}</span> ${c.health}
+                  </td>
               `;
         tbody.appendChild(tr);
       });
+    }
   }
 
-  function renderRecentOrders(allReceipts) {
-    const tbody = document.getElementById('live-recent-body');
+  // === UTILS ===
+  function renderGenericTable(id, data, mapFn) {
+    const tbody = document.getElementById(id);
     if (!tbody) return;
     tbody.innerHTML = '';
-
-    // Sort by date desc, take 10
-    const recent = [...allReceipts].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
-
-    recent.forEach(r => {
+    data.forEach(item => {
+      const vals = mapFn(item[0], item[1]);
       const tr = document.createElement('tr');
-      tr.className = "border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors cursor-pointer";
-      tr.onclick = () => alert(`Opening Receipt #${r.id} details...`); // Placeholder for modal
-
-      const time = new Date(r.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      // Status Logic
-      let statusBadge = '<span class="text-xs font-bold text-green-600">Completed</span>';
-      if (r.status?.includes('return')) statusBadge = '<span class="text-xs font-bold text-red-600">Returned</span>';
-
-      tr.innerHTML = `
-                <td class="px-6 py-3 font-mono text-slate-500">#${(r.id || '').toString().slice(-6)}</td>
-                <td class="px-6 py-3 text-xs text-slate-400">${r.branchId || '-'}</td>
-                <td class="px-6 py-3 font-bold text-slate-700">${(r.total || 0).toFixed(2)}</td>
-                <td class="px-6 py-3 capitalize text-xs">${r.paymentMethod || 'Cash'}</td>
-                <td class="px-6 py-3 text-sm">${r.cashier || '-'}</td>
-                <td class="px-6 py-3">${statusBadge}</td>
-                <td class="px-6 py-3 text-slate-400 text-xs">${time}</td>
-            `;
+      tr.className = "hover:bg-slate-50 border-b border-slate-50";
+      let html = '';
+      vals.forEach((v, i) => {
+        const bold = i === 2 || i === 3 ? 'font-bold' : ''; // Heuristic for amount cols
+        html += `<td class="px-4 py-2 ${bold}">${v}</td>`;
+      });
+      tr.innerHTML = html;
       tbody.appendChild(tr);
     });
   }
 
-  // Initial Load
-  refreshReports();
+  // === ACTIONS ===
+  window.openExpenseModal = () => document.getElementById('modal-add-expense').classList.remove('hidden');
+  window.closeExpenseModal = () => document.getElementById('modal-add-expense').classList.add('hidden');
+
+  // Re-attach handleSaveExpense if needed or keep inline? Layout suggested inline in previous phase
+  // But strictly we should define it here
+  window.handleSaveExpense = async (e) => {
+    e.preventDefault();
+    // ... (Same logic as Phase 5) ...
+    // Ideally this should invoke a Service in engine, but for now we keep simple logic here
+    const formData = new FormData(e.target);
+    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const newExpense = {
+      id: 'exp_' + Date.now(),
+      date: formData.get('date'),
+      category: formData.get('category'),
+      description: formData.get('description'),
+      amount: parseFloat(formData.get('amount')),
+      branchId: formData.get('branchId'),
+      createdBy: user.username || 'Admin',
+      createdAt: new Date().toISOString()
+    };
+
+    // Save
+    if (!window.DataCache) window.DataCache = {};
+    if (!window.DataCache.expenses) window.DataCache.expenses = [];
+    window.DataCache.expenses.push(newExpense);
+
+    const stored = JSON.parse(localStorage.getItem('local_expenses') || '[]');
+    stored.push(newExpense);
+    localStorage.setItem('local_expenses', JSON.stringify(stored));
+
+    alert("Expense Saved");
+    closeExpenseModal();
+    refreshReports();
+  };
 });

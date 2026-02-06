@@ -127,12 +127,29 @@
                     </select>
                   </div>
 
-                  <!-- Refresh Button -->
-                  <button onclick="refreshReports()"
-                    class="mt-5 h-[38px] px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                    <span class="material-symbols-outlined text-[20px] spin-on-load">refresh</span>
-                    <span class="hidden sm:inline">Refresh Data</span>
-                  </button>
+                  <!-- ACTION BAR -->
+                  <div class="flex items-center gap-3">
+                    <!-- Unified Action Buttons -->
+                    <button onclick="window.ReportExport.exportToExcel(getCurrentTab())"
+                      class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm">
+                      <span class="material-symbols-outlined text-[18px] text-green-600">table_view</span> Excel
+                    </button>
+                    <button onclick="window.ReportExport.exportToPDF(getCurrentTab())"
+                      class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm">
+                      <span class="material-symbols-outlined text-[18px] text-red-500">picture_as_pdf</span> PDF
+                    </button>
+                    <button onclick="window.ReportExport.printCurrentView(getCurrentTab())"
+                      class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm">
+                      <span class="material-symbols-outlined text-[18px]">print</span> Print
+                    </button>
+
+                    <button onclick="refreshReports()"
+                      class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm group">
+                      <span
+                        class="material-symbols-outlined text-[18px] group-hover:rotate-180 transition-transform duration-500">refresh</span>
+                      <span class="hidden sm:inline">Refresh Data</span>
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Date Presets -->
@@ -578,6 +595,15 @@
   <script>window.currentPage = 'reports';</script>
   <script src="js/shared-nav.js"></script>
   <script src="js/translations.js"></script>
+  <!-- EXTERNAL LIBS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- MODULES -->
+  <script src="js/reports-engine.js"></script>
+  <script src="js/reports-charts.js"></script>
+  <script src="js/reports-export.js"></script>
   <script src="js/reports-app.js"></script>
 
 </body>
