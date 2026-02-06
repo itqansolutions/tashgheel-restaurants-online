@@ -262,14 +262,24 @@ async function resolveBranchAndStart() {
     } catch (err) {
         console.error("❌ Branch resolution failed", err);
 
-        // DISABLED: This was causing a redirect loop
-        // The proper fix is to verify cookies are being set, not force redirects
-        // if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
-        //     window.location.href = 'index.html';
-        // }
+        // If we get a 401 (no token / auth denied), redirect to login
+        // But only if we're not already on the login page
+        const isLoginPage = window.location.pathname.endsWith('index.html') ||
+            window.location.pathname === '/' ||
+            window.location.pathname === '';
 
-        // For now, just log the error and let the page load
-        // User can manually go to login if needed
+        if (!isLoginPage) {
+            // Check if the error is auth-related
+            const errMsg = err?.message || String(err);
+            if (errMsg.includes('token') || errMsg.includes('authorization') || errMsg.includes('401') || errMsg.includes('denied')) {
+                console.log('🔒 Auth required, redirecting to login...');
+                window.location.href = 'index.html';
+                return;
+            }
+        }
+
+        // For non-auth errors, just log and continue (let user access page)
+        console.warn('⚠️ Branch resolution issue, continuing with local data');
     }
 }
 
