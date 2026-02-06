@@ -132,7 +132,8 @@ async function initializeDataSystem() {
         let keys = [
             'users', 'products', 'customers', 'vendors',
             'visits', 'sales', 'returns', 'expenses',
-            'shop_settings', 'license', 'spare_parts', 'vehicles', 'vendor_payments', 'employees'
+            'shop_settings', 'license', 'spare_parts', 'vehicles',
+            'vendor_payments', 'employees', 'ingredients', 'vendor_transactions'
         ];
 
         // 🚀 TIMING FIX: Only list data files if we have a branch context or are post-login
