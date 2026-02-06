@@ -51,6 +51,12 @@ function loadVendors() {
     });
 }
 
+// Safe Float Parsing Helper
+function safeFloat(val) {
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
 function loadInventory() {
     const materials = window.DB.getIngredients();
     const vendors = window.DB.getVendors();
@@ -63,7 +69,7 @@ function loadInventory() {
         return;
     }
 
-    // Render Dashboard
+    // Render Dashboard (unchanged)
     if (dashboardContainer) {
         dashboardContainer.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -121,7 +127,9 @@ function loadInventory() {
 
     filtered.forEach(m => {
         const vendor = vendors.find(v => v.id == m.vendorId);
-        const totalValue = (parseFloat(m.cost) * parseFloat(m.stock)).toFixed(2);
+        const cost = safeFloat(m.cost);
+        const stock = safeFloat(m.stock);
+        const totalValue = (cost * stock).toFixed(2);
 
         // Expiration Logic
         let expiryBadge = '';
@@ -177,9 +185,9 @@ function loadInventory() {
             <td class="px-6 py-4">
                 <span class="px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">${m.unit}</span>
             </td>
-            <td class="px-6 py-4 text-right text-sm text-slate-600">${parseFloat(m.cost).toFixed(2)}</td>
+            <td class="px-6 py-4 text-right text-sm text-slate-600">${cost.toFixed(2)}</td>
             <td class="px-6 py-4 text-center">
-                <span class="text-sm font-bold ${m.stock < 5 ? 'text-red-600' : 'text-slate-800'}">${parseFloat(m.stock).toFixed(3)}</span>
+                <span class="text-sm font-bold ${stock < 5 ? 'text-red-600' : 'text-slate-800'}">${stock.toFixed(3)}</span>
             </td>
             <td class="px-6 py-4 text-right text-sm font-bold text-slate-800">${totalValue}</td>
             <td class="px-6 py-4 text-sm text-slate-500">${vendor?.name || '-'}</td>
@@ -231,12 +239,11 @@ function handleSaveMaterial(e) {
             unit,
             cost,
             expirationDate: document.getElementById('material-expiration').value || null,
-            vendorId: vendorId || null
-            // Stock is handled separately for SaaS
+            vendorId: vendorId || null,
+            stock: stock // ✅ FIX: Save stock in local definition so it appears immediately
         };
 
         // 1. Save Definition (Global)
-        // We do NOT save stock in the definition file to prevent overwrites
         const result = window.DB.saveIngredient(material);
 
         if (!result) {
@@ -244,19 +251,12 @@ function handleSaveMaterial(e) {
             return;
         }
 
-        // 2. Save Stock (Branch Scoped)
+        // 2. Save Stock (Branch Scoped) - Send to backend for persistence
         if (stock > 0) {
-            // We await this to ensure it persists check
-            // Note: initApp doesn't await listener, so we use promise syntax or assumes fast enough
-            // Better to make handleSaveMaterial async if possible, but event handler...
-            // We can just fire and forget or use .then
             window.electronAPI.updateStock(material.id, stock);
         }
 
         // === VENDOR LOGIC (For New Materials) ===
-        // If adding a NEW material (not editing) with initial stock and valid cost/vendor, record it as a Purchase.
-        // Existing ID check logic: we used `id` from hidden field.
-        // If hidden field was empty, it's new.
         const isEdit = !!document.getElementById('material-id').value;
 
         if (!isEdit && material.vendorId && stock > 0 && material.cost > 0) {
@@ -278,7 +278,6 @@ function handleSaveMaterial(e) {
         const searchBox = document.getElementById('searchBox');
         if (searchBox) {
             searchBox.value = '';
-            // trigger input event or just reload
         }
 
         // Small delay to allow backend to persist stock
@@ -298,7 +297,7 @@ function editMaterial(id) {
     document.getElementById('material-name').value = material.name;
     document.getElementById('material-unit').value = material.unit;
     document.getElementById('material-cost').value = material.cost;
-    document.getElementById('material-stock').value = material.stock;
+    document.getElementById('material-stock').value = material.stock || 0; // Fix undefined
     document.getElementById('material-expiration').value = material.expirationDate || "";
     document.getElementById('material-vendor').value = material.vendorId || "";
 }
@@ -332,11 +331,11 @@ function openStockAudit() {
         row.innerHTML = `
             <td>${ing.name}</td>
             <td>${ing.unit}</td>
-            <td id="rec-stock-${ing.id}">${parseFloat(ing.stock || 0).toFixed(3)}</td>
+            <td id="rec-stock-${ing.id}">${safeFloat(ing.stock).toFixed(3)}</td>
             <td>
                 <input type="number" step="0.001" 
                        id="act-stock-${ing.id}" 
-                       value="${parseFloat(ing.stock || 0)}" 
+                       value="${safeFloat(ing.stock)}" 
                        oninput="calculateAuditDifference(${ing.id})"
                        style="width: 100px;">
             </td>
@@ -374,12 +373,17 @@ function saveStockAudit() {
         if (actualInput) {
             const newStock = parseFloat(actualInput.value);
             // Update if valid and not NaN
-            if (!isNaN(newStock) && Math.abs(newStock - ing.stock) > 0.0001) {
+            if (!isNaN(newStock) && Math.abs(newStock - (ing.stock || 0)) > 0.0001) {
                 // ing.stock = newStock; // Don't update local obj for file save
                 // window.DB.saveIngredient(ing);
 
                 // Use Backend Stock Update
                 window.electronAPI.updateStock(ing.id, newStock);
+
+                // ✅ Update local cache immediately so UI reflects it
+                ing.stock = newStock;
+                window.DB.saveIngredient(ing);
+
                 updatedCount++;
             }
         }
@@ -405,8 +409,8 @@ window.openRestockModal = function (id) {
     if (!ing) return;
 
     document.getElementById('restock-id').value = id;
-    document.getElementById('restock-current-stock').textContent = ing.stock;
-    document.getElementById('restock-current-cost').textContent = parseFloat(ing.cost || 0).toFixed(2);
+    document.getElementById('restock-current-stock').textContent = safeFloat(ing.stock);
+    document.getElementById('restock-current-cost').textContent = safeFloat(ing.cost).toFixed(2);
     document.getElementById('restock-qty').value = '';
     document.getElementById('restock-cost').value = '';
 
@@ -428,36 +432,25 @@ window.confirmRestock = function () {
     const ing = window.DB.getIngredient(id);
     if (!ing) return;
 
-    const oldStock = parseFloat(ing.stock) || 0;
-    const oldUnitCost = parseFloat(ing.cost) || 0;
+    const oldStock = safeFloat(ing.stock);
+    const oldUnitCost = safeFloat(ing.cost);
 
     // === COST CALCULATION (Weighted Average) ===
     let finalUnitCost = newUnitCost;
     if (oldStock > 0) {
-        // Simple Average as requested in previous project logic: (Old + New) / 2
-        // Or Weighted: ((OldStock * OldCost) + (Qty * NewCost)) / (OldStock + Qty)
-        // Services Code implemented: (OldCost + NewCost) / 2. We will stick to that for consistency unless it's obviously wrong.
-        // Actually, Weighted Average is standard accounting. Let's use Weighted Average for accuracy.
-        // Wait, the user specifically liked the Services logic. The Services code used a simple average but commented "User Spec".
-        // Let's stick to Weighted Average it's safer, or simple average if desired.
-        // Services Code: finalUnitCost = (oldUnitCost + newUnitCost) / 2;
-        // Let's improve it to Weighted Average safely.
-
         const totalValue = (oldStock * oldUnitCost) + (qty * newUnitCost);
         finalUnitCost = totalValue / (oldStock + qty);
     }
 
-    // ing.stock = oldStock + qty; // REMOVED: Stock updated via API
+    // ✅ FIX: Update Local Stock Immediately
+    ing.stock = oldStock + qty;
     ing.cost = parseFloat(finalUnitCost.toFixed(2));
     ing.lastRestockDate = new Date().toISOString();
 
-    // Save Definition (Cost Update) - Clean Clone
-    const ingToSave = { ...ing };
-    delete ingToSave.stock; // Ensure stock is not overwritten in definition file
-
-    if (window.DB.saveIngredient(ingToSave)) {
-        // Update Stock via API
-        window.electronAPI.updateStock(id, oldStock + qty);
+    // Save Definition (Cost Update)
+    if (window.DB.saveIngredient(ing)) {
+        // Update Stock via API (Double write, but ensures sync)
+        window.electronAPI.updateStock(id, ing.stock);
 
         const totalPurchaseValue = qty * newUnitCost;
 
