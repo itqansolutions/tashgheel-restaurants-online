@@ -1,415 +1,540 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tasgheel POS System</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Branded Desktop POS Dashboard</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" /> <!-- Keeping original styles for modals -->
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#1e293b",
+            accent: "#f59e0b",
+            success: "#22c55e",
+            danger: "#ef4444",
+            "background-light": "#f1f5f9",
+            "background-dark": "#0f172a",
+          },
+          fontFamily: {
+            sans: ["Inter", "sans-serif"],
+          },
+          borderRadius: {
+            DEFAULT: "12px",
+          },
+        },
+      },
+    };
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      body { @apply font-sans; }
+    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
   <style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+
+    /* Restoring Modal Styles from original pos.html used by pos-app.js logic */
     .modal {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      /* JS toggles flex/none */
       justify-content: center;
       align-items: center;
+      z-index: 9999;
     }
 
     .modal-content {
       background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      width: 300px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+      padding: 24px;
+      border-radius: 16px;
+      width: 400px;
+      max-width: 90%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       text-align: center;
-    }
-
-    .cart-item button {
-      margin-left: 10px;
-      padding: 4px 6px;
-      font-size: 0.9em;
-      cursor: pointer;
     }
   </style>
 </head>
 
-<body>
+<body
+  class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 h-screen overflow-hidden flex">
 
-  <!-- License Check -->
+  <!-- License Check Overlay -->
   <div id="licenseCheckOverlay"
     style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000000e6;z-index:10000;color:white;text-align:center;padding-top:150px;">
     <h2>🔒 Access Denied</h2>
     <p>This system requires a valid license to operate.</p>
-    <button onclick="window.location.href='index.html'" class="btn btn-primary" style="margin-top: 20px;">Go to
+    <button onclick="window.location.href='index.html'" class="px-4 py-2 bg-blue-600 text-white rounded mt-4">Go to
       Activation</button>
   </div>
 
-  <!-- Language Switcher -->
-  <div class="language-switcher">
-    <button class="lang-btn" onclick="setLanguage('en')" id="langEn">English</button>
-    <button class="lang-btn" onclick="setLanguage('ar')" id="langAr">العربية</button>
-  </div>
-
-  <div class="app">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h2 id="posSystemTitle" data-i18n-key="shop_pos_system">Restaurant POS</h2>
-      </div>
-      <!-- Shift Info Banner -->
-      <div id="shiftBanner"
-        style="padding:10px; margin:10px; background:#fff3e0; border-radius:8px; border:1px solid #ffe0b2; display:none;">
-        <div style="font-size:0.75rem; color:#e65100; font-weight:bold; text-transform:uppercase;">Shift Active</div>
-        <div id="shiftOpenTime" style="font-size:0.85rem; margin:3px 0;">Opened: --:--</div>
-        <div id="shiftCashDisplay" style="font-size:0.95rem; font-weight:bold; color:#bf360c;">0.00 EGP</div>
-      </div>
-      <nav><!-- Populated by shared-nav.js --></nav>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="main-content">
-      <header class="top-bar">
-        <h1 id="pageTitle" data-i18n-key="nav_pos">Point of Sale</h1>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span id="welcomeText" data-i18n-key="welcome">Welcome,</span>
-          <span id="currentUserName">User</span>
-          <span id="userRole" class="user-role">cashier</span>
-          <span style="background:#27ae60;color:white;padding:4px 8px;border-radius:12px;font-size:0.7rem;"
-            data-i18n-key="activated">🔐 Licensed</span>
+  <aside class="w-64 bg-primary text-white flex flex-col shrink-0">
+    <div class="p-6 border-b border-slate-700">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined font-bold">restaurant_menu</span>
         </div>
-      </header>
+        <div>
+          <h2 class="font-bold text-sm leading-tight" id="posSystemTitle" data-i18n-key="shop_pos_system">Restaurant POS
+          </h2>
+          <p class="text-[10px] text-slate-400">Management System</p>
+        </div>
+      </div>
+    </div>
 
-      <section class="content-area">
-        <div class="pos-layout">
-          <!-- Products Section -->
-          <div>
-            <div class="card">
-              <div class="card-header">
-                <span id="productsTitle" data-i18n-key="productsTitle">Products</span>
-                <div style="display:flex;gap:10px;align-items:center;">
-                  <input type="text" id="productSearch" placeholder="Search by name, code, or barcode..."
-                    class="search-box" style="width:200px;">
-                  <button class="btn btn-secondary" onclick="scanBarcode()" id="scanBtn" data-i18n-key="scan_btn">📷
-                    Scan</button>
-                </div>
-              </div>
-              <div class="card-body">
-                <!-- Category Filter -->
-                <div id="categoryFilterContainer"
-                  style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; white-space:nowrap; border-bottom:1px solid #eee;">
-                  <!-- Populated by JS -->
-                </div>
+    <!-- Navigation -->
+    <div class="flex-1 overflow-y-auto py-4 space-y-1">
+      <a class="flex items-center gap-3 px-6 py-3 bg-slate-800 border-l-4 border-accent text-white" href="pos.html">
+        <span class="material-symbols-outlined text-xl">point_of_sale</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_pos">POS</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="products.html">
+        <span class="material-symbols-outlined text-xl">menu_book</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_products">Menu</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="inventory.html">
+        <span class="material-symbols-outlined text-xl">inventory_2</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_inventory">Inventory</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="customers.html">
+        <span class="material-symbols-outlined text-xl">group</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_customers">Customers</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="kitchen.html">
+        <span class="material-symbols-outlined text-xl">countertops</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_kitchen">Kitchen</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="receipts.html">
+        <span class="material-symbols-outlined text-xl">receipt_long</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_receipts">Receipts</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="reports.html">
+        <span class="material-symbols-outlined text-xl">assessment</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_reports">Reports</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="vendors.html">
+        <span class="material-symbols-outlined text-xl">store</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_vendors">Vendors</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="expenses.html">
+        <span class="material-symbols-outlined text-xl">payments</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_expenses">Expenses</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="salesmen.html">
+        <span class="material-symbols-outlined text-xl">badge</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_employees">Employees</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="admin.html">
+        <span class="material-symbols-outlined text-xl">settings</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_admin">Admin Panel</span>
+      </a>
+      <button onclick="confirmLogout()"
+        class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
+        <span class="material-symbols-outlined text-xl">logout</span>
+        <span class="text-sm font-medium" data-i18n-key="logout">Logout</span>
+      </button>
+      <nav style="display:none;"></nav> <!-- Hidden original nav container if needed by shared-nav.js -->
+    </div>
 
-                <div class="product-grid" id="productGrid">
-                  <div style="text-align:center;padding:40px;color:#666;">
-                    <p id="loadingText" data-i18n-key="loading">Loading products...</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+    <div class="p-4 border-t border-slate-700 text-center">
+      <p class="text-[10px] text-slate-400">Tashgheel POS © 2025</p>
+      <p class="text-[10px] text-slate-500 font-semibold">Powered By itqan</p>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col min-w-0">
+    <header
+      class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary dark:text-slate-200">shopping_cart</span>
+          <h1 class="text-lg font-bold tracking-tight" id="pageTitle" data-i18n-key="nav_pos">Point of Sale</h1>
+        </div>
+      </div>
+      <div class="flex items-center gap-6">
+
+        <!-- Shift Widget -->
+        <div id="shiftBanner"
+          class="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-lg px-4 py-1.5 flex items-center gap-4"
+          style="display:none;">
+          <div class="flex flex-col">
+            <span
+              class="text-[9px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 leading-none">Shift
+              Active</span>
+            <span id="shiftOpenTime" class="text-[11px] text-orange-800 dark:text-orange-300 font-bold">Opened:
+              --:--</span>
           </div>
+          <div class="h-6 w-px bg-orange-200 dark:bg-orange-800"></div>
+          <span id="shiftCashDisplay" class="text-sm font-black text-orange-900 dark:text-orange-200">0.00 EGP</span>
+        </div>
 
-          <!-- Cart Section -->
-          <div class="cart">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-              <h3 id="cartTitle" data-i18n-key="cart_title">🛒 Cart</h3>
-              <div>
-                <button class="btn btn-sm btn-outline-warning" onclick="openPendingOrders()" title="Pending Orders">
-                  ⏳ <span id="pendingOrdersBtn" class="badge" style="background:#e67e22; color:white;">0</span>
-                </button>
-                <span id="cartCounter" class="badge">0</span>
-              </div>
-            </div>
+        <!-- Language Params -->
+        <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-full text-[10px] font-bold">
+          <button onclick="setLanguage('en')" id="langEn"
+            class="px-3 py-1 bg-white dark:bg-slate-700 shadow-sm rounded-full text-slate-900 dark:text-white">EN</button>
+          <button onclick="setLanguage('ar')" id="langAr" class="px-3 py-1 text-slate-500">عربي</button>
+        </div>
 
-            <div id="cartItems">
-              <p id="cartEmptyText" style="text-align:center;color:#666;" data-i18n-key="cart_empty">Cart is empty</p>
-            </div>
-
-            <div class="cart-summary">
-              <div><span id="subtotalLabel" data-i18n-key="subtotal">Subtotal:</span> <span id="cartSubtotal">0.00
-                  ج.م</span></div>
-              <div><span id="discountLabel" data-i18n-key="discount">Discount:</span> <span id="cartDiscount">0.00
-                  ج.م</span></div>
-              <div id="deliveryFeeRow" style="display:none;"><span data-i18n-key="delivery_fee">Delivery:</span> <span
-                  id="cartDeliveryFee">0.00 ج.م</span></div>
-              <div><span id="taxLabel" data-i18n-key="tax">Tax (0%):</span> <span id="cartTax">0.00 ج.م</span></div>
-              <hr>
-              <div class="cart-total" id="cartTotal">Total: 0.00 ج.م</div>
-            </div>
-
-            <div style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
-              <h4 style="margin:0 0 10px 0; font-size:14px; color:#555;" data-i18n-key="order_type">Order Type</h4>
-              <div style="display:flex; gap:10px;">
-                <label style="cursor:pointer; display:flex; align-items:center;">
-                  <input type="radio" name="orderType" value="dine_in" onchange="toggleOrderType()">
-                  <span style="margin-left:5px;" data-i18n-key="dine_in">🍽️ Dine In</span>
-                </label>
-                <label style="cursor:pointer; display:flex; align-items:center;">
-                  <input type="radio" name="orderType" value="take_away" onchange="toggleOrderType()" checked>
-                  <span style="margin-left:5px;" data-i18n-key="take_away">🥡 Take Away</span>
-                </label>
-                <label style="cursor:pointer; display:flex; align-items:center;">
-                  <input type="radio" name="orderType" value="delivery" onchange="toggleOrderType()">
-                  <span style="margin-left:5px;" data-i18n-key="delivery">🛵 Delivery</span>
-                </label>
-              </div>
-            </div>
-
-            <div id="tableSelection" style="margin-bottom:10px; display:none;">
-              <label for="tableSelect">🪑 <span data-i18n-key="table_label">Table:</span></label>
-              <select id="tableSelect"
-                style="width:100%;padding:8px;margin-top:5px; border:1px solid #ddd; border-radius:4px;">
-                <!-- Populated by JS -->
-              </select>
-            </div>
-
-            <!-- Delivery Customer Section -->
-            <div id="deliverySection"
-              style="margin-bottom:10px; display:none; border:1px solid #eee; padding:10px; border-radius:4px; background:#f9f9f9;">
-              <label style="display:block; margin-bottom:5px; font-weight:bold;">📞 Customer Info</label>
-
-              <!-- Search / New -->
-              <div style="display:flex; gap:5px; margin-bottom:10px;">
-                <input type="text" id="custSearchPos" placeholder="Phone or Name..." style="flex:1; padding:5px;">
-                <button class="btn btn-sm btn-primary" onclick="searchCustomerPos()">🔍</button>
-              </div>
-
-              <!-- Selected Customer Display -->
-              <div id="selectedCustomerDisplay"
-                style="display:none; margin-bottom:10px; padding:5px; background:#e3f2fd; border-radius:4px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span id="selCustName" style="font-weight:bold;"></span>
-                  <button class="btn btn-sm btn-danger" onclick="clearSelectedCustomer()"
-                    style="padding:1px 5px;">x</button>
-                </div>
-                <div id="selCustMobile" style="font-size:0.85em; color:#555;"></div>
-              </div>
-
-              <!-- Address Selection -->
-              <div id="addressSection" style="display:none;">
-                <label style="font-size:0.9em; color:#555;">📍 Address:</label>
-                <select id="custAddressSelect" style="width:100%; padding:5px; margin-bottom:5px;"></select>
-                <button class="btn btn-sm btn-outline-primary" style="width:100%;" onclick="openAddAddressModal()">+ Add
-                  New Address</button>
-              </div>
-
-              <!-- Quick Add Customer Button if not found -->
-              <div id="newCustomerBtnArea" style="display:none; text-align:center;">
-                <button class="btn btn-sm btn-success" onclick="openQuickAddCustomer()">+ New Customer</button>
-              </div>
-            </div>
-
-            <div id="salesmanSection" style="margin-bottom:10px;">
-              <label for="salesmanSelect">👤 <span id="salesmanLabel"
-                  data-i18n-key="salesman_label">Salesman:</span></label>
-              <select id="salesmanSelect" style="width:100%;padding:6px;margin-top:5px;"></select>
-            </div>
-
-            <div class="payment-methods">
-              <button class="btn btn-success" onclick="processSale('cash')" id="cashBtn" disabled
-                data-i18n-key="cash">💵 Cash</button>
-              <button class="btn btn-success" onclick="processSale('card')" id="cardBtn" disabled
-                data-i18n-key="card">💳 Card</button>
-              <button class="btn btn-success" onclick="processSale('mobile')" id="mobileBtn" disabled
-                data-i18n-key="mobile">📱 Mobile</button>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
-              <button class="btn btn-warning" onclick="holdTransaction()" id="holdBtn" disabled
-                data-i18n-key="hold_btn">⏸️ Hold</button>
-              <button class="btn btn-secondary" onclick="clearCart()" id="clearCartBtn" disabled
-                data-i18n-key="clear_cart_btn">🗑️ Clear</button>
-            </div>
-
-            <button class="btn btn-danger" onclick="closeShiftFlow()"
-              style="margin-top:10px;width:100%; font-weight:bold; border-radius:8px; padding:12px;">🔒 <span
-                id="closeShiftBtn" data-i18n-key="close_shift_btn">Close Shift</span></button>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <span id="welcomeText" data-i18n-key="welcome">Welcome,</span> <span id="currentUserName">Admin</span>
+          </span>
+          <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-lg">person</span>
           </div>
         </div>
-      </section>
-    </main>
-  </div>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+      <!-- Search & Scan -->
+      <div class="flex gap-4 items-center">
+        <div class="relative flex-1 max-w-md">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+          <input id="productSearch"
+            class="w-full pl-10 pr-12 py-2.5 bg-white dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary shadow-sm text-sm"
+            placeholder="Search products..." type="text" />
+          <button onclick="scanBarcode()" id="scanBtn"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary">
+            <span class="material-symbols-outlined text-lg">qr_code_scanner</span>
+          </button>
+        </div>
+
+        <!-- Categories -->
+        <div id="categoryFilterContainer" class="flex gap-2 overflow-x-auto hide-scrollbar">
+          <!-- Populated by JS -->
+          <button class="px-5 py-2 bg-primary text-white text-xs font-bold rounded-full flex-shrink-0">All
+            Categories</button>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <!-- Populated by JS -->
+        <div style="text-align:center;padding:40px;color:#666; grid-column: 1/-1;">
+          <p id="loadingText" data-i18n-key="loading">Loading products...</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Right Sidebar (Cart) -->
+  <aside class="w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-800">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-black flex items-center gap-2">
+          <span class="material-symbols-outlined text-xl">shopping_basket</span>
+          <span id="cartTitle" data-i18n-key="cart_title">Current Order</span>
+        </h2>
+        <button class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded"
+          onclick="openPendingOrders()">
+          ⏳ <span id="pendingOrdersBtn">0</span>
+        </button>
+      </div>
+
+      <!-- Order Type -->
+      <div class="flex gap-2">
+        <label class="flex-1 cursor-pointer">
+          <input checked="" class="hidden peer" name="orderType" value="dine_in" type="radio"
+            onchange="toggleOrderType()" />
+          <div
+            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+            <span class="material-symbols-outlined text-base">restaurant</span>
+            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="dine_in">Dine In</span>
+          </div>
+        </label>
+        <label class="flex-1 cursor-pointer">
+          <input class="hidden peer" name="orderType" value="take_away" type="radio" onchange="toggleOrderType()" />
+          <div
+            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+            <span class="material-symbols-outlined text-base">takeout_dining</span>
+            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="take_away">Take Away</span>
+          </div>
+        </label>
+        <label class="flex-1 cursor-pointer">
+          <input class="hidden peer" name="orderType" value="delivery" type="radio" onchange="toggleOrderType()" />
+          <div
+            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+            <span class="material-symbols-outlined text-base">delivery_dining</span>
+            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="delivery">Delivery</span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Conditional Inputs -->
+      <div id="tableSelection" style="margin-top:10px; display:none;">
+        <select id="tableSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs"></select>
+      </div>
+
+      <div id="salesmanSection" style="margin-top:10px;">
+        <select id="salesmanSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs"></select>
+      </div>
+
+      <!-- Delivery Customer Section -->
+      <div id="deliverySection" class="mt-2 p-2 bg-slate-50 border border-slate-200 rounded text-xs"
+        style="display:none;">
+        <div class="flex gap-1 mb-2">
+          <input type="text" id="custSearchPos" placeholder="Phone/Name..." class="flex-1 p-1 border rounded text-xs">
+          <button onclick="searchCustomerPos()" class="bg-primary text-white p-1 rounded">🔍</button>
+        </div>
+        <div id="selectedCustomerDisplay" style="display:none;"
+          class="mb-2 p-1 bg-blue-50 border border-blue-100 rounded">
+          <div class="flex justify-between font-bold"><span id="selCustName"></span> <button
+              onclick="clearSelectedCustomer()" class="text-red-500">x</button></div>
+          <div id="selCustMobile" class="text-[10px] text-gray-500"></div>
+        </div>
+        <div id="addressSection" style="display:none;">
+          <select id="custAddressSelect" class="w-full p-1 mb-1 border rounded text-xs"></select>
+          <button onclick="openAddAddressModal()" class="w-full text-[10px] text-blue-600 font-bold">+ New
+            Address</button>
+        </div>
+        <div id="newCustomerBtnArea" style="display:none; text-align:center;">
+          <button onclick="openQuickAddCustomer()"
+            class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">+ New Customer</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Cart Items -->
+    <div id="cartItems" class="flex-1 overflow-y-auto p-4 space-y-3">
+      <p id="cartEmptyText" class="text-center text-slate-400 text-sm py-4" data-i18n-key="cart_empty">Your cart is
+        empty</p>
+    </div>
+
+    <!-- Totals & Actions -->
+    <div class="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 space-y-4">
+      <div class="space-y-2">
+        <div class="flex justify-between text-[11px] font-medium text-slate-500">
+          <span id="subtotalLabel" data-i18n-key="subtotal">Subtotal</span>
+          <span id="cartSubtotal">0.00</span>
+        </div>
+        <div class="flex justify-between text-[11px] font-medium text-slate-500">
+          <span id="discountLabel" data-i18n-key="discount">Discount</span>
+          <span id="cartDiscount">0.00</span>
+        </div>
+        <div id="deliveryFeeRow" class="flex justify-between text-[11px] font-medium text-slate-500"
+          style="display:none;">
+          <span>Delivery</span>
+          <span id="cartDeliveryFee">0.00</span>
+        </div>
+        <div class="flex justify-between text-[11px] font-medium text-slate-500">
+          <span id="taxLabel" data-i18n-key="tax">Tax (0%)</span>
+          <span id="cartTax">0.00</span>
+        </div>
+        <div class="flex justify-between items-end pt-2 border-t border-slate-200 dark:border-slate-700">
+          <span class="text-sm font-bold">Total Amount</span>
+          <span id="cartTotal" class="text-2xl font-black text-success tracking-tight">0.00 EGP</span>
+        </div>
+      </div>
+
+      <!-- Payment Buttons -->
+      <div class="grid grid-cols-3 gap-2">
+        <button id="cashBtn" onclick="processSale('cash')"
+          class="bg-success text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-sm active:scale-95 transition-all flex flex-col items-center gap-1 disabled:opacity-50">
+          <span class="material-symbols-outlined text-lg">payments</span> <span data-i18n-key="cash">Cash</span>
+        </button>
+        <button id="cardBtn" onclick="processSale('card')"
+          class="bg-success/90 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-sm active:scale-95 transition-all flex flex-col items-center gap-1 disabled:opacity-50">
+          <span class="material-symbols-outlined text-lg">credit_card</span> <span data-i18n-key="card">Card</span>
+        </button>
+        <button id="mobileBtn" onclick="processSale('mobile')"
+          class="bg-success/80 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-sm active:scale-95 transition-all flex flex-col items-center gap-1 disabled:opacity-50">
+          <span class="material-symbols-outlined text-lg">smartphone</span> <span data-i18n-key="mobile">Mobile</span>
+        </button>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="holdBtn" onclick="holdTransaction()"
+          class="flex-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-200 dark:border-amber-800 disabled:opacity-50">
+          <span class="material-symbols-outlined text-base">pause_circle</span> <span
+            data-i18n-key="hold_btn">Hold</span>
+        </button>
+        <button id="clearCartBtn" onclick="clearCart()"
+          class="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
+          <span class="material-symbols-outlined text-base">delete_outline</span> <span
+            data-i18n-key="clear_cart_btn">Clear</span>
+        </button>
+      </div>
+
+      <button id="closeShiftBtn" onclick="closeShiftFlow()"
+        class="w-full bg-danger text-white py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-danger/20 hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-wide">
+        <span class="material-symbols-outlined text-lg">lock</span> <span data-i18n-key="close_shift_btn">Close
+          Shift</span>
+      </button>
+
+      <!-- Hidden badge counter used by old JS -->
+      <span id="cartCounter" style="display:none;">0</span>
+    </div>
+  </aside>
+
+  <!-- ==================== MODALS ==================== -->
 
   <!-- Open Shift Modal -->
-  <div id="openShiftModal" class="modal" style="display:none; z-index:10001; background:rgba(0,0,0,0.8);">
-    <div class="modal-content" style="width:350px; padding:30px;">
-      <h2 style="margin-bottom:10px;">☀️ Open New Shift</h2>
-      <p style="font-size:0.9rem; color:#666; margin-bottom:20px;">Please enter the starting cash in drawer.</p>
-
-      <div style="text-align:left; margin-bottom:20px;">
-        <label style="font-weight:bold; display:block; margin-bottom:5px;">Opening Cash (EGP)</label>
+  <div id="openShiftModal" class="modal">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">☀️ Open New Shift</h2>
+      <p class="text-sm text-gray-500 mb-6">Please enter the starting cash in drawer.</p>
+      <div class="text-left mb-6">
+        <label class="block font-bold mb-2">Opening Cash (EGP)</label>
         <input type="number" id="openingCashInput" value="0"
-          style="width:100%; padding:12px; font-size:1.2rem; border:2px solid #ddd; border-radius:8px; text-align:center;">
+          class="w-full p-3 text-xl border-2 border-gray-200 rounded-lg text-center" />
       </div>
-
-      <button class="btn btn-success" onclick="confirmOpenShift()"
-        style="width:100%; padding:12px; font-size:1rem; font-weight:bold;">🚀 Open Shift</button>
+      <button onclick="confirmOpenShift()"
+        class="w-full py-3 bg-success text-white font-bold rounded-lg hover:bg-green-600">🚀 Open Shift</button>
     </div>
   </div>
 
   <!-- Close Shift Modal -->
-  <div id="closeShiftModal" class="modal" style="display:none; z-index:10001;">
-    <div class="modal-content" style="width:400px; padding:25px;">
-      <h2 style="margin-bottom:15px;">🔒 Close Your Shift</h2>
-
-      <div id="shiftStats"
-        style="background:#f9f9f9; padding:15px; border-radius:8px; text-align:left; margin-bottom:20px;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-          <span>Opening Cash:</span> <strong id="statOpeningCash">0.00</strong>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-          <span>Net Sales (Cash):</span> <strong id="statNetSales">0.00</strong>
-        </div>
-        <hr style="border:0; border-top:1px dashed #ccc; margin:10px 0;">
-        <div style="display:flex; justify-content:space-between; font-size:1.1rem; color:#2c3e50;">
-          <span>System Expected:</span> <strong id="statExpectedCash">0.00 EGP</strong>
-        </div>
+  <div id="closeShiftModal" class="modal">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">🔒 Close Shift</h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-left mb-4 text-sm">
+        <div class="flex justify-between mb-2"><span>Opening:</span> <strong id="statOpeningCash">0.00</strong></div>
+        <div class="flex justify-between mb-2"><span>Sales (Cash):</span> <strong id="statNetSales">0.00</strong></div>
+        <hr class="my-2" />
+        <div class="flex justify-between font-bold text-base text-navy"><span>Expected:</span> <strong
+            id="statExpectedCash">0.00 EGP</strong></div>
       </div>
-
-      <div style="text-align:left; margin-bottom:20px;">
-        <label style="font-weight:bold; display:block; margin-bottom:8px;">Physical Cash Counted (EGP)</label>
+      <div class="text-left mb-4">
+        <label class="block font-bold mb-2">Physical Cash (EGP)</label>
         <input type="number" id="closingCashInput" placeholder="0.00" oninput="calculateShiftDiff()"
-          style="width:100%; padding:15px; font-size:1.5rem; font-weight:bold; border:2px solid #27ae60; border-radius:8px; text-align:center;">
+          class="w-full p-3 text-xl border-2 border-green-500 rounded-lg text-center font-bold" />
       </div>
-
-      <div id="diffHighlight"
-        style="padding:10px; border-radius:6px; margin-bottom:15px; font-weight:bold; display:none;">
-        Difference: <span id="statDiff">0.00</span>
+      <div id="diffHighlight" class="p-2 rounded mb-4 font-bold text-center" style="display:none;">
+        Diff: <span id="statDiff">0.00</span>
       </div>
-
-      <div style="text-align:left; margin-bottom:20px;">
-        <label style="font-weight:bold; display:block; margin-bottom:8px; font-size:0.85rem; color:#666;">📝 Shift Notes
-          / Discrepancy Reason</label>
-        <textarea id="closingNotesInput" placeholder="Optional notes about this shift..."
-          style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; height:60px; resize:none; font-family:inherit;"></textarea>
-      </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <button class="btn btn-danger" onclick="confirmCloseShift()" style="padding:12px; font-weight:bold;">Confirm &
-          Close</button>
-        <button class="btn btn-secondary"
-          onclick="document.getElementById('closeShiftModal').style.display='none'">Cancel</button>
+      <textarea id="closingNotesInput" placeholder="Shift notes..."
+        class="w-full p-2 border rounded-lg mb-4 h-20 text-sm"></textarea>
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="confirmCloseShift()"
+          class="py-3 bg-danger text-white font-bold rounded-lg hover:bg-red-600">Close</button>
+        <button onclick="document.getElementById('closeShiftModal').style.display='none'"
+          class="py-3 bg-slate-200 text-slate-700 font-bold rounded-lg">Cancel</button>
       </div>
     </div>
   </div>
 
   <!-- Discount Modal -->
-  <div id="discountModal" class="modal" style="display:none;">
+  <div id="discountModal" class="modal">
     <div class="modal-content">
-      <h3 id="discountTitle" data-i18n-key="discount_modal_title">🧾 Discount</h3>
-      <label data-i18n-key="discount_type">Discount Type:</label>
-      <select id="discountType">
-        <option value="none" data-i18n-key="discount_none">None</option>
-        <option value="percent" data-i18n-key="discount_percent">Percentage (%)</option>
-        <option value="value" data-i18n-key="discount_fixed">Fixed Value</option>
+      <h3 class="font-bold text-lg mb-4" data-i18n-key="discount_modal_title">Receipt Discount</h3>
+      <select id="discountType" class="w-full p-2 border rounded mb-4">
+        <option value="none">None</option>
+        <option value="percent">Percentage (%)</option>
+        <option value="value">Fixed Value</option>
       </select>
-      <br><br>
-      <label data-i18n-key="discount_value">Value:</label>
-      <input type="number" id="discountValue" placeholder="0">
-      <br><br>
-      <button onclick="saveDiscount()" data-i18n-key="save">💾 Save</button>
-      <button onclick="closeDiscountModal()" data-i18n-key="cancel">✖️ Cancel</button>
-    </div>
-  </div>
-
-  <!-- Add-ons Selection Modal -->
-  <div id="addonsModal" class="modal" style="display:none;">
-    <div class="modal-content" style="width: 400px; max-width:90%;">
-      <h3><span data-i18n-key="select_addons">Select Extras</span>: <span id="addonsProductTitle"></span></h3>
-
-      <!-- Size Selection (Hidden by default) -->
-      <div id="size-selection-area" style="display:none; margin-bottom:15px; text-align:left;">
-        <h4 style="margin:0 0 5px 0; font-size:0.9rem; color:#555;">Select Size:</h4>
-        <div id="sizes-list" style="display:flex; gap:5px; flex-wrap:wrap;"></div>
-      </div>
-
-      <div id="addonsList"
-        style="text-align:left; max-height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #ddd; padding:10px;">
-        <!-- Checkboxes for allowed add-ons populated here -->
-      </div>
-      <div>
-        <button onclick="confirmAddons()" class="btn btn-success" data-i18n-key="add_to_cart">Add to Cart</button>
-        <button onclick="closeAddonsModal()" class="btn btn-danger" data-i18n-key="cancel">Cancel</button>
+      <input type="number" id="discountValue" placeholder="Value" class="w-full p-2 border rounded mb-6" />
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="saveDiscount()" class="py-2 bg-success text-white rounded font-bold">Save</button>
+        <button onclick="closeDiscountModal()" class="py-2 bg-slate-200 rounded font-bold">Cancel</button>
       </div>
     </div>
   </div>
 
-  <!-- Quick Add Customer Modal -->
-  <div id="quickCustomerModal" class="modal" style="display:none;">
-    <div class="modal-content" style="width:300px;">
-      <h3>New Customer</h3>
-      <input type="text" id="quickCustName" placeholder="Name" style="width:100%; margin-bottom:10px; padding:8px;">
-      <input type="tel" id="quickCustMobile" placeholder="Mobile" style="width:100%; margin-bottom:10px; padding:8px;">
-      <input type="text" id="quickCustAddress" style="display:none;"> <!-- Hidden legacy -->
+  <!-- Addons Modal -->
+  <div id="addonsModal" class="modal">
+    <div class="modal-content" style="text-align:left;">
+      <h3 class="font-bold text-lg mb-2">Extras: <span id="addonsProductTitle"></span></h3>
+      <div id="size-selection-area" class="mb-4" style="display:none;">
+        <h4 class="text-sm font-bold text-gray-500 mb-2">Select Size:</h4>
+        <div id="sizes-list" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div id="addonsList" class="max-h-60 overflow-y-auto border p-2 mb-4 rounded"></div>
+      <div class="flex gap-2">
+        <button onclick="confirmAddons()" class="flex-1 py-2 bg-success text-white rounded font-bold">Add to
+          Cart</button>
+        <button onclick="closeAddonsModal()" class="flex-1 py-2 bg-danger text-white rounded font-bold">Cancel</button>
+      </div>
+    </div>
+  </div>
 
-      <div style="border:1px solid #eee; padding:10px; border-radius:4px; margin-bottom:10px;">
-        <label style="font-size:0.85em; font-weight:bold; color:#555;">📍 Address Details</label>
-        <select id="quickCustArea" style="width:100%; margin-bottom:5px; padding:8px;">
-          <option value="">-- Select Area --</option>
-        </select>
-        <input type="text" id="quickCustStreet" placeholder="Street Name *"
-          style="width:100%; margin-bottom:5px; padding:8px;">
-        <div style="display:flex; gap:5px;">
-          <input type="text" id="quickCustBuilding" placeholder="Bldg" style="width:33%; padding:8px;">
-          <input type="text" id="quickCustFloor" placeholder="Floor" style="width:33%; padding:8px;">
-          <input type="text" id="quickCustApt" placeholder="Apt" style="width:33%; padding:8px;">
+  <!-- Quick Customer Modal -->
+  <div id="quickCustomerModal" class="modal">
+    <div class="modal-content text-left">
+      <h3 class="font-bold mb-4">New Customer</h3>
+      <input type="text" id="quickCustName" placeholder="Name" class="w-full p-2 border rounded mb-2" />
+      <input type="tel" id="quickCustMobile" placeholder="Mobile" class="w-full p-2 border rounded mb-2" />
+      <div class="bg-slate-50 p-2 rounded border mb-2">
+        <select id="quickCustArea" class="w-full p-2 border rounded mb-2"></select>
+        <input type="text" id="quickCustStreet" placeholder="Street" class="w-full p-2 border rounded mb-2" />
+        <div class="flex gap-2 mb-2">
+          <input type="text" id="quickCustBuilding" placeholder="Bldg" class="w-1/3 p-2 border rounded" />
+          <input type="text" id="quickCustFloor" placeholder="Floor" class="w-1/3 p-2 border rounded" />
+          <input type="text" id="quickCustApt" placeholder="Apt" class="w-1/3 p-2 border rounded" />
         </div>
-        <input type="text" id="quickCustExtra" placeholder="Landmark / Extra Info"
-          style="width:100%; margin-top:5px; padding:8px;">
+        <input type="text" id="quickCustExtra" placeholder="Landmark" class="w-full p-2 border rounded" />
       </div>
-      <button onclick="saveQuickCustomer()" class="btn btn-primary" style="width:100%;">Save</button>
-      <button onclick="document.getElementById('quickCustomerModal').style.display='none'" class="btn btn-secondary"
-        style="width:100%; margin-top:5px;">Cancel</button>
+      <div class="flex gap-2">
+        <button onclick="saveQuickCustomer()" class="flex-1 py-2 bg-primary text-white rounded">Save</button>
+        <button onclick="document.getElementById('quickCustomerModal').style.display='none'"
+          class="flex-1 py-2 bg-slate-200 rounded">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Address Modal -->
+  <div id="addressModal" class="modal">
+    <div class="modal-content text-left">
+      <h3 class="font-bold mb-4">Add Address</h3>
+      <input type="text" id="addrArea" placeholder="Area" class="w-full p-2 border rounded mb-2" />
+      <input type="text" id="addrStreet" placeholder="Street" class="w-full p-2 border rounded mb-2" />
+      <input type="text" id="addrBuilding" placeholder="Bldg" class="w-full p-2 border rounded mb-2" />
+      <div class="flex gap-2 mb-2">
+        <input type="text" id="addrFloor" placeholder="Floor" class="w-1/2 p-2 border rounded" />
+        <input type="text" id="addrApt" placeholder="Apt" class="w-1/2 p-2 border rounded" />
+      </div>
+      <input type="text" id="addrExtra" placeholder="Extra" class="w-full p-2 border rounded mb-4" />
+      <div class="flex gap-2">
+        <button onclick="saveCheckCustomerAddress()" class="flex-1 py-2 bg-primary text-white rounded">Save</button>
+        <button onclick="document.getElementById('addressModal').style.display='none'"
+          class="flex-1 py-2 bg-slate-200 rounded">Cancel</button>
+      </div>
     </div>
   </div>
 
   <!-- Pending Orders Modal -->
-  <div id="pendingOrdersModal" class="modal" style="display:none;">
-    <div class="modal-content" style="width:400px;">
-      <div
-        style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px;">
-        <h3 data-i18n-key="pending_orders">Pending Orders</h3>
-        <button class="btn btn-sm btn-secondary"
-          onclick="document.getElementById('pendingOrdersModal').style.display='none'">X</button>
+  <div id="pendingOrdersModal" class="modal">
+    <div class="modal-content">
+      <div class="flex justify-between items-center mb-4 border-b pb-2">
+        <h3 class="font-bold">Pending Orders</h3>
+        <button onclick="document.getElementById('pendingOrdersModal').style.display='none'">x</button>
       </div>
-      <div id="pendingOrdersList" style="max-height:300px; overflow-y:auto; margin-top:10px;">
-        <!-- List -->
-      </div>
+      <div id="pendingOrdersList" class="max-h-60 overflow-y-auto space-y-2"></div>
     </div>
   </div>
-
-  <!-- Add Address Modal -->
-  <div id="addressModal" class="modal" style="display:none;">
-    <div class="modal-content" style="width:350px;">
-      <h3>Add Address</h3>
-      <input type="text" id="addrArea" placeholder="Area / District"
-        style="width:100%; margin-bottom:5px; padding:8px;">
-      <input type="text" id="addrStreet" placeholder="Street Name" style="width:100%; margin-bottom:5px; padding:8px;">
-      <input type="text" id="addrBuilding" placeholder="Building No/Name"
-        style="width:100%; margin-bottom:5px; padding:8px;">
-      <div style="display:flex; gap:5px;">
-        <input type="text" id="addrFloor" placeholder="Floor" style="width:50%; margin-bottom:5px; padding:8px;">
-        <input type="text" id="addrApt" placeholder="Apt No" style="width:50%; margin-bottom:5px; padding:8px;">
-      </div>
-      <input type="text" id="addrExtra" placeholder="Extra Directions (Optional)"
-        style="width:100%; margin-bottom:10px; padding:8px;">
-
-      <button onclick="saveCheckCustomerAddress()" class="btn btn-primary" style="width:100%;">Save Address</button>
-      <button onclick="document.getElementById('addressModal').style.display='none'" class="btn btn-secondary"
-        style="width:100%; margin-top:5px;">Cancel</button>
-    </div>
-  </div>
-
-  <!-- Footer -->
-  <footer class="footer">
-    Tashgheel POS© 2025</strong> |
-    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
-    <span id="footerText" data-i18n-key="enhanced_security">Designed and developed by itqan</span>
-  </footer>
 
   <!-- Scripts -->
   <script src="js/web-adapter.js"></script>
@@ -420,7 +545,6 @@
   <script src="js/shared-nav.js"></script>
   <script src="js/translations.js"></script>
   <script src="js/pos-app.js"></script>
-
 
 </body>
 

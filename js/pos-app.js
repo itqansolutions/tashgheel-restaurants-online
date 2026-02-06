@@ -238,9 +238,12 @@ function renderCategories() {
   container.innerHTML = '';
   categories.forEach(cat => {
     const btn = document.createElement('button');
-    btn.className = `btn btn-sm ${currentCategory === cat ? 'btn-primary' : 'btn-outline-primary'}`;
+    const isActive = currentCategory === cat;
+    btn.className = `px-5 py-2 text-xs font-bold rounded-full flex-shrink-0 transition-all border ${isActive
+        ? 'bg-primary text-white shadow-lg border-primary'
+        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-primary'
+      }`;
     btn.textContent = cat === 'All' ? (t('all') || 'All') : cat;
-    btn.style.borderRadius = '20px';
     btn.onclick = () => {
       currentCategory = cat;
       renderCategories(); // Re-render to update active state
@@ -282,7 +285,8 @@ function renderProducts() {
 
   filteredProducts.forEach(product => {
     const card = document.createElement("div");
-    card.className = "product-card";
+    card.className = "bg-white dark:bg-slate-800 p-2.5 rounded-xl shadow-sm border border-transparent hover:border-primary transition-all group cursor-pointer h-full flex flex-col";
+    card.onclick = () => addToCart(product);
 
     // Determine Price Display
     let priceDisplay = product.price;
@@ -293,18 +297,24 @@ function renderProducts() {
     }
 
     const imgHtml = product.image
-      ? `<img src="${product.image}" alt="${product.name}" onerror="this.style.display='none'">`
-      : `<div class="no-image">📦</div>`;
+      ? `<img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.parentElement.innerHTML='<span class=\\'material-symbols-outlined text-4xl text-slate-300\\'>restaurant</span>'">`
+      : `<span class="material-symbols-outlined text-4xl text-slate-300">restaurant</span>`;
 
     card.innerHTML = `
-      ${imgHtml}
-      <h4>${product.name}</h4>
-      <p class="price">${priceDisplay}</p>
-      <p class="stock" style="font-size:0.8rem; color:${(product.stock || 0) <= 5 ? 'red' : 'green'}">
-         ${(product.hasSizes || (product.recipe && product.recipe.length > 0)) ? '' : (t('stock') + ': ' + (product.stock || 0))}
-      </p>
+      <div class="aspect-square bg-slate-100 dark:bg-slate-700 rounded-lg mb-2.5 overflow-hidden flex items-center justify-center relative">
+        ${imgHtml}
+        ${(product.stock || 0) <= 5 && !product.hasSizes ? `<span class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">Low</span>` : ''}
+      </div>
+      <div class="px-1 flex-1 flex flex-col justify-between">
+        <h3 class="text-xs font-bold mb-1 truncate text-slate-800 dark:text-slate-100 uppercase tracking-tight" title="${product.name}">${product.name}</h3>
+        <div class="flex items-center justify-between mt-auto">
+          <span class="text-xs font-black text-primary dark:text-slate-400">${product.hasSizes ? priceDisplay : priceDisplay.toFixed(2)}</span>
+          <button class="w-7 h-7 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-primary dark:text-slate-200 group-hover:bg-primary group-hover:text-white transition-colors">
+            <span class="material-symbols-outlined text-sm font-bold">add</span>
+          </button>
+        </div>
+      </div>
     `;
-    card.onclick = () => addToCart(product);
     grid.appendChild(card);
   });
 }
@@ -987,13 +997,20 @@ function updateCartDisplay() {
       discountText = ` (-${item.discount.value})`; // Currency handled in summary
     }
 
+    const product = window.DB.getPart(item.product_id);
+    const imgUrl = product ? product.image : null;
+    const imgHtml = imgUrl
+      ? `<img src="${imgUrl}" class="w-full h-full object-cover" onerror="this.style.display='none'">`
+      : `<span class="material-symbols-outlined text-slate-400">restaurant</span>`;
+
     const div = document.createElement("div");
-    div.className = "cart-item";
+    // Tailwind cart row
+    div.className = "flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800 animate-fade-in";
 
     let addonsHtml = '';
     if (item.addons && item.addons.length > 0) {
-      addonsHtml = `<div style="font-size:0.85em; color:#666; padding-left:10px;">` +
-        item.addons.map(a => `+ ${a.name}`).join('<br>') +
+      addonsHtml = `<div class="text-[9px] text-slate-400 mt-0.5 ml-1">` +
+        item.addons.map(a => `+ ${a.name}`).join(', ') +
         `</div>`;
     }
 
@@ -1001,15 +1018,23 @@ function updateCartDisplay() {
     const displayName = item.sizeName ? `${item.name} (${item.sizeName})` : item.name;
 
     div.innerHTML = `
-      <div style="display:flex; justify-content:space-between; width:100%;">
-        <div>
-          <span>${displayName} x${item.qty} ${discountText}</span>
-          ${addonsHtml}
-        </div>
-        <div>
-           <span>${(finalPrice * item.qty).toFixed(2)}</span>
-           <button onclick="openDiscountModal(${index})" title="${t('discount')}">💸</button>
-           <button onclick="removeFromCart(${index})" style="color:red; margin-left:5px;">x</button>
+      <div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-white flex items-center justify-center border border-slate-100 dark:border-slate-700">
+        ${imgHtml}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold truncate text-slate-800 dark:text-slate-200" title="${displayName}">${displayName}</p>
+        <p class="text-[10px] text-slate-500 font-medium">${item.price.toFixed(2)} x ${item.qty} ${discountText}</p>
+        ${addonsHtml}
+      </div>
+      <div class="flex flex-col items-end gap-1">
+        <p class="text-xs font-black text-slate-800 dark:text-slate-100">${(finalPrice * item.qty).toFixed(2)}</p>
+        <div class="flex items-center gap-1">
+           <button onclick="openDiscountModal(${index})" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 hover:text-blue-500 hover:border-blue-300 transition-colors" title="${t('discount')}">
+             <span class="material-symbols-outlined text-[14px]">percent</span>
+           </button>
+           <button onclick="removeFromCart(${index})" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 hover:text-red-500 hover:border-red-300 transition-colors" title="${t('delete')}">
+             <span class="material-symbols-outlined text-[14px]">delete</span>
+           </button>
         </div>
       </div>
     `;
