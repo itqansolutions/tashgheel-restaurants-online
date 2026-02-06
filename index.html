@@ -57,6 +57,23 @@
       animation: floatRotate var(--duration, 20s) ease-in-out infinite;
       animation-delay: var(--delay, 0s);
     }
+    /* Logo Spin Animation */
+    @keyframes spinLogo {
+      0% { transform: rotateY(0deg); }
+      100% { transform: rotateY(360deg); }
+    }
+    .logo-spin {
+      animation: spinLogo 4s ease-in-out infinite;
+      transform-style: preserve-3d;
+    }
+    /* Enhanced Typography */
+    .brand-title {
+      background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
     body {
       min-height: max(884px, 100dvh);
     }
@@ -116,12 +133,12 @@
   <div
     class="relative w-full max-w-md bg-white rounded-[40px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] glass-border p-8 md:p-10 z-10 flex flex-col items-center">
     <div class="flex flex-col items-center text-center w-full mb-8">
-      <div class="w-16 h-16 mb-4 flex items-center justify-center">
-        <img alt="Restaurant Logo" class="w-full h-full object-contain" src="favicon.png" />
+      <div class="w-20 h-20 mb-4 flex items-center justify-center">
+        <img alt="Restaurant Logo" class="w-full h-full object-contain logo-spin" src="favicon.png" />
       </div>
-      <h1 class="text-2xl md:text-3xl font-bold text-navy mb-1 tracking-tight">Tashgheel POS for Food & Beverage (F&B)
-        Industry</h1>
-      <p class="text-slate-500 text-sm font-medium mb-4">Powered By itqan</p>
+      <h1 class="text-2xl md:text-3xl font-bold brand-title mb-1 tracking-tight leading-tight">Tashgheel POS for Food &
+        Beverage (F&B) Industry</h1>
+      <p class="text-slate-500 text-sm font-semibold mb-4 tracking-wide uppercase">Powered By itqan</p>
       <div id="activationInfo"
         class="flex items-center space-x-2 bg-green-50 px-4 py-1.5 rounded-md border border-green-200">
         <span class="material-symbols-outlined text-green-600 text-lg">check_box</span>
