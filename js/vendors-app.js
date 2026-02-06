@@ -286,7 +286,7 @@ window.printVendorReport = function printVendorReport(vendorId) {
     });
 
     // Get shop settings
-    const shopName = localStorage.getItem('shopName') || 'Tashgheel Services';
+    const shopName = localStorage.getItem('shopName') || 'Tashgheel F&B';
     const shopLogo = localStorage.getItem('shopLogo') || '';
 
     // Inject Modal Report
@@ -338,7 +338,7 @@ window.printVendorReport = function printVendorReport(vendorId) {
                 </table>
 
                 <div class="footer" style="margin-top: 30px; padding: 15px; background: #2c3e50; color: white; text-align: center; border-radius: 6px;">
-                    <p style="margin:5px 0;"><strong>Tashgheel Services</strong> - Powered by itqan solutions</p>
+                    <p style="margin:5px 0;"><strong>Tashgheel F&B</strong> - Powered by itqan solutions</p>
                     <p style="margin:5px 0;">📧 info@itqansolutions.org | 📱 +201126522373 / +201155253886</p>
                 </div>
 

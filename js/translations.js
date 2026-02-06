@@ -154,13 +154,31 @@ const translations = {
 
     // Login & Activation
     // Shift Management
-    'close_shift_btn': { en: 'Close Shift', ar: 'إغلاق الوردية' },
-    'open_shift_btn': { en: 'Open Shift', ar: 'فتح وردية' },
-    'opening_cash': { en: 'Opening Cash', ar: 'عهدة البداية' },
-    'closing_cash': { en: 'Closing Cash', ar: 'عهدة النهاية' },
-    'expected_cash': { en: 'Expected Cash', ar: 'النقد المتوقع' },
-    'difference': { en: 'Difference', ar: 'العجز / الزيادة' },
-    'shift_active': { en: 'Shift Active', ar: 'الوردية نشطة' },
+    close_shift_btn: { en: 'Close Shift', ar: 'إغلاق الوردية' },
+    open_shift_btn: { en: 'Open Shift', ar: 'فتح وردية' },
+    start_shift: { en: 'Start Shift', ar: 'بدء وردية' },
+    new_shift: { en: 'New Shift', ar: 'وردية جديدة' },
+    opening_cash: { en: 'Opening Cash', ar: 'عهدة البداية' },
+    closing_cash: { en: 'Closing Cash', ar: 'عهدة النهاية' },
+    expected_cash: { en: 'Expected Cash', ar: 'النقد المتوقع' },
+    difference: { en: 'Difference', ar: 'العجز / الزيادة' },
+    shift_active: { en: 'Shift Active', ar: 'الوردية نشطة' },
+    shift_opened_at: { en: 'Opened:', ar: 'فتحت:' },
+    confirm_start_shift: { en: 'Start new shift? Receipt counter will reset to 001.', ar: 'بدء وردية جديدة؟ سيتم إعادة تعيين عداد الفواتير إلى ٠٠١.' },
+    shift_started: { en: 'New Shift Started! Receipt # reset to 001.', ar: 'تم بدء وردية جديدة! تم تصفير عداد الفواتير.' },
+
+    // Kitchen Display
+    nav_kitchen: { en: "Kitchen", ar: "المطبخ" },
+    kitchen_view: { en: "Kitchen View", ar: "شاشة المطبخ" },
+    refresh: { en: "Refresh", ar: "تحديث" },
+    waiting_orders: { en: "Waiting for orders...", ar: "بانتظار الطلبات..." },
+    all_completed: { en: "All orders completed!", ar: "جميع الطلبات مكتملة!" },
+    waiting_new_orders: { en: "Waiting for new orders...", ar: "بانتظار طلبات جديدة..." },
+    status_preparing: { en: "PREPARING", ar: "تحت التجهيز" },
+    complete_order: { en: "Complete Order", ar: "إكمال الطلب" },
+    confirm_complete_order: { en: "Mark this order as complete?", ar: "تحديد الطلب كمكتمل؟" },
+    order_completed: { en: "Order Completed", ar: "تم إكمال الطلب" },
+    minute_short: { en: "m", ar: "د" },
 
     // Existing keys continue below...
     shop_pos_system: { en: 'F&B POS System', ar: 'نظام كاشير المطاعم' },

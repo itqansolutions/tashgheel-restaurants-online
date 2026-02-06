@@ -128,16 +128,22 @@
         </div>
       </div>
       <div class="flex items-center gap-6">
-
+        <button onclick="startNewShift()"
+          class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 transition-colors">
+          <span class="material-symbols-outlined text-sm">schedule</span>
+          <span data-i18n-key="start_shift">New Shift</span>
+        </button>
         <!-- Shift Widget -->
         <div id="shiftBanner"
           class="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-lg px-4 py-1.5 flex items-center gap-4"
           style="display:none;">
           <div class="flex flex-col">
             <span
-              class="text-[9px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 leading-none">Shift
+              class="text-[9px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 leading-none"
+              data-i18n-key="shift_active">Shift
               Active</span>
-            <span id="shiftOpenTime" class="text-[11px] text-orange-800 dark:text-orange-300 font-bold">Opened:
+            <span id="shiftOpenTime" class="text-[11px] text-orange-800 dark:text-orange-300 font-bold"><span
+                data-i18n-key="shift_opened_at">Opened:</span>
               --:--</span>
           </div>
           <div class="h-6 w-px bg-orange-200 dark:bg-orange-800"></div>

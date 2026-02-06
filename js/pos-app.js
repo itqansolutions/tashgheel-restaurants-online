@@ -1184,20 +1184,25 @@ function processSale(method) {
   const fee = (orderType === 'delivery' && typeof currentDeliveryFee !== 'undefined') ? currentDeliveryFee : 0;
   const grandTotal = subtotal + tax + fee;
 
+  // Shift & Receipt Logic
+  const receiptNo = getNextReceiptNumber();
+
   const sale = {
     id: "REC-" + Date.now(),
+    receiptNo: receiptNo, // New Display ID (001, 002...)
     date: new Date().toISOString(),
     method: method,
     orderType: orderType,
     tableId: tableId,
     tableName: tableName,
-    cashier: cashierName, // Resolved Name
-    salesman: salesman, // Waiter or Salesman
+    cashier: cashierName,
+    salesman: salesman,
     status: "finished",
+    kitchenStatus: 'pending', // KDS Flag
     total: grandTotal,
     subtotal: subtotal,
     discount: discountAmount,
-    deliveryFee: fee, // SAVED
+    deliveryFee: fee,
     customer: (orderType === 'delivery' && currentCustomer) ? {
       id: currentCustomer.id,
       name: currentCustomer.name,
@@ -1206,11 +1211,11 @@ function processSale(method) {
     } : null,
     items: cart.map(item => ({
       id: item.id,
-      code: item.partNumber || item.code, // adaptation
+      code: item.partNumber || item.code,
       name: item.name,
       qty: item.qty,
       price: item.price,
-      cost: item.cost, // Calculated Cost
+      cost: item.cost,
       discount: item.discount
     }))
   };
@@ -1237,9 +1242,40 @@ function processSale(method) {
   updateCartDisplay();
 
   // Refresh generic views
-  alert(t('sale_completed') || 'Sale Completed!');
-  loadProducts(); // Refresh in case stock changed (for Direct items)
+  // IMPROVEMENT: Non-blocking feedback
+  if (window.showToast) {
+    window.showToast(t('sale_completed') || 'Sale Completed!', 'success');
+  } else if (window.showLoading) {
+    window.showLoading(t('sale_completed') || 'Sale Completed!');
+    setTimeout(() => window.hideLoading(), 1500);
+  } else {
+    // Fallback if no toast system
+    console.log('Sale Completed');
+  }
+
+  // Optimize: Delay heavy refresh to allow UI to settle
+  setTimeout(() => loadProducts(), 100);
 }
+
+// Helper: Simple Toast (if not exists globally)
+window.showToast = window.showToast || function (msg, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `fixed top-24 right-5 px-6 py-4 rounded-xl shadow-2xl text-white font-bold transform transition-all duration-300 translate-y-10 z-[100000] flex items-center gap-3`;
+  toast.style.background = type === 'success' ? '#10B981' : '#3B82F6';
+  toast.innerHTML = `<span class="material-symbols-outlined text-2xl">check_circle</span> <span>${msg}</span>`;
+
+  document.body.appendChild(toast);
+
+  // Animate In
+  requestAnimationFrame(() => toast.style.transform = 'translateY(0)');
+
+  // Remove
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-20px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 2000);
+};
 
 function processStockDeduction(productId, qtyToDeduct, sizeId) {
   const product = window.DB.getPart(productId);
@@ -1482,7 +1518,7 @@ window.printStoredReceipt = function (receiptId) {
     <h2 class="center">${shopName}</h2>
     <p class="center">${shopAddress}</p>
     <hr/>
-    <p>${t('receipt_no') || 'Receipt No'}: ${receipt.id}</p>
+    <p>${t('receipt_no') || 'Receipt No'}: #${receipt.receiptNo || receipt.id}</p>
     <p>${t('cashier') || 'Cashier'}: ${receipt.cashier}</p>
     <p>${t('cashier') || 'Cashier'}: ${receipt.cashier}</p>
     <p>${receipt.orderType === 'dine_in' ? (t('waiter') || 'Waiter') :
@@ -1601,3 +1637,29 @@ function printDailySummary() {
   win.document.write(summary);
   win.document.close();
 }
+
+// ===================== SHIFT MANAGEMENT =====================
+function getNextReceiptNumber() {
+  let currentShift = localStorage.getItem('currentShiftId');
+  if (!currentShift) {
+    startNewShift(true); // Silent start
+  }
+
+  let counter = parseInt(localStorage.getItem('dailyReceiptCounter') || '0');
+  counter++;
+  localStorage.setItem('dailyReceiptCounter', counter);
+
+  return String(counter).padStart(3, '0');
+}
+
+window.startNewShift = function (silent = false) {
+  if (!silent && !confirm(t('confirm_start_shift') || 'Start new shift? Receipt counter will reset to 001.')) return;
+
+  const shiftId = 'SHIFT-' + Date.now();
+  localStorage.setItem('currentShiftId', shiftId);
+  localStorage.setItem('dailyReceiptCounter', '0');
+
+  if (!silent && window.showToast) {
+    window.showToast(t('shift_started') || 'New Shift Started! Receipt # reset to 001.', 'success');
+  }
+};
