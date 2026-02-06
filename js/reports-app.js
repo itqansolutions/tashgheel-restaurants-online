@@ -165,20 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const finished = filteredReceipts.filter(r => r.status === 'finished');
     const returns = filteredReceipts.filter(r => r.status === 'full_return' || r.status === 'partial_return');
 
-    if (type === 'visits') {
-      const visits = window.DB.getVisits();
-      const relevantVisits = visits.filter(v => {
-        const d = new Date(v.completedAt || v.createdAt);
-        if (v.status !== 'Completed') return false;
-        return (!fromDate || d >= fromDate) && (!toDate || d <= toDate);
-      });
-      renderTable('table-visits', relevantVisits.map(v => ({
-        date: new Date(v.completedAt || v.createdAt).toLocaleDateString(),
-        customer: v.customerName,
-        technician: v.technician || '-',
-        total: v.finalTotal || 0
-      })), ['date', 'customer', 'technician', 'total'], [t("Date", "التاريخ"), t("Customer", "العميل"), t("Technician", "الفني"), t("Total", "الإجمالي")]);
-    }
+
 
     if (type === 'cogs') {
       let totalCost = 0;

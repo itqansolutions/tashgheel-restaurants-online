@@ -100,11 +100,6 @@
                   <span class="material-symbols-outlined text-[18px]">payments</span> Sales
                 </button>
                 <button
-                  class="report-tab pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2"
-                  data-tab="visits">
-                  <span class="material-symbols-outlined text-[18px]">handyman</span> Visits
-                </button>
-                <button
                   class="report-tab pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2 admin-only"
                   data-tab="cogs">
                   <span class="material-symbols-outlined text-[18px]">inventory_2</span> COGS
@@ -261,37 +256,7 @@
         </div>
 
         <!-- 3. VISITS REPORT -->
-        <div id="card-visits" class="report-card hidden space-y-6">
-          <!-- Visits Stats -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-              <div>
-                <div class="text-sm text-slate-500 font-bold mb-1">Visits Count</div>
-                <div class="text-2xl font-bold text-slate-800" id="visits-count">0</div>
-              </div>
-              <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-                <span class="material-symbols-outlined">room</span>
-              </div>
-            </div>
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-              <div>
-                <div class="text-sm text-slate-500 font-bold mb-1">Total Visits Value</div>
-                <div class="text-2xl font-bold text-slate-800" id="visits-price">0.00 EGP</div>
-              </div>
-              <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                <span class="material-symbols-outlined">payments</span>
-              </div>
-            </div>
-          </div>
 
-          <!-- Visits Table -->
-          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-800">Completed Visits</div>
-            <div class="overflow-x-auto">
-              <table id="table-visits" class="w-full text-left text-sm text-slate-600"></table>
-            </div>
-          </div>
-        </div>
 
         <!-- 4. EXPENSES REPORT -->
         <div id="card-expenses" class="report-card hidden space-y-6">

@@ -37,27 +37,41 @@ function renderNavigation(activePage) {
     const t = navigationTranslations[lang];
 
     const navItems = [
-        { page: 'pos', label: '🛒 POS', href: 'pos.html' },
-        { page: 'menu', label: '🍔 Menu', href: 'products.html' }, // Products = Menu Items
-        { page: 'inventory', label: '🥩 Inventory', href: 'inventory.html' }, // Raw Materials
-        { page: 'customers', label: t.customers, href: 'customers.html' },
-        { page: 'orders', label: '👩‍🍳 Kitchen', href: 'kitchen.html' }, // Placeholder
-        { page: 'vendors', label: t.vendors, href: 'vendors.html' },
-        { page: 'expenses', label: t.expenses, href: 'expenses.html' },
-        { page: 'salesmen', label: t.employees, href: 'salesmen.html' },
-        { page: 'receipts', label: t.receipts, href: 'receipts.html' },
-        { page: 'reports', label: t.reports, href: 'reports.html' },
-        { page: 'admin', label: t.admin_panel, href: 'admin.html' }
-        // Backup page removed - no longer needed
+        { page: 'pos', label: 'POS', icon: 'point_of_sale', href: 'pos.html', key: 'nav_pos' },
+        { page: 'menu', label: 'Menu Items', icon: 'menu_book', href: 'products.html', key: 'nav_products' },
+        { page: 'inventory', label: 'Inventory', icon: 'inventory_2', href: 'inventory.html', key: 'nav_inventory' },
+        { page: 'customers', label: t.customers, icon: 'group', href: 'customers.html', key: 'nav_customers' },
+        { page: 'kitchen', label: 'Kitchen', icon: 'countertops', href: 'kitchen.html', key: 'nav_kitchen' },
+        { page: 'receipts', label: t.receipts, icon: 'receipt_long', href: 'receipts.html', key: 'nav_receipts' },
+        { page: 'reports', label: t.reports, icon: 'assessment', href: 'reports.html', key: 'nav_reports' },
+        { page: 'vendors', label: t.vendors, icon: 'store', href: 'vendors.html', key: 'nav_vendors' },
+        { page: 'expenses', label: t.expenses, icon: 'payments', href: 'expenses.html', key: 'nav_expenses' },
+        { page: 'salesmen', label: t.employees, icon: 'badge', href: 'salesmen.html', key: 'nav_employees' },
+        { page: 'admin', label: t.admin_panel, icon: 'settings', href: 'admin.html', key: 'nav_admin' }
     ];
 
     let navHTML = '';
     navItems.forEach(item => {
-        const activeClass = activePage === item.page ? 'active' : '';
-        navHTML += `<a href="${item.href}" class="nav-item ${activeClass}">${item.label}</a>\n`;
+        const isActive = activePage === item.page;
+        const activeClass = isActive
+            ? 'bg-slate-800 border-l-4 border-blue-500 text-white'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800 transition-colors';
+
+        navHTML += `
+        <a class="flex items-center gap-3 px-6 py-3 ${activeClass}" href="${item.href}">
+            <span class="material-symbols-outlined text-xl">${item.icon}</span>
+            <span class="text-sm font-medium" data-i18n-key="${item.key}">${item.label}</span>
+        </a>
+        `;
     });
 
-    navHTML += `<a href="#" onclick="handleLogout(); return false;" class="nav-item">${t.logout}</a>`;
+    // Logout Button (Standard)
+    navHTML += `
+    <button onclick="confirmLogout()" class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left hidden">
+        <span class="material-symbols-outlined text-xl">logout</span>
+        <span class="text-sm font-medium" data-i18n-key="logout">${t.logout}</span>
+    </button>
+    `;
 
     return navHTML;
 }
@@ -77,11 +91,15 @@ function renderFooter() {
     `;
 }
 
-function handleLogout() {
-    if (confirm('Are you sure you want to logout?')) {
-        window.logout();
+window.confirmLogout = function () {
+    const lang = localStorage.getItem('pos_language') || 'en';
+    const t = lang === 'ar' ? 'هل أنت متأكد من تسجيل الخروج؟' : 'Are you sure you want to logout?';
+
+    if (confirm(t)) {
+        if (window.logout) window.logout();
+        else window.location.href = 'index.html';
     }
-}
+};
 
 // Auto-apply navigation and footer on page load
 document.addEventListener('DOMContentLoaded', () => {
