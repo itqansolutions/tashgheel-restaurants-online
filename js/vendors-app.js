@@ -209,61 +209,51 @@ window.printVendorReport = function printVendorReport(vendorId) {
         return;
     }
 
-    const payments = window.DB.getVendorPayments(vendorId);
+    // 1. Get Unified Transactions (Purchases & Payments)
+    let allTransactions = window.DB.getVendorTransactions(vendorId) || [];
 
-    // Get all transactions (purchases from parts + payments)
-    const parts = window.DB.getParts();
-    console.log('All parts:', parts);
-    console.log('Looking for vendorId:', vendorId);
+    // 2. Compatibility: If no unified transactions exist, check for legacy 'vendor_payments'
+    // and try to reconstruct (Optional, but "Opening Balance" logic covers this safely)
+    // We will stick to the log.
 
-    const vendorParts = parts.filter(p => p.vendorId == vendorId);
-    console.log('Vendor parts found:', vendorParts);
+    // Sort by date
+    allTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    const purchases = vendorParts.map(p => {
-        // Use initialStock if available (original purchase), otherwise current stock
-        const quantity = p.initialStock || p.stock || 0;
-        const unitCost = p.cost || 0;
-        const amount = unitCost * quantity;
+    // Calculate sum of LOGGED transactions
+    // Note: Purchase is positive (increases debt), Payment is negative (decreases debt) in the log logic?
+    // Let's verify db.js addVendorTransaction:
+    // purchase -> updateVendorCredit(+, amount)
+    // payment -> updateVendorCredit(-, amount)
+    // But how is it stored in the transaction object itself?
+    // It is stored as `amount`. We need to normalize for the calculation.
+    // If type === 'payment', it reduces debt.
 
-        console.log(`Part: ${p.name}, cost: ${unitCost}, quantity: ${quantity}, amount: ${amount}`);
+    const calculatedTransactions = allTransactions.map(t => {
+        let signedAmount = parseFloat(t.amount);
+        if (t.type === 'payment') signedAmount = -Math.abs(signedAmount);
 
         return {
-            date: p.createdAt || p.lastRestockDate || new Date().toISOString(),
-            type: 'Purchase',
-            amount: amount,
-            description: `${p.name} - ${quantity} units @ ${unitCost.toFixed(2)}`
+            ...t,
+            signedAmount: signedAmount
         };
-    }).filter(p => p.amount > 0);
+    });
 
-    console.log('Purchase transactions:', purchases);
-    console.log('Payment transactions:', payments);
-
-    // Combine and sort all transactions
-    let allTransactions = [
-        ...purchases,
-        ...payments.map(pay => ({
-            date: pay.date,
-            type: 'Payment',
-            amount: -pay.amount,
-            description: pay.notes || 'Payment'
-        }))
-    ].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const totalLogValue = calculatedTransactions.reduce((sum, t) => sum + t.signedAmount, 0);
 
     // Calculate sum of known transactions
-    const totalTransactionValue = allTransactions.reduce((sum, t) => sum + t.amount, 0);
     const recordedCredit = parseFloat(vendor.credit || 0);
 
     // If there is a mismatch, insert an "Opening Balance" transaction to reconcile
-    // Mismatch = Actual (Stored) - Calculated
-    // If mismatch is significant (e.g. > 0.01)
-    const mismatch = recordedCredit - totalTransactionValue;
+    // Mismatch = Actual (Stored) - Sum(Logs)
+    const mismatch = recordedCredit - totalLogValue;
 
     if (Math.abs(mismatch) > 0.01) {
         // Prepend opening balance
-        allTransactions.unshift({
+        calculatedTransactions.unshift({
             date: vendor.createdAt || new Date().toISOString(),
             type: 'Opening Balance',
-            amount: mismatch,
+            amount: Math.abs(mismatch), // Amount displayed is absolute
+            signedAmount: mismatch, // Signed for balance calc (if positive, we owe; if negative, they owe us aka credit)
             description: t('Previous Balance / Adjustment', 'رصيد سابق / تسوية'),
             isAdjustment: true
         });
@@ -271,11 +261,13 @@ window.printVendorReport = function printVendorReport(vendorId) {
 
     // Calculate running balance
     let balance = 0;
-    const transactionsWithBalance = allTransactions.map(t => {
-        balance += t.amount;
+    const transactionsWithBalance = calculatedTransactions.map(t => {
+        balance += t.signedAmount;
         return {
             ...t,
-            balance,
+            balance: balance,
+            // Visual Amount (always positive for display, color indicates direction)
+            displayAmount: Math.abs(t.signedAmount),
             displayDate: t.date ? new Date(t.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', {
                 year: 'numeric',
                 month: 'short',
@@ -323,8 +315,8 @@ window.printVendorReport = function printVendorReport(vendorId) {
                                     ${tr.type === 'Opening Balance' ? t('Opening Balance', 'رصيد افتتاحي') : t(tr.type, tr.type === 'Purchase' ? 'شراء' : 'دفع')}
                                 </td>
                                 <td style="padding: 10px; border: 1px solid #ddd;">${tr.description}</td>
-                                <td style="padding: 10px; border: 1px solid #ddd; color: ${tr.amount > 0 ? '#e74c3c' : '#27ae60'};">
-                                    ${tr.amount > 0 && !tr.isAdjustment ? '+' : ''}${tr.amount.toFixed(2)}
+                                <td style="padding: 10px; border: 1px solid #ddd; color: ${tr.signedAmount > 0 ? '#e74c3c' : '#27ae60'};">
+                                    ${tr.signedAmount > 0 && !tr.isAdjustment ? '+' : ''}${tr.displayAmount.toFixed(2)}
                                 </td>
                                 <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">${tr.balance.toFixed(2)}</td>
                             </tr>

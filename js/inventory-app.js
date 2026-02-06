@@ -98,12 +98,6 @@ function loadInventory() {
         </table>
     `;
 
-    const tbody = container.querySelector('tbody');
-    let expiredCount = 0;
-    let expiringCount = 0;
-    let deadCount = 0;
-    let healthyCount = 0;
-
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No materials found.</td></tr>';
         return;

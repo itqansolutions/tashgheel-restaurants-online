@@ -133,9 +133,12 @@ function setupMobileNav() {
     }
 
     // 4. Create Toggle Function globally
+    // 4. Create Toggle Function globally
     window.toggleSidebar = function () {
         const s = document.getElementById('sidebar');
         const o = document.getElementById('mobile-overlay');
+        if (!s || !o) return; // Safeguard
+
         const isClosed = s.classList.contains('-translate-x-full');
 
         if (isClosed) {
@@ -147,4 +150,6 @@ function setupMobileNav() {
         }
     }
 }
+// Ensure it's available even if setupMobileNav hasn't run yet (failsafe)
+window.toggleSidebar = window.toggleSidebar || function () { console.warn('Sidebar not ready'); };
 
