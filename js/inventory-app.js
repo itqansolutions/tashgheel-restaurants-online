@@ -60,17 +60,31 @@ function loadInventory() {
         const totalValue = (parseFloat(m.cost) * parseFloat(m.stock)).toFixed(2);
 
         const row = document.createElement('tr');
+        row.className = "hover:bg-slate-50 transition-colors group";
+
         row.innerHTML = `
-            <td>${m.name}</td>
-            <td><span class="badge badge-info">${m.unit}</span></td>
-            <td>${parseFloat(m.cost).toFixed(2)}</td>
-            <td class="${m.stock < 5 ? 'text-red' : ''}">${m.stock}</td>
-            <td>${totalValue}</td>
-            <td>${vendor?.name || '-'}</td>
-            <td>
-                <button class="btn btn-sm btn-success" onclick="openRestockModal(${m.id})">➕</button>
-                <button class="btn btn-sm btn-info" onclick="editMaterial(${m.id})">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteMaterial(${m.id})">🗑️</button>
+            <td class="px-6 py-4 text-sm font-medium text-slate-800">${m.name}</td>
+            <td class="px-6 py-4">
+                <span class="px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">${m.unit}</span>
+            </td>
+            <td class="px-6 py-4 text-right text-sm text-slate-600">${parseFloat(m.cost).toFixed(2)}</td>
+            <td class="px-6 py-4 text-center">
+                <span class="text-sm font-bold ${m.stock < 5 ? 'text-red-600' : 'text-slate-800'}">${parseFloat(m.stock).toFixed(3)}</span>
+            </td>
+            <td class="px-6 py-4 text-right text-sm font-bold text-slate-800">${totalValue}</td>
+            <td class="px-6 py-4 text-sm text-slate-500">${vendor?.name || '-'}</td>
+            <td class="px-6 py-4 text-center">
+                 <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button class="w-8 h-8 flex items-center justify-center bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors" onclick="openRestockModal(${m.id})" title="Restock">
+                        <span class="material-symbols-outlined text-[18px]">add_box</span>
+                    </button>
+                    <button class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors" onclick="editMaterial(${m.id})" title="Edit">
+                        <span class="material-symbols-outlined text-[18px]">edit</span>
+                    </button>
+                    <button class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors" onclick="deleteMaterial(${m.id})" title="Delete">
+                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                 </div>
             </td>
         `;
         tbody.appendChild(row);

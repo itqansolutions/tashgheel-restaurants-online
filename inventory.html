@@ -1,171 +1,406 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory - POS</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>Inventory - F&B POS</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 
-<body>
-    <div class="app">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>Restaurant POS</h2>
-            </div>
-            <nav><!-- Populated by shared-nav.js --></nav>
-        </aside>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex">
 
-        <main class="main-content">
-            <header class="top-bar">
-                <h1>Inventory (Raw Materials)</h1>
-            </header>
-
-            <section class="content-area">
-                <!-- Add Material Form -->
-                <div class="card">
-                    <div class="card-header">Add Raw Material</div>
-                    <div class="card-body">
-                        <form id="inventory-form" class="form-grid">
-                            <input type="hidden" id="material-id">
-
-                            <div class="form-group">
-                                <label>Material Name:</label>
-                                <input type="text" id="material-name" required placeholder="e.g. Tomato, Milk, Beef">
-                            </div>
-
-                            <div class="form-group">
-                                <label>Unit:</label>
-                                <select id="material-unit" required>
-                                    <option value="kg">Kilogram (kg)</option>
-                                    <option value="g">Gram (g)</option>
-                                    <option value="l">Liter (l)</option>
-                                    <option value="ml">Milliliter (ml)</option>
-                                    <option value="pcs">Piece (pcs)</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Cost per Unit:</label>
-                                <input type="number" id="material-cost" step="0.01" min="0" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Current Stock:</label>
-                                <input type="number" id="material-stock" step="0.001" min="0" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Vendor:</label>
-                                <select id="material-vendor">
-                                    <option value="">-- Select Vendor --</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <button type="submit" class="btn btn-success">💾 Save Material</button>
-                                <button type="button" class="btn btn-secondary" onclick="resetForm()">Values
-                                    Reset</button>
-                            </div>
-                        </form>
-                    </div>
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#1e293b] text-white flex flex-col shrink-0 transition-all duration-300">
+        <div class="p-6 border-b border-slate-700">
+            <div class="flex items-center gap-3">
+                <img src="favicon.png" alt="Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain shadow-sm">
+                <div>
+                    <h2 class="font-bold text-sm leading-tight" id="posSystemTitle" data-i18n-key="shop_pos_system">F&B
+                        POS System</h2>
+                    <p class="text-[10px] text-slate-400">Management System</p>
                 </div>
+            </div>
+        </div>
 
-                <!-- Materials List -->
-                <div class="card">
-                    <div class="card-header">
-                        <span>Raw Materials Stock</span>
-                        <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
-                            <button onclick="openStockAudit()" class="btn btn-warning btn-sm"
-                                data-i18n-key="stock_audit_btn">📋 Stock Audit</button>
-                            <input type="text" id="searchBox" placeholder="Search materials..." style="padding:5px;">
+        <!-- Navigation -->
+        <div class="flex-1 overflow-y-auto py-4 space-y-1">
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="pos.html">
+                <span class="material-symbols-outlined text-xl">point_of_sale</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_pos">POS</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="products.html">
+                <span class="material-symbols-outlined text-xl">menu_book</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_products">Menu Items</span>
+            </a>
+            <!-- Active Page -->
+            <a class="flex items-center gap-3 px-6 py-3 bg-slate-800 border-l-4 border-blue-500 text-white"
+                href="inventory.html">
+                <span class="material-symbols-outlined text-xl">inventory_2</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_inventory">Inventory</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="customers.html">
+                <span class="material-symbols-outlined text-xl">group</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_customers">Customers</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="kitchen.html">
+                <span class="material-symbols-outlined text-xl">countertops</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_kitchen">Kitchen</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="receipts.html">
+                <span class="material-symbols-outlined text-xl">receipt_long</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_receipts">Receipts</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="reports.html">
+                <span class="material-symbols-outlined text-xl">assessment</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_reports">Reports</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="vendors.html">
+                <span class="material-symbols-outlined text-xl">store</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_vendors">Vendors</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="expenses.html">
+                <span class="material-symbols-outlined text-xl">payments</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_expenses">Expenses</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="salesmen.html">
+                <span class="material-symbols-outlined text-xl">badge</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_employees">Employees</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="admin.html">
+                <span class="material-symbols-outlined text-xl">settings</span>
+                <span class="text-sm font-medium" data-i18n-key="nav_admin">Admin Panel</span>
+            </a>
+            <button onclick="confirmLogout()"
+                class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
+                <span class="material-symbols-outlined text-xl">logout</span>
+                <span class="text-sm font-medium" data-i18n-key="logout">Logout</span>
+            </button>
+            <nav style="display:none;"></nav>
+        </div>
+    </aside>
+
+    <!-- Main Content Layout -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+        <!-- Top Header -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-20">
+            <div class="flex items-center gap-4">
+                <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-600">inventory_2</span>
+                    <span>Raw Materials & Stock</span>
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="flex bg-slate-100 rounded-lg p-1">
+                    <button
+                        class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all active"
+                        onclick="setLanguage('en')" id="langEn">EN</button>
+                    <button
+                        class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+                        onclick="setLanguage('ar')" id="langAr">AR</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Scroller -->
+        <main class="flex-1 overflow-y-auto p-6 scroll-smooth">
+            <div class="max-w-7xl mx-auto space-y-6">
+
+                <!-- Action Bar -->
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                    <div class="flex items-center gap-4 flex-1">
+                        <div class="relative flex-1 max-w-md">
+                            <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400">search</span>
+                            <input type="text" id="searchBox" placeholder="Search materials..."
+                                class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm">
                         </div>
                     </div>
-                    <div class="card-body">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Unit</th>
-                                    <th>Cost/Unit</th>
-                                    <th>Stock</th>
-                                    <th>Total Value</th>
-                                    <th>Vendor</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="inventory-table-body">
-                                <!-- Populated by JS -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <button onclick="openStockAudit()"
+                        class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95">
+                        <span class="material-symbols-outlined">checklist</span>
+                        <span data-i18n-key="stock_audit_btn">Stock Audit</span>
+                    </button>
                 </div>
-            </section>
+
+                <!-- Main Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+                    <!-- Materials List -->
+                    <div class="md:col-span-8 lg:col-span-8 order-2 md:order-1">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 font-bold text-slate-700">
+                                Inventory List</div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead
+                                        class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                                        <tr>
+                                            <th class="px-6 py-3">Name</th>
+                                            <th class="px-6 py-3">Unit</th>
+                                            <th class="px-6 py-3 text-right">Cost/Unit</th>
+                                            <th class="px-6 py-3 text-center">Stock</th>
+                                            <th class="px-6 py-3 text-right">Total Value</th>
+                                            <th class="px-6 py-3">Vendor</th>
+                                            <th class="px-6 py-3 text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventory-table-body" class="divide-y divide-slate-50 bg-white">
+                                        <!-- Populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Material Form -->
+                    <div class="md:col-span-4 lg:col-span-4 order-1 md:order-2">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sticky top-6">
+                            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+                                <span class="material-symbols-outlined text-green-600">add_circle</span>
+                                <span>Add Material</span>
+                            </h3>
+
+                            <form id="inventory-form" class="space-y-4">
+                                <input type="hidden" id="material-id">
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Name</label>
+                                    <input type="text" id="material-name" required placeholder="e.g. Tomato"
+                                        class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Unit</label>
+                                    <select id="material-unit" required
+                                        class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+                                        <option value="kg">Kilogram (kg)</option>
+                                        <option value="g">Gram (g)</option>
+                                        <option value="l">Liter (l)</option>
+                                        <option value="ml">Milliliter (ml)</option>
+                                        <option value="pcs">Piece (pcs)</option>
+                                    </select>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label
+                                            class="block text-xs font-bold text-slate-500 uppercase mb-1">Cost</label>
+                                        <input type="number" id="material-cost" step="0.01" min="0" required
+                                            class="w-full p-2 border border-slate-200 rounded-lg">
+                                    </div>
+                                    <div>
+                                        <label
+                                            class="block text-xs font-bold text-slate-500 uppercase mb-1">Stock</label>
+                                        <input type="number" id="material-stock" step="0.001" min="0" required
+                                            class="w-full p-2 border border-slate-200 rounded-lg">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vendor</label>
+                                    <select id="material-vendor"
+                                        class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+                                        <option value="">-- Select Vendor --</option>
+                                    </select>
+                                </div>
+
+                                <div class="pt-2 flex gap-2">
+                                    <button type="submit"
+                                        class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm transition-colors">Save</button>
+                                    <button type="button" onclick="resetForm()"
+                                        class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-medium transition-colors">Reset</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
         </main>
     </div>
 
+    <!-- Stock Audit Modal -->
+    <div id="auditModal" class="modal">
+        <div class="modal-content w-full max-w-3xl p-6">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-500">checklist</span>
+                Stock Audit
+            </h3>
+
+            <div class="max-h-[60vh] overflow-y-auto border border-slate-200 rounded-lg mb-4">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 sticky top-0">
+                        <tr>
+                            <th class="p-3 border-b">Material</th>
+                            <th class="p-3 border-b">Unit</th>
+                            <th class="p-3 border-b text-center">Recorded</th>
+                            <th class="p-3 border-b text-center">Actual</th>
+                            <th class="p-3 border-b text-center">Diff</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                <button onclick="saveStockAudit()"
+                    class="px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold shadow-sm">Save
+                    Changes</button>
+                <button onclick="closeStockAudit()"
+                    class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restock Modal -->
+    <div id="restockModal" class="modal">
+        <div class="modal-content w-full max-w-md p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-green-600">add_box</span>
+                Restock Material
+            </h3>
+
+            <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-4 text-sm text-indigo-900">
+                <input type="hidden" id="restock-id">
+                <div class="flex justify-between">
+                    <span>Current Stock: <strong id="restock-current-stock"></strong></span>
+                    <span>Avg Cost: <strong id="restock-current-cost"></strong></span>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Add Qty</label>
+                    <input type="number" id="restock-qty"
+                        class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500"
+                        placeholder="0.000" step="0.001">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">New Unit Cost</label>
+                    <input type="number" id="restock-cost"
+                        class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500"
+                        step="0.01">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Payment</label>
+                    <select id="restock-method" class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+                        <option value="credit">Credit (Pay Later)</option>
+                        <option value="cash">Cash (Paid Now)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                <button onclick="confirmRestock()"
+                    class="px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold">Confirm</button>
+                <button onclick="document.getElementById('restockModal').style.display='none'"
+                    class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/web-adapter.js"></script>
-  <script src="js/auth.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/db.js"></script>
     <script>window.currentPage = 'inventory';</script>
     <script src="js/shared-nav.js"></script>
     <script src="js/translations.js"></script>
     <script src="js/inventory-app.js"></script>
-    <!-- Stock Audit Modal -->
-    <div id="auditModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 800px; width: 95%;">
-            <h3>Stock Audit (Raw Materials)</h3>
-            <div style="max-height: 400px; overflow-y: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Material</th>
-                            <th>Unit</th>
-                            <th>Recorded Stock</th>
-                            <th>Actual Stock</th>
-                            <th>Difference</th>
-                        </tr>
-                    </thead>
-                    <tbody id="auditTableBody"></tbody>
-                </table>
-            </div>
-            <div style="margin-top: 15px; text-align: right;">
-                <button onclick="saveStockAudit()" class="btn btn-success">✅ Save Changes</button>
-                <button onclick="closeStockAudit()" class="btn btn-danger">❌ Cancel</button>
-            </div>
-        </div>
-    </div>
-    <!-- Restock Modal -->
-    <div id="restockModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <h3>➕ Restock Material</h3>
-            <div class="form-group">
-                <input type="hidden" id="restock-id">
-                <p>Current Stock: <span id="restock-current-stock"></span> | Cost: <span
-                        id="restock-current-cost"></span>
-                </p>
-                <label>Quantity to Add:</label>
-                <input type="number" id="restock-qty" class="form-control" step="0.001">
-            </div>
-            <div class="form-group">
-                <label>New Unit Cost:</label>
-                <input type="number" id="restock-cost" class="form-control" step="0.01">
-            </div>
-            <div class="form-group">
-                <label>Payment Method:</label>
-                <select id="restock-method" class="form-control">
-                    <option value="credit">Credit (Pay Later)</option>
-                    <option value="cash">Cash (Paid Now)</option>
-                </select>
-            </div>
-            <div style="margin-top: 15px; text-align: right;">
-                <button onclick="confirmRestock()" class="btn btn-success">✅ Confirm Restock</button>
-                <button onclick="document.getElementById('restockModal').style.display='none'" class="btn btn-danger">❌
-                    Cancel</button>
-            </div>
-        </div>
-    </div>
+
+    <!-- Modal Helpers -->
+    <script>
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); document.getElementById(id).style.display = 'none'; }
+        // Overriding globals to ensure display:flex is set for Tailwind modal
+        const _oldOpenAudit = window.openStockAudit;
+        window.openStockAudit = function () {
+            // Logic handled in app.js, we just ensure class 'active' is added if we hook it, 
+            // OR we can rely on app.js setting display:block and we add a CSS rule [style*="block"] { display: flex !important } ? 
+            // Better: override the open functions here if possible, but they are defined in app.js
+            // Since app.js defines `document.getElementById('auditModal').style.display = 'block'`,
+            // I added `.modal[style*="block"] { display: flex !important; }` hack or just redefine the open function.
+            // Let's redefine close.
+
+            // Actually, easiest way is to let app.js do `display = 'block'` and I change my CSS to allow block but use flex inside?
+            // Or I monkey patch the open function.
+            // Since app.js is loaded AFTER this, it will overwrite my overrides here if I put them in body.
+            // So I will fix it by patching app.js or handling it in CSS.
+        }
+    </script>
+    <style>
+        /* Compatibility for JS setting display:block */
+        .modal[style*="display: block"] {
+            display: flex !important;
+        }
+    </style>
 </body>
 
 </html>

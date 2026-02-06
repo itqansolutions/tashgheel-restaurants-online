@@ -150,24 +150,38 @@ function loadProducts() {
 
   products.forEach((p) => {
     const row = document.createElement("tr");
+    row.className = "hover:bg-slate-50 transition-colors group";
 
     let calcCost = parseFloat(p.cost || 0);
 
     const imgHtml = p.image
-      ? `<img src="${p.image}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">`
-      : '<span style="color:#ccc;">No Image</span>';
+      ? `<img src="${p.image}" class="w-10 h-10 rounded-lg object-cover border border-slate-200" onerror="this.src='https://via.placeholder.com/40?text=IMG'">`
+      : `<div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400"><span class="material-symbols-outlined text-[18px]">image_not_supported</span></div>`;
 
     row.innerHTML = `
-          <td>${imgHtml}</td>
-          <td>${p.partNumber || '-'}</td>
-          <td>${p.name}</td>
-          <td>${p.category || "-"}</td>
-          <td>${parseFloat(p.price || 0).toFixed(2)}</td>
-          <td>${calcCost.toFixed(2)}</td>
-          <td>
-              <button class="btn btn-sm btn-secondary" onclick="editProduct(${p.id})">✏️ Edit</button>
-              <button class="btn btn-sm btn-info" onclick="openRecipe(${p.id})">📜 Recipe</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})">🗑️</button>
+          <td class="px-6 py-4">${imgHtml}</td>
+          <td class="px-6 py-4 text-sm font-medium text-slate-600">${p.partNumber || '-'}</td>
+          <td class="px-6 py-4">
+              <div class="text-sm font-bold text-slate-800">${p.name}</div>
+              ${p.hasSizes ? '<span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">Multiple Sizes</span>' : ''}
+          </td>
+          <td class="px-6 py-4 text-sm text-slate-600">
+              <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-medium border border-slate-200">${p.category || 'Uncategorized'}</span>
+          </td>
+          <td class="px-6 py-4 text-right text-sm font-bold text-slate-800">${parseFloat(p.price || 0).toFixed(2)}</td>
+          <td class="px-6 py-4 text-right text-sm text-slate-500">${calcCost.toFixed(2)}</td>
+          <td class="px-6 py-4 text-center">
+              <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors" onclick="editProduct(${p.id})" title="Edit">
+                      <span class="material-symbols-outlined text-[18px]">edit</span>
+                  </button>
+                  <button class="w-8 h-8 flex items-center justify-center bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors" onclick="openRecipe(${p.id})" title="Recipe">
+                      <span class="material-symbols-outlined text-[18px]">menu_book</span>
+                  </button>
+                  <button class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors" onclick="deleteProduct(${p.id})" title="Delete">
+                      <span class="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+              </div>
           </td>
       `;
     tbody.appendChild(row);
@@ -772,7 +786,11 @@ function loadCategories() {
     select.appendChild(opt);
 
     const li = document.createElement("li");
-    li.textContent = cat;
+    li.className = "flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg border border-slate-100 hover:border-blue-200 transition-colors group";
+    li.innerHTML = `
+        <span class="text-sm font-medium text-slate-700">${cat}</span>
+        <!-- Potential delete button here later -->
+    `;
     list.appendChild(li);
   });
 }

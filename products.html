@@ -1,122 +1,82 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="products">Products - POS</title>
-  <link rel="stylesheet" href="css/styles.css">
-</head>
+  <title data-i18n="products">Products - F&B POS</title>
 
-<body>
-  <div class="language-switcher">
-    <button class="lang-btn" data-lang="en">EN</button>
-    <button class="lang-btn" data-lang="ar">AR</button>
-  </div>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h2>Restaurant POS</h2>
-      </div>
-      <nav><!-- Populated by shared-nav.js --></nav>
-    </aside>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-    <main class="main-content">
-      <header class="top-bar">
-        <h1 data-i18n-key="nav_products">Products</h1>
-      </header>
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
-      <section class="content-area">
-        <!-- Product Form is now in a Modal -->
-
-        <div class="card">
-          <div class="card-header">
-            <span data-i18n-key="product_list">Menu Items</span>
-            <button onclick="openProductModal()" class="btn btn-primary" style="float:right; margin-left:10px;">➕ <span
-                data-i18n-key="add_product">Add Product</span></button>
-          </div>
-          <div class="card-body">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th data-i18n-key="image">Image</th>
-                  <th data-i18n-key="code">Code</th>
-                  <th data-i18n-key="name">Item Name</th>
-                  <th data-i18n-key="category">Category</th>
-                  <th data-i18n-key="price">Price</th>
-                  <th data-i18n-key="cost">Cost (Calc)</th>
-                  <th data-i18n-key="actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="product-table-body">
-                <!-- Populated by JS -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header" data-i18n-key="manage_categories">Manage Categories</div>
-          <div class="card-body">
-            <form id="category-form" class="form-grid">
-              <div class="form-group">
-                <label for="new-category" data-i18n-key="new_category">New Category:</label>
-                <input type="text" id="new-category" required>
-              </div>
-              <div class="form-group">
-                <button type="submit" class="btn btn-primary" data-i18n-key="add_category">Add Category</button>
-              </div>
-            </form>
-            <ul id="category-list" class="mt-20"></ul>
-          </div>
-        </div>
-
-      </section>
-    </main>
-  </div>
-
-  <footer class="footer">
-    Tashgheel POS© 2025 - Designed and developed by <strong>itqan</strong> |
-    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
-  </footer>
-
-  <!-- Products Styles -->
   <style>
-    /* Tab Navigation */
-    .modal-tabs {
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Modal Styling Fixes for Tailwind compatibility */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
       display: flex;
-      border-bottom: 2px solid #eee;
-      margin-bottom: 20px;
     }
 
-    .tab-btn {
-      flex: 1;
-      padding: 10px;
-      background: none;
-      border: none;
-      border-bottom: 3px solid transparent;
-      font-weight: bold;
-      color: #7f8c8d;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    .tab-btn:hover {
-      background: #f9f9f9;
+    .modal-content {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      max-height: 90vh;
+      overflow-y: auto;
     }
 
     .tab-btn.active {
-      color: #2c3e50;
-      border-bottom-color: #3498db;
+      color: #2563eb;
+      /* blue-600 */
+      border-bottom-color: #2563eb;
     }
 
     .tab-content {
       display: none;
-      animation: fadeIn 0.3s;
     }
 
     .tab-content.active {
       display: block;
+      animation: fadeIn 0.3s ease-out;
     }
 
     @keyframes fadeIn {
@@ -130,301 +90,500 @@
         transform: translateY(0);
       }
     }
-
-    /* Compact Forms in Tabs */
-    .form-grid.compact .form-group {
-      margin-bottom: 10px;
-    }
   </style>
+</head>
 
-  <!-- Product Modal (One-Stop Shop) -->
-  <div id="productModal" class="modal" style="display: none;">
-    <div class="modal-content" style="max-width: 900px; width: 95%; height:90vh; display:flex; flex-direction:column;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 id="productModalTitle" style="margin:0;">Add Product</h3>
-        <button onclick="closeProductModal()"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-[#1e293b] text-white flex flex-col shrink-0 transition-all duration-300">
+    <div class="p-6 border-b border-slate-700">
+      <div class="flex items-center gap-3">
+        <img src="favicon.png" alt="Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain shadow-sm">
+        <div>
+          <h2 class="font-bold text-sm leading-tight" id="posSystemTitle" data-i18n-key="shop_pos_system">F&B POS System
+          </h2>
+          <p class="text-[10px] text-slate-400">Management System</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex-1 overflow-y-auto py-4 space-y-1">
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="pos.html">
+        <span class="material-symbols-outlined text-xl">point_of_sale</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_pos">POS</span>
+      </a>
+      <!-- Active Page -->
+      <a class="flex items-center gap-3 px-6 py-3 bg-slate-800 border-l-4 border-blue-500 text-white"
+        href="products.html">
+        <span class="material-symbols-outlined text-xl">menu_book</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_products">Menu Items</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="inventory.html">
+        <span class="material-symbols-outlined text-xl">inventory_2</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_inventory">Inventory</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="customers.html">
+        <span class="material-symbols-outlined text-xl">group</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_customers">Customers</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="kitchen.html">
+        <span class="material-symbols-outlined text-xl">countertops</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_kitchen">Kitchen</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="receipts.html">
+        <span class="material-symbols-outlined text-xl">receipt_long</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_receipts">Receipts</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="reports.html">
+        <span class="material-symbols-outlined text-xl">assessment</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_reports">Reports</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="vendors.html">
+        <span class="material-symbols-outlined text-xl">store</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_vendors">Vendors</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="expenses.html">
+        <span class="material-symbols-outlined text-xl">payments</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_expenses">Expenses</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="salesmen.html">
+        <span class="material-symbols-outlined text-xl">badge</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_employees">Employees</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="admin.html">
+        <span class="material-symbols-outlined text-xl">settings</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_admin">Admin Panel</span>
+      </a>
+      <button onclick="confirmLogout()"
+        class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
+        <span class="material-symbols-outlined text-xl">logout</span>
+        <span class="text-sm font-medium" data-i18n-key="logout">Logout</span>
+      </button>
+      <nav style="display:none;"></nav>
+    </div>
+  </aside>
+
+  <!-- Main Content Layout -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- Top Header -->
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-20">
+      <div class="flex items-center gap-4">
+        <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span class="material-symbols-outlined text-blue-600">menu_book</span>
+          <span data-i18n-key="nav_products">Menu Management</span>
+        </h1>
       </div>
 
-      <div class="modal-tabs">
-        <button class="tab-btn active" onclick="switchTab('basic')">📄 Basic Info</button>
-        <button class="tab-btn" onclick="switchTab('pricing')">💲 Pricing & Sizes</button>
-        <button class="tab-btn" onclick="switchTab('recipe')">👩‍🍳 Recipe & Cost</button>
-        <button class="tab-btn" onclick="switchTab('addons')">🧂 Add-ons</button>
+      <div class="flex items-center gap-4">
+        <!-- Language Switcher -->
+        <div class="flex bg-slate-100 rounded-lg p-1">
+          <button
+            class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all active"
+            onclick="setLanguage('en')" id="langEn">EN</button>
+          <button
+            class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+            onclick="setLanguage('ar')" id="langAr">AR</button>
+        </div>
       </div>
+    </header>
 
-      <div style="flex:1; overflow-y:auto; padding:5px;">
-        <form id="product-form">
-          <input type="hidden" id="product-id">
+    <!-- Content Scroller -->
+    <main class="flex-1 overflow-y-auto p-6 scroll-smooth">
+      <div class="max-w-7xl mx-auto space-y-6">
 
-          <!-- TAB 1: BASIC INFO -->
-          <div id="tab-basic" class="tab-content active">
-            <div class="row">
-              <div class="col-6">
-                <div class="form-group">
-                  <label>Product Name <span style="color:red">*</span></label>
-                  <input type="text" id="product-name" required placeholder="e.g. Cheese Burger">
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="form-group">
-                  <label>Code / Barcode</label>
-                  <input type="text" id="product-code" placeholder="Scan or type code">
-                </div>
-              </div>
-            </div>
+        <!-- Action Bar -->
+        <div class="flex flex-wrap justify-between items-center gap-4">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-700" data-i18n-key="product_list">Menu Items</h2>
+            <p class="text-sm text-slate-500">Manage your restaurant offerings, prices, and recipes.</p>
+          </div>
+          <button onclick="openProductModal()"
+            class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95">
+            <span class="material-symbols-outlined text-xl">add</span>
+            <span data-i18n-key="add_product">Add Product</span>
+          </button>
+        </div>
 
-            <div class="row">
-              <div class="col-6">
-                <div class="form-group">
-                  <label>Category</label>
-                  <div style="display:flex; gap:5px;">
-                    <select id="product-category" style="width:100%"></select>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleCategoryInput()">+</button>
-                  </div>
-                  <!-- Inline Category Adder -->
-                  <div id="new-category-container" style="display:none; margin-top:5px; gap:5px;">
-                    <input type="text" id="new-category-input" placeholder="New Category" style="flex:1;">
-                    <button type="button" class="btn btn-success btn-sm" onclick="saveNewCategory()">✓</button>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="toggleCategoryInput()">✗</button>
-                  </div>
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="form-group">
-                  <label>Image URL</label>
-                  <input type="text" id="product-image" placeholder="https://...">
-                </div>
-              </div>
-            </div>
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
 
-            <!-- New Row for Stock -->
-            <div class="row">
-              <div class="col-6">
-                <div class="form-group">
-                  <label>Stock Qty (For Direct Sales)</label>
-                  <input type="number" id="product-stock" placeholder="0">
-                </div>
+          <!-- Products Table -->
+          <div class="md:col-span-8 lg:col-span-9">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead
+                    class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                      <th class="px-6 py-4" data-i18n-key="image">Image</th>
+                      <th class="px-6 py-4" data-i18n-key="code">Code</th>
+                      <th class="px-6 py-4" data-i18n-key="name">Name</th>
+                      <th class="px-6 py-4" data-i18n-key="category">Category</th>
+                      <th class="px-6 py-4 text-right" data-i18n-key="price">Price</th>
+                      <th class="px-6 py-4 text-right" data-i18n-key="cost">Cost</th>
+                      <th class="px-6 py-4 text-center" data-i18n-key="actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="product-table-body" class="divide-y divide-slate-100 bg-white">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          <!-- TAB 2: PRICING & SIZES -->
-          <div id="tab-pricing" class="tab-content">
-            <div class="form-group" style="background:#f0f8ff; padding:10px; border-radius:5px;">
-              <input type="checkbox" id="product-has-sizes" onchange="toggleSizesSection()">
-              <label for="product-has-sizes"
-                style="display:inline; font-weight:bold; font-size:1.1rem; margin-left:5px;">
-                Has Multiple Sizes / Variants?
-              </label>
+          <!-- Categories -->
+          <div class="md:col-span-4 lg:col-span-3">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sticky top-6">
+              <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-500">category</span>
+                <span data-i18n-key="manage_categories">Categories</span>
+              </h3>
+
+              <form id="category-form" class="flex gap-2 mb-6">
+                <input type="text" id="new-category" required
+                  class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                  placeholder="New...">
+                <button type="submit"
+                  class="bg-slate-800 hover:bg-slate-900 text-white rounded-lg w-10 h-10 flex items-center justify-center transition-colors">
+                  <span class="material-symbols-outlined text-sm">add</span>
+                </button>
+              </form>
+
+              <div class="max-h-[60vh] overflow-y-auto pr-1">
+                <ul id="category-list" class="space-y-2">
+                  <!-- Populated by JS -->
+                </ul>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+
+  <!-- ORIGINAL LEGACY MODALS PRESERVED BUT STYLED -->
+
+  <!-- Product Modal -->
+  <div id="productModal" class="modal">
+    <div class="modal-content w-full max-w-4xl p-0 flex flex-col h-[90vh]">
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
+        <h3 id="productModalTitle" class="text-xl font-bold text-slate-800">Add Product</h3>
+        <button onclick="closeProductModal()"
+          class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="px-6 pt-4 border-b border-slate-100 flex gap-6 modal-tabs">
+        <button
+          class="tab-btn pb-3 px-2 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-all active"
+          onclick="switchTab('basic')">📄 Basic Info</button>
+        <button
+          class="tab-btn pb-3 px-2 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-all"
+          onclick="switchTab('pricing')">💲 Pricing & Sizes</button>
+        <button
+          class="tab-btn pb-3 px-2 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-all"
+          onclick="switchTab('recipe')">👩‍🍳 Recipe & Cost</button>
+        <button
+          class="tab-btn pb-3 px-2 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-all"
+          onclick="switchTab('addons')">🧂 Add-ons</button>
+      </div>
+
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto p-6 bg-white">
+        <form id="product-form" class="space-y-6">
+          <input type="hidden" id="product-id">
+
+          <!-- TAB 1: BASIC INFO -->
+          <div id="tab-basic" class="tab-content active space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-700">Product Name <span
+                    class="text-red-500">*</span></label>
+                <input type="text" id="product-name" required
+                  class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="e.g. Cheese Burger">
+              </div>
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-700">Code / Barcode</label>
+                <input type="text" id="product-code"
+                  class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Scan or type code">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-700">Category</label>
+                <div class="flex gap-2">
+                  <select id="product-category"
+                    class="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"></select>
+                  <button type="button"
+                    class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 font-bold"
+                    onclick="toggleCategoryInput()">+</button>
+                </div>
+                <!-- Inline Category Adder -->
+                <div id="new-category-container" style="display:none;" class="flex gap-2 mt-2">
+                  <input type="text" id="new-category-input"
+                    class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="New Category">
+                  <button type="button" class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm"
+                    onclick="saveNewCategory()">✓</button>
+                  <button type="button" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+                    onclick="toggleCategoryInput()">✗</button>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-700">Image URL</label>
+                <input type="text" id="product-image"
+                  class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="https://...">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-700">Stock Qty (Direct Sales)</label>
+                <input type="number" id="product-stock"
+                  class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="0">
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: PRICING -->
+          <div id="tab-pricing" class="tab-content space-y-6">
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-3">
+              <input type="checkbox" id="product-has-sizes" onchange="toggleSizesSection()"
+                class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
+              <label for="product-has-sizes" class="font-semibold text-slate-700">Has Multiple Sizes / Variants?</label>
             </div>
 
             <!-- Single Price Mode -->
             <div id="pricing-single-mode">
-              <div class="row">
-                <div class="col-4">
-                  <div class="form-group">
-                    <label>Standard Price</label>
-                    <input type="number" id="product-price" step="0.01" class="input-lg">
-                  </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium text-slate-700">Standard Price</label>
+                  <input type="number" id="product-price" step="0.01"
+                    class="w-full px-4 py-2 border border-slate-200 rounded-lg text-lg font-bold text-slate-800"
+                    placeholder="0.00">
                 </div>
-                <div class="col-4">
-                  <div class="form-group">
-                    <label>Dine-In Price (Optional)</label>
-                    <input type="number" id="product-price-dinein" step="0.01">
-                  </div>
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium text-slate-700">Dine-In Price (Opt)</label>
+                  <input type="number" id="product-price-dinein" step="0.01"
+                    class="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="Same">
                 </div>
-                <div class="col-4">
-                  <div class="form-group">
-                    <label>Delivery Price (Optional)</label>
-                    <input type="number" id="product-price-delivery" step="0.01">
-                  </div>
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium text-slate-700">Delivery Price (Opt)</label>
+                  <input type="number" id="product-price-delivery" step="0.01"
+                    class="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="Same">
                 </div>
               </div>
             </div>
 
             <!-- Multi-Size Mode -->
-            <div id="pricing-sizes-mode" style="display:none;">
-              <table class="data-table">
-                <thead>
+            <div id="pricing-sizes-mode" style="display:none;" class="space-y-4">
+              <div class="border border-slate-200 rounded-lg overflow-hidden">
+                <table class="w-full text-left text-sm">
+                  <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th class="px-4 py-3">Size Name</th>
+                      <th class="px-4 py-3">Code</th>
+                      <th class="px-4 py-3">Price</th>
+                      <th class="px-4 py-3">Dine-In</th>
+                      <th class="px-4 py-3">Delivery</th>
+                      <th class="px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sizes-table-body" class="divide-y divide-slate-100"></tbody>
+                  <tfoot class="bg-slate-50">
+                    <tr>
+                      <td class="p-2"><input type="text" id="size-name" class="w-full p-2 border rounded"
+                          placeholder="Name"></td>
+                      <td class="p-2"><input type="text" id="size-code" class="w-full p-2 border rounded"
+                          placeholder="Code"></td>
+                      <td class="p-2"><input type="number" id="size-price" class="w-full p-2 border rounded"
+                          placeholder="0.00"></td>
+                      <td class="p-2"><input type="number" id="size-price-dinein" class="w-full p-2 border rounded"
+                          placeholder="Opt"></td>
+                      <td class="p-2"><input type="number" id="size-price-delivery" class="w-full p-2 border rounded"
+                          placeholder="Opt"></td>
+                      <td class="p-2"><button type="button" onclick="addSizeVariant()"
+                          class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium">Add</button>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: RECIPE -->
+          <div id="tab-recipe" class="tab-content space-y-6">
+            <div id="recipe-context-msg"
+              class="p-4 bg-yellow-50 text-yellow-800 border-l-4 border-yellow-400 rounded-r font-medium"
+              style="display:none;"></div>
+
+            <div class="flex justify-between items-center p-4 bg-slate-50 border border-slate-200 rounded-xl">
+              <span class="text-slate-600 font-medium">Total Cost: <span id="display-total-cost"
+                  class="text-2xl font-bold text-slate-900 ml-2">0.00</span></span>
+              <input type="hidden" id="product-cost">
+              <small class="text-slate-400">Calculated automatically</small>
+            </div>
+
+            <div id="recipe-size-selector-container" class="flex flex-wrap gap-2"></div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+              <div class="flex flex-wrap items-end gap-4">
+                <div class="flex-1 min-w-[200px]">
+                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Raw Material</label>
+                  <select id="single-recipe-ingredient" class="w-full p-2 border border-slate-300 rounded-lg"></select>
+                </div>
+                <div class="w-24">
+                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Qty</label>
+                  <input type="number" id="single-recipe-qty" placeholder="0"
+                    class="w-full p-2 border border-slate-300 rounded-lg">
+                </div>
+                <div class="w-24">
+                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Unit</label>
+                  <select id="single-recipe-unit" class="w-full p-2 border border-slate-300 rounded-lg bg-slate-100"
+                    disabled></select>
+                </div>
+                <div class="w-24">
+                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Waste %</label>
+                  <input type="number" id="single-recipe-waste" placeholder="0"
+                    class="w-full p-2 border border-slate-300 rounded-lg">
+                  <input type="hidden" id="single-recipe-waste-type" value="percent">
+                </div>
+                <button type="button" onclick="addIngredientToSingleRecipe()"
+                  class="h-[42px] px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-medium">Add</button>
+              </div>
+            </div>
+
+            <div class="overflow-hidden border border-slate-200 rounded-lg">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 font-semibold text-slate-500 border-b border-slate-200">
                   <tr>
-                    <th>Size Name</th>
-                    <th>Code</th>
-                    <th>Price (Std)</th>
-                    <th>Dine-In</th>
-                    <th>Delivery</th>
-                    <th>Actions</th>
+                    <th class="px-4 py-3">Material</th>
+                    <th class="px-4 py-3">Qty</th>
+                    <th class="px-4 py-3">Unit</th>
+                    <th class="px-4 py-3">Waste</th>
+                    <th class="px-4 py-3">Cost</th>
+                    <th class="px-4 py-3">Action</th>
                   </tr>
                 </thead>
-                <tbody id="sizes-table-body">
-                  <!-- Populated via JS -->
-                </tbody>
-                <tfoot>
-                  <tr style="background:#f9f9f9;">
-                    <td><input type="text" id="size-name" placeholder="Name (e.g. L)" style="width:100%"></td>
-                    <td><input type="text" id="size-code" placeholder="Code" style="width:100%"></td>
-                    <td><input type="number" id="size-price" placeholder="0.00" style="width:100%"></td>
-                    <td><input type="number" id="size-price-dinein" placeholder="Opt" style="width:100%"></td>
-                    <td><input type="number" id="size-price-delivery" placeholder="Opt" style="width:100%"></td>
-                    <td><button type="button" onclick="addSizeVariant()" class="btn btn-success btn-sm">Add</button>
-                    </td>
-                  </tr>
-                </tfoot>
+                <tbody id="single-recipe-body" class="divide-y divide-slate-100 bg-white"></tbody>
               </table>
             </div>
           </div>
 
-          <div id="tab-recipe" class="tab-content">
-            <div id="recipe-context-msg"
-              style="padding:10px; background:#e3f2fd; color:#0d47a1; margin-bottom:10px; border-radius:4px; font-weight:bold; display:none;">
-              <!-- Updated by JS -->
-            </div>
-            <div
-              style="margin-bottom:15px; background:#fff3cd; padding:10px; border-radius:5px; display:flex; justify-content:space-between; align-items:center;">
-              <span><strong>Total Cost:</strong> <span id="display-total-cost"
-                  style="font-size:1.2rem; font-weight:bold;">0.00</span></span>
-              <input type="hidden" id="product-cost"> <!-- Storage for DB -->
-              <small>Calculated automatically from ingredients below</small>
+          <!-- TAB 4: ADDONS -->
+          <div id="tab-addons" class="tab-content space-y-6">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center gap-3">
+              <input type="checkbox" id="allow-all-addons" onchange="toggleAddonsContainer()"
+                class="w-5 h-5 text-blue-600 rounded">
+              <label for="allow-all-addons" class="font-semibold text-slate-700">Allow All Add-ons (No
+                restriction)</label>
             </div>
 
-            <!-- Size Selector for Recipe (Only visible if Has Sizes) -->
-            <div id="recipe-size-selector-container" style="margin-bottom:10px;">
-              <!-- Buttons inserted by JS -->
-            </div>
-
-            <!-- Ingredient Adder -->
-            <div style="background:#f5f5f5; padding:10px; border-radius:5px; margin-bottom:10px;">
-              <div style="display:flex; gap:5px; align-items:end;">
-                <div style="flex:2;">
-                  <label style="font-size:0.8rem">Raw Material</label>
-                  <select id="single-recipe-ingredient" style="width:100%"></select>
-                </div>
-                <div style="flex:1;">
-                  <label style="font-size:0.8rem">Qty</label>
-                  <input type="number" id="single-recipe-qty" placeholder="0">
-                </div>
-                <div style="flex:1;">
-                  <label style="font-size:0.8rem">Unit</label>
-                  <select id="single-recipe-unit" style="width:100%"></select>
-                </div>
-                <div style="flex:1;">
-                  <label style="font-size:0.8rem">Waste %</label>
-                  <input type="number" id="single-recipe-waste" placeholder="0" value="0">
-                  <input type="hidden" id="single-recipe-waste-type" value="percent">
-                </div>
-                <button type="button" onclick="addIngredientToSingleRecipe()" class="btn btn-primary">Add</button>
+            <div id="specific-addons-container" class="space-y-3">
+              <label class="block text-sm font-medium text-slate-700">Select Specific Add-ons:</label>
+              <div class="flex gap-2">
+                <select id="addon-select" class="flex-1 p-2 border border-slate-300 rounded-lg"></select>
+                <button type="button" onclick="addAllowedAddon()"
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">+</button>
               </div>
-            </div>
-
-            <!-- Recipe Table -->
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Material</th>
-                  <th>Qty</th>
-                  <th>Unit</th>
-                  <th>Waste</th>
-                  <th>Cost</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="single-recipe-body">
-                <!-- Populated by JS -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- TAB 4: ADD-ONS -->
-          <div id="tab-addons" class="tab-content">
-            <div class="form-group">
-              <input type="checkbox" id="allow-all-addons" onchange="toggleAddonsContainer()">
-              <label for="allow-all-addons" style="display:inline; font-weight:bold;">Allow All Add-ons</label>
-            </div>
-
-            <div id="specific-addons-container">
-              <label>Select Specific Add-ons:</label>
-              <div style="display:flex; gap:5px; margin-bottom:10px;">
-                <select id="addon-select" style="width:100%;"></select>
-                <button type="button" onclick="addAllowedAddon()" class="btn btn-primary">+</button>
-              </div>
-              <div id="allowed-addons-list" style="border:1px solid #eee; padding:10px; min-height:50px;"></div>
+              <div id="allowed-addons-list"
+                class="border border-slate-200 rounded-lg p-2 min-h-[50px] space-y-1 bg-slate-50"></div>
             </div>
           </div>
 
         </form>
       </div>
 
-      <div class="modal-footer" style="padding-top:10px; border-top:1px solid #eee; text-align:right;">
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end rounded-b-xl">
         <button type="button" onclick="document.getElementById('product-form').dispatchEvent(new Event('submit'))"
-          class="btn btn-success btn-lg">💾 Save Menu Item</button>
+          class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-2">
+          <span class="material-symbols-outlined">save</span>
+          <span>Save Menu Item</span>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Recipe Modal -->
-  <div id="recipeModal" class="modal" style="display: none;">
-    <div class="modal-content" style="max-width: 800px; width: 90%;">
-      <h3>Recipe & Costing: <span id="recipeItemName"></span></h3>
+  <!-- Recipe Modal (Legacy Separate Modal, kept for compatibility if used by other flows) -->
+  <div id="recipeModal" class="modal">
+    <div class="modal-content w-full max-w-2xl bg-white p-6 rounded-xl shadow-2xl">
+      <h3 class="text-lg font-bold text-slate-800 mb-4">Recipe & Costing: <span id="recipeItemName"
+          class="text-blue-600"></span></h3>
 
-      <div id="recipe-size-selector-container"
-        style="margin-bottom:15px; padding:10px; background:#f0f0f0; border-radius:4px; display:none;">
-        <!-- Populated via JS -->
-      </div>
+      <div id="recipe-size-selector-container-legacy" class="mb-4 p-3 bg-slate-100 rounded-lg hidden"></div>
 
-      <div class="row">
-        <div class="col-6">
-          <label data-i18n-key="add_ingredient">Add Ingredient:</label>
-          <div style="display:flex; gap:5px; align-items: flex-end;">
-            <div style="flex:2;">
-              <label style="font-size:0.8rem;">Ingredient</label>
-              <select id="recipe-ingredient" style="width:100%;"></select>
-            </div>
-            <div style="flex:1;">
-              <label style="font-size:0.8rem;">Qty</label>
-              <input type="number" id="recipe-qty" placeholder="Qty" style="width:100%;">
-            </div>
-            <div style="flex:1;">
-              <label style="font-size:0.8rem;">Waste Type</label>
-              <select id="recipe-waste-type" style="width:100%;">
-                <option value="percent">%</option>
-                <option value="fixed">Fixed Qty</option>
-              </select>
-            </div>
-            <div style="flex:1;">
-              <label style="font-size:0.8rem;">Waste Val</label>
-              <input type="number" id="recipe-waste" placeholder="0" style="width:100%;" value="0">
-            </div>
-            <button onclick="addIngredientToRecipe()" class="btn btn-success" style="height:38px;">+</button>
-          </div>
+      <div class="flex gap-2 items-end mb-4">
+        <div class="flex-1">
+          <label class="text-xs font-bold text-slate-500 uppercase">Ingredient</label>
+          <select id="recipe-ingredient" class="w-full p-2 border rounded-lg"></select>
         </div>
+        <div class="w-20">
+          <label class="text-xs font-bold text-slate-500 uppercase">Qty</label>
+          <input type="number" id="recipe-qty" class="w-full p-2 border rounded-lg">
+        </div>
+        <div class="w-20">
+          <label class="text-xs font-bold text-slate-500 uppercase">Type</label>
+          <select id="recipe-waste-type" class="w-full p-2 border rounded-lg">
+            <option value="percent">%</option>
+            <option value="fixed">Fix</option>
+          </select>
+        </div>
+        <div class="w-20">
+          <label class="text-xs font-bold text-slate-500 uppercase">Wst</label>
+          <input type="number" id="recipe-waste" value="0" class="w-full p-2 border rounded-lg">
+        </div>
+        <button onclick="addIngredientToRecipe()" class="px-3 py-2 bg-green-500 text-white rounded-lg">+</button>
       </div>
 
-      <table class="data-table mt-10">
-        <thead>
+      <table class="w-full text-left text-sm border border-slate-200 rounded-lg overflow-hidden">
+        <thead class="bg-slate-50">
           <tr>
-            <th data-i18n-key="ingredient">Ingredient</th>
-            <th data-i18n-key="net_qty">Net Qty</th>
-            <th data-i18n-key="unit">Unit</th>
-            <th data-i18n-key="cost_unit">Cost/Unit</th>
-            <th data-i18n-key="waste">Waste</th>
-            <th data-i18n-key="gross_qty">Gross Qty</th>
-            <th data-i18n-key="total_cost">Total Cost</th>
-            <th data-i18n-key="actions">Actions</th>
+            <th class="p-2">Ingredient</th>
+            <th class="p-2">Qty</th>
+            <th class="p-2">Cost</th>
+            <th class="p-2">Action</th>
           </tr>
         </thead>
-        <tbody id="recipeTableBody"></tbody>
-        <tfoot>
+        <tbody id="recipeTableBody" class="divide-y divide-slate-100"></tbody>
+        <tfoot class="bg-slate-50 font-bold">
           <tr>
-            <td colspan="5" style="text-align:right;"><strong>Total Plate Cost:</strong></td>
-            <td id="recipeTotalCost" style="font-weight:bold;">0.00</td>
-            <td></td>
+            <td colspan="3" class="p-2 text-right">Total:</td>
+            <td class="p-2" id="recipeTotalCost">0.00</td>
           </tr>
         </tfoot>
       </table>
 
-      <div style="margin-top: 15px; text-align: right;">
-        <button onclick="saveRecipe()" class="btn btn-success">💾 Save Recipe</button>
-        <button onclick="closeRecipeModal()" class="btn btn-danger">❌ Close</button>
+      <div class="mt-6 flex justify-end gap-3">
+        <button onclick="closeRecipeModal()"
+          class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Close</button>
+        <button onclick="saveRecipe()"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">Save Recipe</button>
       </div>
     </div>
   </div>
@@ -432,11 +591,23 @@
   <script src="js/web-adapter.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
-  <script>window.currentPage = 'menu';</script>
+  <script>window.currentPage = 'products'; // Fixed from 'menu' to 'products' or 'menu' depending on shared-nav </script>
   <script src="js/shared-nav.js"></script>
   <script src="js/translations.js"></script>
   <script src="js/products-app.js"></script>
-</body>
 
+  <!-- Modal Helpers -->
+  <script>
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); document.getElementById(id).style.display = 'none'; }
+    window.closeProductModal = function () { closeModal('productModal'); }
+    window.closeRecipeModal = function () { closeModal('recipeModal'); }
+
+    // Override open functions to set display flex AND active class
+    const _oldOpen = window.openProductModal; // defined in products-app.js usually
+    // We will let products-app.js handle logic, but we need to ensure CSS class compatibility
+    // The CSS uses .active or display:flex. products-app.js sets style.display = 'flex'
+    // That should work with my CSS (modal.active { display: flex }).
+  </script>
+</body>
 
 </html>

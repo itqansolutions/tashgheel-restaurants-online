@@ -1,18 +1,18 @@
 const translations = {
     // Navigation
-    nav_pos: { en: "🛒 Point of Sale", ar: "🛒 نقطة البيع" },
-    nav_products: { en: "🍔 Menu Items", ar: "🍔 قائمة الطعام" },
-    nav_receipts: { en: "🧾 Receipts", ar: "🧾 الفواتير" },
-    nav_reports: { en: "📈 Reports", ar: "📈 التقارير" },
-    nav_salesmen: { en: "👔 Employees", ar: "👔 الموظفين" },
-    nav_expenses: { en: "💰 Expenses", ar: "💰 المصاريف" },
-    nav_admin: { en: "⚙️ Admin Panel", ar: "⚙️ لوحة التحكم" },
-    nav_backup: { en: "💾 Backup", ar: "💾 النسخ الاحتياطي" },
-    nav_visits: { en: "🔧 Service Visits", ar: "🔧 زيارات الخدمة" },
-    nav_upcoming: { en: "📅 Upcoming Visits", ar: "📅 الزيارات القادمة" },
-    nav_vendors: { en: "🏪 Vendors", ar: "🏪 الموردين" },
-    nav_customers: { en: "👥 Customers", ar: "👥 العملاء" },
-    logout: { en: "🚪 Logout", ar: "🚪 تسجيل الخروج" },
+    nav_pos: { en: "Point of Sale", ar: "نقطة البيع" },
+    nav_products: { en: "Menu Items", ar: "قائمة الطعام" },
+    nav_receipts: { en: "Receipts", ar: "الفواتير" },
+    nav_reports: { en: "Reports", ar: "التقارير" },
+    nav_salesmen: { en: "Employees", ar: "الموظفين" },
+    nav_expenses: { en: "Expenses", ar: "المصاريف" },
+    nav_admin: { en: "Admin Panel", ar: "لوحة التحكم" },
+    nav_backup: { en: "Backup", ar: "النسخ الاحتياطي" },
+    nav_visits: { en: "Service Visits", ar: "زيارات الخدمة" },
+    nav_upcoming: { en: "Upcoming Visits", ar: "الزيارات القادمة" },
+    nav_vendors: { en: "Vendors", ar: "الموردين" },
+    nav_customers: { en: "Customers", ar: "العملاء" },
+    logout: { en: "Logout", ar: "تسجيل الخروج" },
 
     // General
     date: { en: "Date", ar: "التاريخ" },
@@ -158,7 +158,7 @@ const translations = {
     'shift_active': { en: 'Shift Active', ar: 'الوردية نشطة' },
 
     // Existing keys continue below...
-    shop_pos_system: { en: 'Restaurant POS System', ar: 'نظام كاشير المطاعم' },
+    shop_pos_system: { en: 'F&B POS System', ar: 'نظام كاشير المطاعم' },
     enhanced_security: { en: "Powered By itqan", ar: "بواسطة اتقان" },
     login_btn: { en: "🚀 Launch System", ar: "🚀 تشغيل النظام" },
     activation_required: { en: "System Activation Required", ar: "مطلوب تفعيل النظام" },
