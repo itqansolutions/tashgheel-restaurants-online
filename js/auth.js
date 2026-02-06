@@ -219,48 +219,78 @@ async function initializeDataSystem() {
             // If offline, trust local session for now (Optional: enforce online logic?)
         }
 
-        // 🚀 TIMING OPTIMIZATION: Parallel Loading
-        // Instead of waiting for each file sequentially, we fire all requests at once.
-        const loadPromises = keys.map(async (key) => {
-            if (key === 'session') return;
+        // 🚀 TIMING OPTIMIZATION: Smart Tiered Loading
+        const CRITICAL_KEYS = [
+            'users', 'products', 'customers', 'shop_settings',
+            'license', 'tables', 'delivery_areas', 'salesmen',
+            'settings', 'ingredients', 'spare_parts', 'vehicles',
+            'vendors' // Vendors needed for restocking in POS? Maybe. Safe to include.
+        ];
 
-            let fileData = null;
+        const BACKGROUND_KEYS = [
+            'visits', 'sales', 'returns', 'expenses',
+            'vendor_payments', 'vendor_transactions', 'employees'
+        ];
 
-            // 1. Try Read File (Async)
-            try {
-                const fileContent = await window.electronAPI.readData(key);
-                if (fileContent) {
-                    try {
-                        fileData = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
-                    } catch (e) {
-                        fileData = fileContent;
+        // Ensure keys are correctly categorized
+        const allKeys = keys; // Keys from listDataFiles or default
+        const criticalBatch = allKeys.filter(k => CRITICAL_KEYS.includes(k) || !BACKGROUND_KEYS.includes(k)); // Default to critical if unknown
+        const backgroundBatch = allKeys.filter(k => BACKGROUND_KEYS.includes(k));
+
+        const loadBatch = async (batchName, batchKeys) => {
+            if (batchKeys.length === 0) return;
+            // console.log(`⏳ Loading ${batchName} Batch (${batchKeys.length})...`);
+
+            const promises = batchKeys.map(async (key) => {
+                if (key === 'session') return;
+                let fileData = null;
+
+                // 1. Try Read File
+                try {
+                    const fileContent = await window.electronAPI.readData(key);
+                    if (fileContent) {
+                        try { fileData = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent; }
+                        catch (e) { fileData = fileContent; }
                     }
+                } catch (err) { console.warn(`Failed to load ${key}`, err); }
+
+                // 2. Fallback
+                if (!fileData) {
+                    const local = localStorage.getItem('pos_backup_' + key);
+                    if (local) { try { fileData = JSON.parse(local); } catch (e) { fileData = local; } }
                 }
-            } catch (err) {
-                console.warn(`Failed to load ${key} from API`, err);
-            }
 
-            // 2. Fallback to LocalStorage (Sync)
-            if (!fileData) {
-                const local = localStorage.getItem('pos_backup_' + key);
-                if (local) {
-                    console.log(`⚠️ Recovered ${key} from LocalStorage backup.`);
-                    try { fileData = JSON.parse(local); } catch (e) { fileData = local; }
-                }
-            }
+                if (fileData) window.DataCache[key] = fileData;
+                else window.DataCache[key] = [];
+            });
 
-            // 3. Store in Memory Cache
-            if (fileData) {
-                window.DataCache[key] = fileData;
-                // console.log(`✅ Loaded ${key}.`); // Spam reduction
-            } else {
-                window.DataCache[key] = [];
-            }
-        });
+            await Promise.all(promises);
+            // console.log(`✅ Loaded ${batchName} Batch.`);
+        };
 
-        // Wait for ALL loads to complete (or fail gracefully)
-        await Promise.all(loadPromises);
-        console.log(`✅ System Data Loaded: ${keys.length} entities processed.`);
+        const isPosPage = window.location.pathname.endsWith('pos.html') || window.location.pathname.endsWith('index.html') || window.location.pathname === '/';
+        const isReportsPage = window.location.pathname.includes('reports') || window.location.pathname.includes('admin') || window.location.pathname.includes('history');
+
+        // STRATEGY:
+        // 1. POS: Load Critical -> Open UI -> Load Background
+        if (isPosPage && !isReportsPage) {
+            console.log('🚀 Smart Loading: Priority Optimization for POS');
+            await loadBatch('Critical', criticalBatch);
+
+            // Start Background Load (Fire & Forget)
+            loadBatch('Background', backgroundBatch).then(() => {
+                console.log('📦 Background Data Synced.');
+                window.dispatchEvent(new Event('BackgroundDataReady'));
+            });
+
+            console.log(`✅ System critical data loaded. Background sync started.`);
+        } else {
+            // Standard Load (Wait for everything)
+            console.log('🛡️ Standard Loading: Full Consistency Mode');
+            await loadBatch('Critical', criticalBatch);
+            await loadBatch('Background', backgroundBatch);
+            console.log(`✅ System Data Fully Loaded: ${keys.length} entities.`);
+        }
 
         if (migrationNeeded) {
             console.log('Migration/Recovery completed successfully.');
