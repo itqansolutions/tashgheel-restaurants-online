@@ -175,41 +175,83 @@
 
             <!-- 1. LIVE MONITOR -->
             <div id="card-live" class="report-card space-y-6">
-              <!-- KPI Grid -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                  <div class="flex items-center gap-3 mb-2">
-                    <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                      <span class="material-symbols-outlined text-[18px]">attach_money</span>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-500">Today's Revenue</h3>
-                  </div>
-                  <div class="text-2xl font-bold text-slate-800" id="live-revenue">0.00 EGP</div>
+
+              <!-- Row 1: KPI Cards -->
+              <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                <!-- Net Sales -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Net Sales</div>
+                  <div class="text-xl font-bold text-slate-800" id="live-net-sales">0.00</div>
+                  <div class="text-[10px] text-green-600 font-semibold mt-1">Real-time</div>
                 </div>
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                  <div class="flex items-center gap-3 mb-2">
-                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                      <span class="material-symbols-outlined text-[18px]">shopping_cart</span>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-500">Orders Count</h3>
-                  </div>
-                  <div class="text-2xl font-bold text-slate-800" id="live-orders">0</div>
+                <!-- Orders -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Orders</div>
+                  <div class="text-xl font-bold text-slate-800" id="live-orders-count">0</div>
+                  <div class="text-[10px] text-slate-400 font-semibold mt-1">Receipts</div>
                 </div>
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                  <div class="flex items-center gap-3 mb-2">
-                    <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                      <span class="material-symbols-outlined text-[18px]">receipt_long</span>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-500">Avg Ticket</h3>
-                  </div>
-                  <div class="text-2xl font-bold text-slate-800" id="live-avg">0.00 EGP</div>
+                <!-- Avg Ticket -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Avg Ticket</div>
+                  <div class="text-xl font-bold text-slate-800" id="live-avg-ticket">0.00</div>
+                  <div class="text-[10px] text-slate-400 font-semibold mt-1">Per Order</div>
+                </div>
+                <!-- Gross Profit -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Gross Profit</div>
+                  <div class="text-xl font-bold text-emerald-700" id="live-gross-profit">0.00</div>
+                  <div class="text-[10px] text-emerald-600 font-semibold mt-1">Sales - COGS</div>
+                </div>
+                <!-- Discounts -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Discounts</div>
+                  <div class="text-xl font-bold text-red-600" id="live-discounts">0.00</div>
+                  <div class="text-[10px] text-red-400 font-semibold mt-1">Deductions</div>
+                </div>
+                <!-- Returns -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Returns</div>
+                  <div class="text-xl font-bold text-red-600" id="live-returns">0.00</div>
+                  <div class="text-[10px] text-red-400 font-semibold mt-1">Refunded</div>
                 </div>
               </div>
 
-              <!-- Shift Info -->
-              <div id="live-shift-info"></div>
+              <!-- Row 2: Charts -->
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Sales Per Hour -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-600">trending_up</span> Sales Per Hour
+                  </h3>
+                  <div class="h-64 relative">
+                    <canvas id="chart-sales-hour"></canvas>
+                  </div>
+                </div>
+                <!-- Payment Distribution -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-purple-600">pie_chart</span> Payment Method
+                  </h3>
+                  <div class="h-64 relative flex items-center justify-center">
+                    <canvas id="chart-payment-method"></canvas>
+                  </div>
+                </div>
+              </div>
 
-              <!-- Recent Activity Table -->
+              <!-- Row 3: Shift Bar -->
+              <div id="live-shift-bar"
+                class="hidden bg-amber-50 border border-amber-200 rounded-lg p-3 flex flex-wrap justify-between items-center text-sm">
+                <div class="flex items-center gap-2 text-amber-900">
+                  <span class="material-symbols-outlined text-amber-600">lock_clock</span>
+                  <span class="font-bold">Active Shift:</span> <span id="shift-start-time">--:--</span>
+                </div>
+                <div class="flex items-center gap-2 text-amber-900">
+                  <span class="font-bold">Drawer Expected:</span> <span id="shift-expected-drawer"
+                    class="font-mono font-bold text-lg">0.00</span>
+                </div>
+              </div>
+
+              <!-- Row 4: Recent Activity Table -->
               <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-800 flex items-center gap-2">
                   <span class="material-symbols-outlined text-slate-400">schedule</span> Recent Orders
@@ -219,9 +261,11 @@
                     <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">
                       <tr>
                         <th class="px-6 py-3">Order ID</th>
+                        <th class="px-6 py-3">Branch</th>
                         <th class="px-6 py-3">Amount</th>
                         <th class="px-6 py-3">Method</th>
                         <th class="px-6 py-3">Cashier</th>
+                        <th class="px-6 py-3">Status</th>
                         <th class="px-6 py-3">Time</th>
                       </tr>
                     </thead>
