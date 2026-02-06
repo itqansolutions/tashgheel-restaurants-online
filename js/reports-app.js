@@ -192,6 +192,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === DAILY SUMMARY REPORT ===
   function generateDailySummary(finished, allReceipts) {
+    // Check if elements exist (tab may not be in HTML yet)
+    const dsRevenue = document.getElementById('ds-revenue');
+    if (!dsRevenue) {
+      console.warn('Daily Summary tab not found in HTML');
+      return;
+    }
+
     // Calculate totals
     let totalRevenue = 0, totalCash = 0, totalCard = 0, totalMobile = 0, totalDiscounts = 0, totalDelivery = 0;
 
@@ -210,11 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const avgTicket = orderCount > 0 ? totalRevenue / orderCount : 0;
     const netRevenue = totalRevenue - totalDiscounts;
 
-    // Update summary boxes
-    document.getElementById('ds-revenue').textContent = `${totalRevenue.toFixed(2)} EGP`;
-    document.getElementById('ds-orders').textContent = orderCount;
-    document.getElementById('ds-avg').textContent = `${avgTicket.toFixed(2)} EGP`;
-    document.getElementById('ds-discounts').textContent = `${totalDiscounts.toFixed(2)} EGP`;
+    // Update summary boxes (with null checks)
+    dsRevenue.textContent = `${totalRevenue.toFixed(2)} EGP`;
+    const dsOrders = document.getElementById('ds-orders'); if (dsOrders) dsOrders.textContent = orderCount;
+    const dsAvg = document.getElementById('ds-avg'); if (dsAvg) dsAvg.textContent = `${avgTicket.toFixed(2)} EGP`;
+    const dsDiscounts = document.getElementById('ds-discounts'); if (dsDiscounts) dsDiscounts.textContent = `${totalDiscounts.toFixed(2)} EGP`;
 
     // Payment breakdown
     document.getElementById('ds-cash').textContent = `${totalCash.toFixed(2)} EGP`;
@@ -237,6 +244,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // === SHIFT REPORT ===
   async function generateShiftReport() {
     const tbody = document.getElementById('shifts-body');
+    if (!tbody) {
+      console.warn('Shifts tab not found in HTML');
+      return;
+    }
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Loading shifts...</td></tr>';
 
     let shifts = [];
@@ -309,8 +320,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === INVENTORY REPORT ===
   function generateInventoryReport() {
+    const tbody = document.getElementById('inventory-report-body');
+    if (!tbody) {
+      console.warn('Inventory Report tab not found in HTML');
+      return;
+    }
+
+    // Get products/inventory - use getParts for both since getInventory doesn't exist
     const products = window.DB ? window.DB.getParts() : JSON.parse(localStorage.getItem('products') || '[]');
-    const inventory = window.DB ? window.DB.getInventory() : JSON.parse(localStorage.getItem('inventory') || '[]');
+    const inventory = JSON.parse(localStorage.getItem('inventory') || '[]');
 
     // Combine products and inventory
     const allItems = [...products, ...inventory];
@@ -319,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let totalValue = 0;
     const LOW_STOCK_THRESHOLD = 5;
 
-    const tbody = document.getElementById('inventory-report-body');
     tbody.innerHTML = '';
 
     allItems.forEach(item => {
