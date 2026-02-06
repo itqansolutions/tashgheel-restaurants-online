@@ -234,28 +234,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Items Loop (Category & Products)
       if (r.items) {
         r.items.forEach(item => {
+          // Check for service items (non-stock)
           if (item.code && item.code.startsWith('SVC-')) return;
           const qty = item.qty || 1;
           const cost = item.cost || item.unitCost || 0;
           const price = item.price || 0;
           const lineTotal = price * qty;
+          const lineCost = cost * qty;
+          const lineProfit = lineTotal - lineCost;
 
-          cogs += (qty * cost);
+          cogs += lineCost;
 
           // Product Key
           const pName = item.name || item.description || 'Unknown Item';
-          if (!prodMap[pName]) prodMap[pName] = { qty: 0, gross: 0, net: 0 };
+          if (!prodMap[pName]) prodMap[pName] = { qty: 0, gross: 0, net: 0, cost: 0, profit: 0 };
           prodMap[pName].qty += qty;
           prodMap[pName].gross += lineTotal;
-          // Net for item is harder without line-level discount. approx:
-          prodMap[pName].net += lineTotal;
+          prodMap[pName].net += lineTotal; // Approx net for item
+          prodMap[pName].cost += lineCost;
+          prodMap[pName].profit += lineProfit;
 
           // Category Key
           const cat = item.category || 'Uncategorized';
-          if (!catMap[cat]) catMap[cat] = { qty: 0, gross: 0, net: 0 };
+          if (!catMap[cat]) catMap[cat] = { qty: 0, gross: 0, net: 0, cost: 0, profit: 0 };
           catMap[cat].qty += qty;
           catMap[cat].gross += lineTotal;
           catMap[cat].net += lineTotal;
+          catMap[cat].cost += lineCost;
+          catMap[cat].profit += lineProfit;
         });
       }
     });
@@ -267,11 +273,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const netSales = grossSales - totalDiscounts - totalReturns;
     const profit = netSales - cogs;
+    const marginPercent = netSales > 0 ? (profit / netSales) * 100 : 0;
 
     return {
       meta: { branchId, fromDate, toDate },
       receipts: finishedSales, // Active valid sales
-      allReceipts: receipts,   // Includes returns/voids for logs
+      allReceipts: receipts,   // Includes returns/voids
       returns: returns,
       products: rawProducts,
       expenses: rawExpenses,
@@ -282,6 +289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         netSales,
         cogs,
         profit,
+        marginPercent,
         discounts: totalDiscounts,
         returns: totalReturns,
         tax: totalTax
@@ -307,12 +315,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const activeTab = document.querySelector('.report-tab.active')?.dataset.tab || 'live';
 
+      // Dispatch to specific renderers
       switch (activeTab) {
         case 'live':
           renderLiveMonitor(context);
           break;
         case 'sales':
           renderSalesStats(context);
+          break;
+        case 'cogs':
+          // Security Check
+          const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+          if (user.role === 'admin' || user.isAdmin) renderCOGSReport(context);
+          else alert("Access Denied");
           break;
         case 'inventory-report':
           if (typeof renderInventoryReport === 'function') renderInventoryReport(context);
@@ -324,6 +339,134 @@ document.addEventListener('DOMContentLoaded', async () => {
     } finally {
       if (btn) btn.classList.remove('animate-spin');
     }
+  }
+
+  function renderCOGSReport(ctx) {
+    const { totals, receipts, aggs } = ctx;
+
+    // 1. Summary Cards
+    document.getElementById('cogs-total').textContent = totals.cogs.toFixed(2) + ' EGP';
+    document.getElementById('cogs-profit').textContent = totals.profit.toFixed(2) + ' EGP';
+    document.getElementById('cogs-margin').textContent = totals.marginPercent.toFixed(1) + '%';
+
+    const avgCost = receipts.length > 0 ? totals.cogs / receipts.length : 0;
+    document.getElementById('cogs-avg-cost').textContent = avgCost.toFixed(2) + ' EGP';
+
+    // 2. Charts
+    // Breakdown Bar Chart
+    const chartBreakdown = document.getElementById('chart-cogs-breakdown');
+    if (chartBreakdown) {
+      if (window.cogsBreakdownChart) window.cogsBreakdownChart.destroy();
+      window.cogsBreakdownChart = new Chart(chartBreakdown, {
+        type: 'bar',
+        data: {
+          labels: ['Financial Overview'],
+          datasets: [
+            { label: 'COGS', data: [totals.cogs], backgroundColor: '#f59e0b' }, // Amber
+            { label: 'Net Sales', data: [totals.netSales], backgroundColor: '#3b82f6' }, // Blue
+            { label: 'Gross Profit', data: [totals.profit], backgroundColor: '#10b981' } // Green
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    // COGS by Category Pie
+    const chartCategory = document.getElementById('chart-cogs-category');
+    if (chartCategory) {
+      if (window.cogsCategoryChart) window.cogsCategoryChart.destroy();
+
+      const labels = Object.keys(aggs.category);
+      const data = Object.values(aggs.category).map(c => c.cost);
+
+      window.cogsCategoryChart = new Chart(chartCategory, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{ data: data, backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981'], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: false } } }
+      });
+    }
+
+    // 3. Tables
+    renderProductProfitability(aggs.product);
+    renderCategoryProfitability(aggs.category);
+    renderLowMarginAlerts(aggs.product);
+  }
+
+  function renderProductProfitability(prodMap) {
+    const tbody = document.getElementById('table-cogs-products');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    Object.entries(prodMap)
+      .sort((a, b) => b[1].profit - a[1].profit)
+      .slice(0, 50)
+      .forEach(([name, s]) => {
+        const margin = s.net > 0 ? (s.profit / s.net) * 100 : 0;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-50";
+        tr.innerHTML = `
+                    <td class="px-4 py-2 font-medium">${name}</td>
+                    <td class="px-4 py-2">${s.qty}</td>
+                    <td class="px-4 py-2 text-amber-600">${s.cost.toFixed(2)}</td>
+                    <td class="px-4 py-2 text-green-600 font-bold">${s.profit.toFixed(2)}</td>
+                    <td class="px-4 py-2 text-xs font-bold ${margin < 20 ? 'text-red-500' : 'text-slate-500'}">${margin.toFixed(1)}%</td>
+                `;
+        tbody.appendChild(tr);
+      });
+  }
+
+  function renderCategoryProfitability(catMap) {
+    const tbody = document.getElementById('table-cogs-categories');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    Object.entries(catMap)
+      .sort((a, b) => b[1].profit - a[1].profit)
+      .forEach(([name, s]) => {
+        const margin = s.net > 0 ? (s.profit / s.net) * 100 : 0;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-50";
+        tr.innerHTML = `
+                    <td class="px-4 py-2 font-medium">${name}</td>
+                    <td class="px-4 py-2 text-amber-600">${s.cost.toFixed(2)}</td>
+                    <td class="px-4 py-2">${s.net.toFixed(2)}</td>
+                    <td class="px-4 py-2 text-green-600 font-bold">${s.profit.toFixed(2)}</td>
+                    <td class="px-4 py-2 text-xs font-bold ${margin < 20 ? 'text-red-500' : 'text-slate-500'}">${margin.toFixed(1)}%</td>
+                `;
+        tbody.appendChild(tr);
+      });
+  }
+
+  function renderLowMarginAlerts(prodMap) {
+    const tbody = document.getElementById('table-cogs-alerts');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    Object.entries(prodMap)
+      .filter(([_, s]) => {
+        const margin = s.net > 0 ? (s.profit / s.net) * 100 : 0;
+        return margin < 20 && s.qty > 0;
+      })
+      .forEach(([name, s]) => {
+        const margin = s.net > 0 ? (s.profit / s.net) * 100 : 0;
+        const unitCost = s.qty > 0 ? s.cost / s.qty : 0;
+        const unitPrice = s.qty > 0 ? s.net / s.qty : 0;
+        const suggested = unitCost / 0.7; // Target 30% margin
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-red-50 border-b border-red-100 bg-red-50/30";
+        tr.innerHTML = `
+                    <td class="px-6 py-3 font-medium text-slate-800">${name}</td>
+                    <td class="px-6 py-3 text-slate-500">${unitCost.toFixed(2)}</td>
+                    <td class="px-6 py-3 text-red-600 font-bold">${unitPrice.toFixed(2)}</td>
+                    <td class="px-6 py-3 text-xs font-bold text-red-600">${margin.toFixed(1)}%</td>
+                    <td class="px-6 py-3 font-bold text-green-700">${suggested.toFixed(2)}</td>
+                `;
+        tbody.appendChild(tr);
+      });
   }
 
   // === 7. LIVE MONITOR RENDERER (Phase 2) ===

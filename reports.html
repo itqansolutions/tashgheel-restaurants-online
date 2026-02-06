@@ -424,12 +424,124 @@
             </div>
 
             <!-- 5. COGS & PROFIT (Admin) -->
-            <div id="card-cogs" class="report-card admin-only hidden">
-              <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-md">
-                <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
-                  <span class="material-symbols-outlined text-amber-500">inventory</span> Cost of Goods Sold
-                </h3>
-                <div class="text-3xl font-bold text-slate-800 mt-4" id="total-cogs">0.00 EGP</div>
+            <div id="card-cogs" class="report-card admin-only hidden space-y-6">
+
+              <!-- Row 1: Summary Cards -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Total COGS</div>
+                  <div class="text-xl font-bold text-slate-800" id="cogs-total">0.00 EGP</div>
+                  <div class="text-[10px] text-slate-400 font-semibold mt-1">Cost of Goods</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Gross Profit</div>
+                  <div class="text-xl font-bold text-emerald-700" id="cogs-profit">0.00 EGP</div>
+                  <div class="text-[10px] text-emerald-600 font-semibold mt-1">Net Sales - COGS</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Profit Margin %</div>
+                  <div class="text-xl font-bold text-blue-600" id="cogs-margin">0.0%</div>
+                  <div class="text-[10px] text-blue-400 font-semibold mt-1">Profit / Net Sales</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 uppercase mb-1">Avg Cost / Order</div>
+                  <div class="text-xl font-bold text-slate-800" id="cogs-avg-cost">0.00 EGP</div>
+                  <div class="text-[10px] text-slate-400 font-semibold mt-1">Efficiency Metric</div>
+                </div>
+              </div>
+
+              <!-- Row 2: Charts -->
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Profit Breakdown -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-600">bar_chart</span> Income Breakdown
+                  </h3>
+                  <div class="h-64 relative">
+                    <canvas id="chart-cogs-breakdown"></canvas>
+                  </div>
+                </div>
+                <!-- COGS by Category -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-600">pie_chart</span> Cost by Category
+                  </h3>
+                  <div class="h-64 relative flex items-center justify-center">
+                    <canvas id="chart-cogs-category"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 3: Tables -->
+              <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+                <!-- Product Profitability -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-800 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-slate-400">inventory_2</span> Product Profitability
+                  </div>
+                  <div class="overflow-x-auto max-h-80">
+                    <table class="w-full text-left border-collapse">
+                      <thead
+                        class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200 sticky top-0">
+                        <tr>
+                          <th class="px-4 py-2">Product</th>
+                          <th class="px-4 py-2">Sold</th>
+                          <th class="px-4 py-2">Cost</th>
+                          <th class="px-4 py-2">Profit</th>
+                          <th class="px-4 py-2">Margin</th>
+                        </tr>
+                      </thead>
+                      <tbody id="table-cogs-products" class="divide-y divide-slate-100 text-sm text-slate-600"></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Category Profitability -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-800 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-slate-400">category</span> Category Profitability
+                  </div>
+                  <div class="overflow-x-auto max-h-80">
+                    <table class="w-full text-left border-collapse">
+                      <thead
+                        class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200 sticky top-0">
+                        <tr>
+                          <th class="px-4 py-2">Category</th>
+                          <th class="px-4 py-2">Cost</th>
+                          <th class="px-4 py-2">Revenue</th>
+                          <th class="px-4 py-2">Profit</th>
+                          <th class="px-4 py-2">Margin</th>
+                        </tr>
+                      </thead>
+                      <tbody id="table-cogs-categories" class="divide-y divide-slate-100 text-sm text-slate-600">
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Low Margin Alerts (Full Width) -->
+                <div class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-800 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-red-500">warning</span> Low Margin Alerts (&lt; 20%)
+                  </div>
+                  <div class="overflow-x-auto max-h-80">
+                    <table class="w-full text-left border-collapse">
+                      <thead
+                        class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200 sticky top-0">
+                        <tr>
+                          <th class="px-6 py-3">Product Name</th>
+                          <th class="px-6 py-3">Current Cost</th>
+                          <th class="px-6 py-3">Sales Price</th>
+                          <th class="px-6 py-3">Margin %</th>
+                          <th class="px-6 py-3">Suggested Price (30%)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="table-cogs-alerts" class="divide-y divide-slate-100 text-sm text-slate-600"></tbody>
+                    </table>
+                  </div>
+                </div>
+
               </div>
             </div>
 
