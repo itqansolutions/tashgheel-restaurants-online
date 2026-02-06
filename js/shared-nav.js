@@ -5,30 +5,30 @@
 
 const navigationTranslations = {
     en: {
-        service_visits: '🔧 Service Visits',
-        vendors: '🏪 Vendors',
-        customers: '👥 Customers',
-        spare_parts: '📦 Spare Parts',
-        receipts: '🧾 Receipts',
-        reports: '📈 Reports',
-        employees: '👔 Employees',
-        expenses: '💰 Expenses',
-        admin_panel: '⚙️ Admin Panel',
-        backup: '💾 Backup',
-        logout: '🚪 Logout'
+        service_visits: 'Service Visits',
+        vendors: 'Vendors',
+        customers: 'Customers',
+        spare_parts: 'Spare Parts',
+        receipts: 'Receipts',
+        reports: 'Reports',
+        employees: 'Employees',
+        expenses: 'Expenses',
+        admin_panel: 'Admin Panel',
+        backup: 'Backup',
+        logout: 'Logout'
     },
     ar: {
-        service_visits: '🔧 زيارات الصيانة',
-        vendors: '🏪 الموردين',
-        customers: '👥 العملاء',
-        spare_parts: '📦 قطع الغيار',
-        receipts: '🧾 الفواتير',
-        reports: '📈 التقارير',
-        employees: '👔 الموظفين',
-        expenses: '💰 المصاريف',
-        admin_panel: '⚙️ لوحة التحكم',
-        backup: '💾 النسخ الاحتياطي',
-        logout: '🚪 تسجيل الخروج'
+        service_visits: 'زيارات الصيانة',
+        vendors: 'الموردين',
+        customers: 'العملاء',
+        spare_parts: 'قطع الغيار',
+        receipts: 'الفواتير',
+        reports: 'التقارير',
+        employees: 'الموظفين',
+        expenses: 'المصاريف',
+        admin_panel: 'لوحة التحكم',
+        backup: 'النسخ الاحتياطي',
+        logout: 'تسجل الخروج'
     }
 };
 

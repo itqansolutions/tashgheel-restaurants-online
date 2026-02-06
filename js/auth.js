@@ -18,45 +18,90 @@ async function initializeDataSystem() {
         return;
     }
 
-    // Inject or Repair Loading Overlay
+    // Inject or Repair Loading Toast (Non-intrusive)
     let overlay = document.getElementById('loadingOverlay');
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'loadingOverlay';
         document.body.appendChild(overlay);
+
+        // Inject Toast Styles
+        const style = document.createElement('style');
+        style.textContent = `
+            #loadingOverlay {
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                background: rgba(15, 23, 42, 0.9); /* Slate-900 */
+                color: white;
+                padding: 12px 20px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                z-index: 9999;
+                opacity: 0;
+                transform: translateY(20px);
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                pointer-events: none; /* Non-blocking */
+                border: 1px solid rgba(255,255,255,0.1);
+                backdrop-filter: blur(8px);
+            }
+            #loadingOverlay.active {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            .loader-spinner {
+                width: 18px;
+                height: 18px;
+                border: 2px solid rgba(255,255,255,0.3);
+                border-radius: 50%;
+                border-top-color: #fff;
+                animation: spin 0.8s linear infinite;
+            }
+            .loader-text {
+                font-family: 'Inter', sans-serif;
+                font-size: 0.875rem;
+                font-weight: 500;
+            }
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     // FAILSAFE: Force remove overlay after 5 seconds no matter what
     setTimeout(() => {
         const overlay = document.getElementById('loadingOverlay');
-        if (overlay && (overlay.classList.contains('active') || overlay.style.display !== 'none')) {
-            console.log('🛡️ Safety: Ensuring loading overlay is hidden.');
+        if (overlay && overlay.classList.contains('active')) {
+            console.log('🛡️ Safety: Ensuring loading toast is hidden.');
             overlay.classList.remove('active');
-            overlay.style.display = 'none';
         }
     }, 5000);
 
-    // Ensure content exists (Self-Healing)
+    // Ensure content exists
     if (!overlay.querySelector('.loader-text')) {
         overlay.innerHTML = `
             <div class="loader-spinner"></div>
-            <div class="loader-text">Loading System Data...</div>
+            <div class="loader-text">Synchronizing...</div>
         `;
     }
 
-    // Global Loader Controls (Class-based)
+    // Global Loader Controls
     window.showLoading = (msg = 'Loading...') => {
         const loader = document.getElementById('loadingOverlay');
         if (loader) {
             const textEl = loader.querySelector('.loader-text');
             if (textEl) textEl.textContent = msg;
-            loader.classList.add('active'); // Use class
+            loader.classList.add('active');
         }
     };
 
     window.hideLoading = () => {
         const loader = document.getElementById('loadingOverlay');
-        if (loader) loader.classList.remove('active'); // Remove class
+        if (loader) loader.classList.remove('active');
     };
 
     if (!window.electronAPI) return; // Web mode
