@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -249,6 +249,13 @@
                       <input type="text" id="user-role-other" class="form-control" placeholder="Enter Custom Role"
                         style="display:none; margin-top:5px;">
                     </div>
+                    <div class="form-group">
+                      <label class="form-label">Assign Branch</label>
+                      <select id="user-branch-select" class="form-control">
+                        <option value="">-- Select Branch --</option>
+                      </select>
+                    </div>
+                    </div>
                   </div>
 
                   <div class="form-group">
@@ -305,7 +312,8 @@
           <div class="card">
             <div class="card-header">?? Branch Management</div>
             <div class="card-body">
-              <div style="background:#f0fff4; padding:15px; border-radius:8px; border:1px solid #c6f6d5; margin-bottom:20px;">
+              <div
+                style="background:#f0fff4; padding:15px; border-radius:8px; border:1px solid #c6f6d5; margin-bottom:20px;">
                 <h4 style="margin:0 0 10px 0; color:#276749;">Add New Branch</h4>
                 <form id="branch-form">
                   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
@@ -315,7 +323,8 @@
                     </div>
                     <div class="form-group">
                       <label class="form-label">Branch Code</label>
-                      <input type="text" id="branch-code" class="form-control" placeholder="e.g. HQ" required style="text-transform:uppercase;" maxlength="10">
+                      <input type="text" id="branch-code" class="form-control" placeholder="e.g. HQ" required
+                        style="text-transform:uppercase;" maxlength="10">
                     </div>
                   </div>
                   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
