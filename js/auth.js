@@ -261,9 +261,15 @@ async function resolveBranchAndStart() {
 
     } catch (err) {
         console.error("❌ Branch resolution failed", err);
-        if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
-            window.location.href = 'index.html';
-        }
+
+        // DISABLED: This was causing a redirect loop
+        // The proper fix is to verify cookies are being set, not force redirects
+        // if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
+        //     window.location.href = 'index.html';
+        // }
+
+        // For now, just log the error and let the page load
+        // User can manually go to login if needed
     }
 }
 
