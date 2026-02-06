@@ -96,10 +96,14 @@ function loadAddonsDropdown() {
 
 document.addEventListener("DOMContentLoaded", () => {
   // EnhancedSecurity.init() is now auto-handled by auth.js
-  if (!window.isSessionValid()) {
-    window.location.href = 'index.html';
-    return;
-  }
+
+  // REMOVED: Legacy session check - conflicts with web Cookie auth flow
+  // The session is now validated server-side via HTTP-Only cookies.
+  // auth.js -> resolveBranchAndStart handles auth checks.
+  // if (!window.isSessionValid()) {
+  //   window.location.href = 'index.html';
+  //   return;
+  // }
 
   loadProducts();
   loadCategories();
