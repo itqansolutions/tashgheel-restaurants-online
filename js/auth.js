@@ -807,7 +807,7 @@ async function initializeDefaultData() {
         }
     ];
 
-    await EnhancedSecurity.storeSecureData('products', defaultProducts);
+    await EnhancedSecurity.storeSecureData('spare_parts', defaultProducts);
     await EnhancedSecurity.storeSecureData('sales', []);
     await EnhancedSecurity.storeSecureData('returns', []);
 }
