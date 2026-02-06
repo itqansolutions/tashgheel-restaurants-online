@@ -273,33 +273,66 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const netSales = grossSales - totalDiscounts - totalReturns;
     const profit = netSales - cogs;
-    const marginPercent = netSales > 0 ? (profit / netSales) * 100 : 0;
+    // Expense Aggregation
+    let totalExpenses = 0;
+    let largestExp = 0;
+    let largestExpName = '-';
+    const expCatMap = {};
+    const dailyExpMap = {};
+
+    rawExpenses.forEach(e => {
+      const amt = parseFloat(e.amount) || 0;
+      totalExpenses += amt;
+
+      // Largest
+      if (amt > largestExp) {
+        largestExp = amt;
+        largestExpName = e.description || e.category;
+      }
+
+      // By Category
+      const cat = e.category || 'Other';
+      expCatMap[cat] = (expCatMap[cat] || 0) + amt;
+
+      // Daily Trend
+      const day = new Date(e.date).toLocaleDateString();
+      dailyExpMap[day] = (dailyExpMap[day] || 0) + amt;
+    });
+
+    // Golden Net Profit
+    const netProfit = profit - totalExpenses; // Gross Profit (from Sales) - Expenses
 
     return {
       meta: { branchId, fromDate, toDate },
-      receipts: finishedSales, // Active valid sales
-      allReceipts: receipts,   // Includes returns/voids
+      receipts: finishedSales,
+      allReceipts: receipts,
       returns: returns,
       products: rawProducts,
-      expenses: rawExpenses,
+      expenses: rawExpenses, // The filtered list
       shifts: shifts,
       // Pre-calculated Golden Numbers
       totals: {
         grossSales,
         netSales,
         cogs,
-        profit,
+        profit: profit, // Gross Profit
+        netProfit: netProfit, // Real Bottom Line
         marginPercent,
         discounts: totalDiscounts,
         returns: totalReturns,
-        tax: totalTax
+        tax: totalTax,
+        expenses: totalExpenses,
+        largestExpense: largestExp,
+        largestExpenseName: largestExpName
       },
       // Aggregates
       aggs: {
         category: catMap,
         cashier: cashierMap,
         product: prodMap,
-        payment: payMap
+        payment: payMap,
+        expenseCategory: expCatMap,
+        expenseDaily: dailyExpMap
       }
     };
   }
@@ -315,7 +348,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const activeTab = document.querySelector('.report-tab.active')?.dataset.tab || 'live';
 
-      // Dispatch to specific renderers
+      // Check Permissions for Add Button
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      const canEdit = user.role === 'admin' || user.role === 'manager' || user.isAdmin;
+      const addBtn = document.getElementById('btn-add-expense');
+      if (addBtn) {
+        if (canEdit) addBtn.classList.remove('hidden');
+        else addBtn.classList.add('hidden');
+      }
+
       switch (activeTab) {
         case 'live':
           renderLiveMonitor(context);
@@ -324,10 +365,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           renderSalesStats(context);
           break;
         case 'cogs':
-          // Security Check
-          const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
           if (user.role === 'admin' || user.isAdmin) renderCOGSReport(context);
           else alert("Access Denied");
+          break;
+        case 'expenses':
+          renderExpensesReport(context);
           break;
         case 'inventory-report':
           if (typeof renderInventoryReport === 'function') renderInventoryReport(context);
