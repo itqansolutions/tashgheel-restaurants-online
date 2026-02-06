@@ -17,13 +17,22 @@ window.currentPage = 'vendors';
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Vendors page loading...');
 
-    // REMOVED: Legacy session check - auth.js handles this via cookies
-    // if (!window.isSessionValid()) {
-    //     console.log('Session invalid, redirecting...');
-    //     window.location.href = 'index.html';
-    //     return;
-    // }
+    // Initialize Data safely
+    if (window.SystemReady) {
+        initVendorsApp();
+    } else {
+        window.addEventListener('SystemDataReady', () => {
+            console.log('🚀 System Data Ready - Initializing Vendors');
+            initVendorsApp();
+        });
+        // Failsafe
+        setTimeout(() => {
+            if (!document.getElementById('vendorsContainer').innerHTML.trim()) initVendorsApp();
+        }, 2000);
+    }
+});
 
+function initVendorsApp() {
     console.log('Session valid, rendering vendors...');
     try {
         renderVendors();
@@ -36,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('languageChanged', () => {
         renderVendors();
     });
-});
+}
 
 function renderVendors() {
     console.log('renderVendors called');

@@ -4,15 +4,26 @@
 window.currentPage = 'inventory';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Attach listeners immediately to prevent native form submission
+    // Attach listeners immediately
     const form = document.getElementById('inventory-form');
     if (form) form.addEventListener('submit', handleSaveMaterial);
 
     const search = document.getElementById('searchBox');
     if (search) search.addEventListener('input', loadInventory);
 
-    // Initialize Data
-    initApp();
+    // Initialize Data safely
+    if (window.SystemReady) {
+        initApp();
+    } else {
+        window.addEventListener('SystemDataReady', () => {
+            console.log('🚀 System Data Ready - Initializing Inventory');
+            initApp();
+        });
+        // Failsafe: Try anyway after 2 seconds if event missed
+        setTimeout(() => {
+            if (!document.getElementById('inventory-table-body').innerHTML.trim()) initApp();
+        }, 2000);
+    }
 });
 
 async function initApp() {
@@ -44,11 +55,17 @@ function loadInventory() {
     const materials = window.DB.getIngredients();
     const vendors = window.DB.getVendors();
     const search = document.getElementById('searchBox').value.toLowerCase();
-    const container = document.getElementById('inventory-table-container'); // Assuming this is the container for the entire inventory display
+    const dashboardContainer = document.getElementById('inventory-dashboard');
+    const tbody = document.getElementById('inventory-table-body');
 
-    const filtered = materials.filter(m => m.name.toLowerCase().includes(search));
+    if (!tbody) {
+        console.error('Inventory Table Body not found');
+        return;
+    }
 
-    container.innerHTML = `
+    // Render Dashboard
+    if (dashboardContainer) {
+        dashboardContainer.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div class="bg-red-50 p-4 rounded-xl border border-red-100 flex items-center justify-between">
                 <div>
@@ -73,30 +90,29 @@ function loadInventory() {
             </div>
              <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center justify-between">
                  <div>
-                    <div class="text-xs font-bold text-emerald-500 uppercase">Healty Stock</div>
+                    <div class="text-xs font-bold text-emerald-500 uppercase">Healthy Stock</div>
                     <div class="text-xl font-bold text-emerald-700" id="alert-healthy-count">0</div>
                 </div>
                 <span class="material-symbols-outlined text-emerald-400 text-3xl">check_circle</span>
             </div>
-        </div>
+        </div>`;
+    }
 
-        <table class="w-full text-left border-collapse">
-            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200 sticky top-0">
-                <tr>
-                    <th class="px-6 py-3">Material Name</th>
-                    <th class="px-6 py-3">Unit</th>
-                    <th class="px-6 py-3 text-right">Cost</th>
-                    <th class="px-6 py-3 text-center">Stock</th>
-                    <th class="px-6 py-3 text-right">Value</th>
-                    <th class="px-6 py-3">Vendor</th>
-                    <th class="px-6 py-3 text-center">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 bg-white" id="inventory-table-body">
-                <!-- Rows -->
-            </tbody>
-        </table>
-    `;
+    const filtered = materials.filter(m => m.name.toLowerCase().includes(search));
+
+    tbody.innerHTML = '';
+
+    // Reset Counts
+    let expiredCount = 0;
+    let expiringCount = 0;
+    let deadCount = 0;
+    let healthyCount = 0;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">No materials found.</td></tr>';
+        // Only return if we truly want to stop. But we should probably leave the dashboard up?
+        // Let's continue to update dashboard even if empty (counts will be 0)
+    }
 
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No materials found.</td></tr>';
