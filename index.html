@@ -1,171 +1,243 @@
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy"
-    content="script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tashgeel POS System</title>
-  <link rel="stylesheet" href="css/styles.css">
-
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Tashgheel POS Login</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#10b981",
+            navy: "#0f172a",
+            "field-blue": "#eef2ff",
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      body {
+        @apply font-sans antialiased;
+      }
+    }
+    :root {
+      --bg-gradient: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    }
+    .bg-deep-gradient {
+      background: var(--bg-gradient);
+    }
+    .glass-border {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    }
+    @keyframes floatRotate {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 0.05; }
+      25% { opacity: 0.15; }
+      50% { transform: translate(15px, -25px) rotate(180deg); opacity: 0.1; }
+      75% { opacity: 0.15; }
+      100% { transform: translate(0, 0) rotate(360deg); opacity: 0.05; }
+    }
+    .icon-float {
+      animation: floatRotate var(--duration, 20s) ease-in-out infinite;
+      animation-delay: var(--delay, 0s);
+    }
+    body {
+      min-height: max(884px, 100dvh);
+    }
+    /* Modal styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+  </style>
 </head>
 
-<!-- ... (body content) ... -->
-
-
-
-<body>
-  <!-- Language Switcher -->
-  <div class="language-switcher">
-    <button class="lang-btn" data-lang="en" id="langEn">English</button>
-    <button class="lang-btn" data-lang="ar" id="langAr">العربية</button>
+<body class="min-h-screen overflow-x-hidden flex items-center justify-center p-4 bg-deep-gradient">
+  <!-- Floating Background Icons -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden select-none opacity-40">
+    <span class="material-symbols-outlined absolute text-white text-4xl icon-float"
+      style="top: 5%; left: 8%; --duration: 18s; --delay: 0s;">skillet</span>
+    <span class="material-symbols-outlined absolute text-white text-3xl icon-float"
+      style="top: 15%; left: 25%; --duration: 22s; --delay: -5s;">cooking</span>
+    <span class="material-symbols-outlined absolute text-white text-5xl icon-float"
+      style="top: 45%; left: 5%; --duration: 25s; --delay: -2s;">restaurant_menu</span>
+    <span class="material-symbols-outlined absolute text-white text-6xl icon-float"
+      style="top: 10%; right: 10%; --duration: 30s; --delay: -10s;">local_pizza</span>
+    <span class="material-symbols-outlined absolute text-white text-4xl icon-float"
+      style="top: 30%; right: 25%; --duration: 20s; --delay: -3s;">set_meal</span>
+    <span class="material-symbols-outlined absolute text-white text-5xl icon-float"
+      style="bottom: 15%; left: 10%; --duration: 28s; --delay: -15s;">bakery_dining</span>
+    <span class="material-symbols-outlined absolute text-white text-4xl icon-float"
+      style="bottom: 40%; left: 20%; --duration: 24s; --delay: -7s;">coffee</span>
+    <span class="material-symbols-outlined absolute text-white text-5xl icon-float"
+      style="top: 60%; right: 15%; --duration: 26s; --delay: -12s;">icecream</span>
+    <span class="material-symbols-outlined absolute text-white text-4xl icon-float"
+      style="bottom: 10%; right: 8%; --duration: 21s; --delay: -4s;">receipt_long</span>
+    <span class="material-symbols-outlined absolute text-white text-3xl icon-float"
+      style="bottom: 25%; right: 30%; --duration: 23s; --delay: -9s;">table_restaurant</span>
+    <span class="material-symbols-outlined absolute text-white text-5xl icon-float"
+      style="top: 40%; left: 40%; --duration: 35s; --delay: -1s;">event_note</span>
+    <span class="material-symbols-outlined absolute text-white text-4xl icon-float"
+      style="bottom: 50%; right: 5%; --duration: 27s; --delay: -6s;">chair</span>
+    <span class="material-symbols-outlined absolute text-white text-2xl icon-float"
+      style="top: 80%; left: 45%; --duration: 19s; --delay: -2s;">flatware</span>
+    <span class="material-symbols-outlined absolute text-white text-3xl icon-float"
+      style="top: 15%; left: 60%; --duration: 29s; --delay: -11s;">fastfood</span>
+    <span class="material-symbols-outlined absolute text-white text-2xl icon-float"
+      style="bottom: 5%; left: 60%; --duration: 32s; --delay: -4s;">local_cafe</span>
   </div>
 
-  <!-- Login Screen -->
-  <div class="login-screen">
-    <div class="license-container">
-      <div class="version-badge">ENHANCED</div>
-      <div class="pos-logo"><img src="favicon.png" alt="Tashgheel" style="width:64px; height:64px;"></div>
-      <h1 id="loginTitle" style="font-size:1.4rem; color:#1e293b; margin-bottom:5px;">Tashgheel POS for Food & Beverage
-        (F&B) Industry</h1>
-      <p class="subtitle" id="subtitle" style="font-size:0.85rem; color:#64748b; margin-top:0;">Powered by itqan</p>
-
-      <!-- System Status (SaaS Mode) -->
-      <div id="activationInfo" style="text-align: center; margin-bottom: 20px;">
-        <span style="color: #27ae60; font-weight: bold;">✅ SaaS Subscription Active</span>
+  <!-- Main Login Card -->
+  <div
+    class="relative w-full max-w-md bg-white rounded-[40px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] glass-border p-8 md:p-10 z-10 flex flex-col items-center">
+    <div class="flex flex-col items-center text-center w-full mb-8">
+      <div class="w-16 h-16 mb-4 flex items-center justify-center">
+        <img alt="Restaurant Logo" class="w-full h-full object-contain" src="favicon.png" />
       </div>
-
-      <!-- Login Form (shown when activated) -->
-      <form class="login-form hidden" id="loginForm">
-        <div class="form-group">
-          <label id="businessEmailLabel" data-i18n-key="business_email">Business Email:</label>
-          <input type="email" id="businessEmail" placeholder="owner@business.com" required />
-        </div>
-        <div class="form-group">
-          <label id="usernameLabel" data-i18n-key="username">Username:</label>
-          <input type="text" id="username" required />
-        </div>
-        <div class="form-group">
-          <label id="passwordLabel" data-i18n-key="password">Password:</label>
-          <input type="password" id="password" required />
-        </div>
-        <button type="submit" class="btn btn-success" id="loginBtn" data-i18n-key="login_btn">🚀 Launch System</button>
-        <div id="loginError" class="error"></div>
-
-        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; text-align: center;">
-          <p style="margin-bottom: 10px;">
-            <a href="#" onclick="showRegisterModal(); return false;"
-              style="color: #27ae60; text-decoration: none; font-weight: bold;" data-i18n-key="no_account">Register New
-              Business</a>
-          </p>
-          <a href="super-admin.html" style="color: #666; text-decoration: none; font-size: 0.85em;"
-            data-i18n-key="super_admin_login">🔐 Super Admin Login</a>
-        </div>
-      </form>
-
-      <!-- Security Features -->
-      <div class="security-notice">
-        <h3 id="securityFeaturesTitle" data-i18n-key="security_features">🔐 Security Features</h3>
-        <ul id="securityFeaturesList">
-          <li id="feature1" data-i18n-key="feature1">One-time license activation</li>
-          <li id="feature2" data-i18n-key="feature2">Encrypted data storage</li>
-          <li id="feature3" data-i18n-key="feature3">Automatic secure backups</li>
-          <li id="feature4" data-i18n-key="feature4">Multi-language support</li>
-          <li id="feature5" data-i18n-key="feature5">Role-based access control</li>
-          <li id="feature6" data-i18n-key="feature6">Receipt printing with logo</li>
-        </ul>
+      <h1 class="text-2xl md:text-3xl font-bold text-navy mb-1 tracking-tight">Tashgheel POS for Food & Beverage (F&B)
+        Industry</h1>
+      <p class="text-slate-500 text-sm font-medium mb-4">Powered By itqan</p>
+      <div id="activationInfo"
+        class="flex items-center space-x-2 bg-green-50 px-4 py-1.5 rounded-md border border-green-200">
+        <span class="material-symbols-outlined text-green-600 text-lg">check_box</span>
+        <span class="text-green-600 text-sm font-bold">SaaS Subscription Active</span>
       </div>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="w-full space-y-6">
+      <div class="space-y-1.5">
+        <label id="businessEmailLabel" class="block text-sm font-bold text-slate-700 ml-1"
+          data-i18n-key="business_email">Business Email:</label>
+        <input type="email" id="businessEmail"
+          class="w-full px-4 py-3 bg-[#eef2ff] border border-slate-200 rounded-lg text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+          placeholder="owner@business.com" required />
+      </div>
+      <div class="space-y-1.5">
+        <label id="usernameLabel" class="block text-sm font-bold text-slate-700 ml-1"
+          data-i18n-key="username">Username</label>
+        <input type="text" id="username"
+          class="w-full px-4 py-3 bg-[#eef2ff] border border-slate-200 rounded-lg text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+          placeholder="tashgheel" required />
+      </div>
+      <div class="space-y-1.5">
+        <label id="passwordLabel" class="block text-sm font-bold text-slate-700 ml-1"
+          data-i18n-key="password">Password</label>
+        <input type="password" id="password"
+          class="w-full px-4 py-3 bg-[#eef2ff] border border-slate-200 rounded-lg text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+          placeholder="••••••••••••" required />
+      </div>
+      <div id="loginError" class="text-red-500 text-sm text-center"></div>
+      <button type="submit" id="loginBtn"
+        class="w-full bg-[#10b981] hover:bg-[#059669] text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center space-x-2 transition-all transform active:scale-[0.98]"
+        data-i18n-key="login_btn">
+        <span class="material-symbols-outlined">rocket_launch</span>
+        <span>Launch System</span>
+      </button>
+    </form>
+
+    <div class="mt-8 flex flex-col items-center space-y-4">
+      <button onclick="showRegisterModal()" class="text-[#10b981] font-bold hover:underline"
+        data-i18n-key="no_account">Register New Business</button>
+      <a href="super-admin.html" class="flex items-center space-x-1.5 text-slate-500 hover:text-navy transition-colors"
+        data-i18n-key="super_admin_login">
+        <span class="material-symbols-outlined text-lg">lock</span>
+        <span class="text-xs font-medium">Super Admin Login</span>
+      </a>
     </div>
   </div>
 
+  <!-- Language Switcher -->
+  <div class="fixed top-6 right-6 flex space-x-2 z-20">
+    <button id="langEn" data-lang="en"
+      class="px-5 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white text-sm font-bold rounded-full transition-all">English</button>
+    <button id="langAr" data-lang="ar"
+      class="px-5 py-2 bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 text-white/70 text-sm font-bold rounded-full transition-all">العربية</button>
+  </div>
+
+  <!-- Footer -->
+  <div class="fixed bottom-6 w-full text-center z-20 pointer-events-none">
+    <p class="text-white/40 text-xs font-medium">
+      Tashgheel POS &copy; 2025 | <span class="text-white/60">+201126522373 / +201155253886</span>
+    </p>
+  </div>
+
   <!-- Registration Modal -->
-  <div id="registerModal" class="modal"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:2000;">
-    <div class="modal-content" style="background:white; padding:30px; border-radius:10px; width:400px; max-width:90%;">
-      <h3>Register New Business</h3>
-      <form id="registerForm">
-        <div class="form-group">
-          <input type="text" id="regBusinessName" placeholder="Business Name" class="form-control" required
-            style="width:100%; margin-bottom:10px; padding:8px;">
-        </div>
-        <div class="form-group">
-          <input type="email" id="regEmail" placeholder="Owner Email" class="form-control" required
-            style="width:100%; margin-bottom:10px; padding:8px;">
-        </div>
-        <div class="form-group">
-          <input type="tel" id="regPhone" placeholder="Mobile Number" class="form-control" required
-            style="width:100%; margin-bottom:10px; padding:8px;">
-        </div>
-        <div class="form-group">
-          <input type="text" id="regUsername" placeholder="Admin Username" class="form-control" required
-            style="width:100%; margin-bottom:10px; padding:8px;">
-        </div>
-        <div class="form-group">
-          <input type="password" id="regPassword" placeholder="Password" class="form-control" required
-            style="width:100%; margin-bottom:15px; padding:8px;">
-        </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;">Create Account</button>
-        <button type="button" onclick="document.getElementById('registerModal').style.display='none'"
-          class="btn btn-secondary" style="width:100%; margin-top:10px;">Cancel</button>
+  <div id="registerModal" class="modal-overlay">
+    <div class="bg-white p-8 rounded-3xl w-[400px] max-w-[90%] shadow-2xl">
+      <h3 class="text-xl font-bold text-navy mb-6">Register New Business</h3>
+      <form id="registerForm" class="space-y-4">
+        <input type="text" id="regBusinessName" placeholder="Business Name"
+          class="w-full px-4 py-3 bg-[#eef2ff] border border-slate-200 rounded-lg" required />
+        <input type="email" id="regEmail" placeholder="Owner Email"
+          class="w-full px-4 py-3 bg-[#eef2ff] border border-slate-200 rounded-lg" required />
+        <input type="tel" id="regPhone" placeholder="Mobile Number"
+          class="w-full px-4 py-3 bg-[#eef2ff] border border-slate-200 rounded-lg" required />
+        <input type="text" id="regUsername" placeholder="Admin Username"
+          class="w-full px-4 py-3 bg-[#eef2ff] border border-slate-200 rounded-lg" required />
+        <input type="password" id="regPassword" placeholder="Password"
+          class="w-full px-4 py-3 bg-[#eef2ff] border border-slate-200 rounded-lg" required />
+        <button type="submit"
+          class="w-full bg-[#10b981] hover:bg-[#059669] text-white font-bold py-3 rounded-lg transition-all">Create
+          Account</button>
+        <button type="button" onclick="hideRegisterModal()"
+          class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-lg transition-all">Cancel</button>
       </form>
     </div>
   </div>
 
   <!-- Branch Selection Modal -->
-  <div id="branchModal" class="modal"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; z-index:2000;">
-    <div class="modal-content"
-      style="background:white; padding:30px; border-radius:10px; width:400px; max-width:90%; text-align:center;">
-      <h3 style="margin-bottom: 20px;">🏢 Select Branch</h3>
-      <p style="margin-bottom: 20px; color:#666;">Please choose a branch to continue.</p>
-      <div id="branchList"
-        style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;">
+  <div id="branchModal" class="modal-overlay">
+    <div class="bg-white p-8 rounded-3xl w-[400px] max-w-[90%] shadow-2xl text-center">
+      <span class="material-symbols-outlined text-5xl text-primary mb-4">storefront</span>
+      <h3 class="text-xl font-bold text-navy mb-2">Select Branch</h3>
+      <p class="text-slate-500 text-sm mb-6">Please choose a branch to continue.</p>
+      <div id="branchList" class="flex flex-col gap-3 max-h-[300px] overflow-y-auto">
         <!-- Branch buttons will be injected here via auth.js -->
       </div>
-      <button onclick="logout(true)" class="btn btn-secondary"
-        style="margin-top:20px; width:100%; background:#e74c3c; color:white; border:none; padding:10px; border-radius:5px;">Logout</button>
+      <button onclick="logout(true)"
+        class="mt-6 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-lg transition-all">Logout</button>
     </div>
   </div>
 
-  <!-- Footer -->
-  <div class="footer">
-    Tashgheel POS© 2025</strong> |
-    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
-    <span id="footerText" data-i18n-key="enhanced_security">Designed and developed by itqan</span>
-  </div>
-
-
-
-
-
+  <!-- Scripts -->
   <script src="js/web-adapter.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/translations.js"></script>
   <script>
-    function copyMachineId() {
-      const copyText = document.getElementById("fingerprintDisplay");
-      if (copyText && copyText.value) {
-        copyText.select();
-        document.execCommand("copy");
-        // Simple visual feedback
-        const btn = document.querySelector('button[onclick="copyMachineId()"]');
-        const originalText = btn.textContent;
-        btn.textContent = "✅ Copied!";
-        setTimeout(() => btn.textContent = originalText, 2000);
-      }
+    function showRegisterModal() {
+      document.getElementById('registerModal').classList.add('active');
     }
-
-    function initLogin() {
-      // Show Login Form directly in SaaS Mode
-      document.getElementById("loginForm").classList.remove("hidden");
+    function hideRegisterModal() {
+      document.getElementById('registerModal').classList.remove('active');
     }
-
 
     document.addEventListener("DOMContentLoaded", async () => {
-      // Data System auto-initializes via auth.js
-      // await EnhancedSecurity.init(); // REMOVED (Legacy)
-      initLogin();
-
       const loginForm = document.getElementById('loginForm');
       loginForm.addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -176,9 +248,23 @@
         if (await window.login(username, password)) {
           // Redirection/Branch Picker handled inside login()
         } else {
-          errorDiv.textContent = '❌ Invalid username or password';
-          errorDiv.style.color = 'red';
+          errorDiv.textContent = 'Invalid username or password';
         }
+      });
+
+      // Language switcher highlight
+      const langBtns = document.querySelectorAll('[data-lang]');
+      const currentLang = localStorage.getItem('lang') || 'en';
+      langBtns.forEach(btn => {
+        if (btn.dataset.lang === currentLang) {
+          btn.classList.add('bg-white/20');
+          btn.classList.remove('bg-white/5', 'text-white/70');
+          btn.classList.add('text-white');
+        }
+        btn.addEventListener('click', () => {
+          localStorage.setItem('lang', btn.dataset.lang);
+          location.reload();
+        });
       });
     });
   </script>
