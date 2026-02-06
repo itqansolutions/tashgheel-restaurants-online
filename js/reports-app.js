@@ -302,6 +302,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Golden Net Profit
     const netProfit = profit - totalExpenses; // Gross Profit (from Sales) - Expenses
 
+    // === INVENTORY VALUATION (Phase 6) ===
+    let totalStockCost = 0;
+    let totalRetailValue = 0;
+    let lowStockCount = 0;
+    const stockCatMap = {};
+    const agingBuckets = { '0-7': 0, '8-30': 0, '31-90': 0, '90+': 0 };
+
+    rawProducts.forEach(p => {
+      const qty = parseFloat(p.qty) || 0;
+      const cost = parseFloat(p.cost || p.unitCost) || 0;
+      const price = parseFloat(p.price) || 0;
+      const min = parseFloat(p.minStock || 5); // Default min 5
+
+      // Only count positive stock for value? 
+      // Usually we value what we have. Negative stock is an anomaly (overselling)
+      if (qty > 0) {
+        totalStockCost += (qty * cost);
+        totalRetailValue += (qty * price);
+
+        // Category Map
+        const cat = p.category || 'Uncategorized';
+        stockCatMap[cat] = (stockCatMap[cat] || 0) + (qty * cost); // Value by Cost usually
+      }
+
+      if (qty <= min) lowStockCount++;
+
+      // Aging Analysis
+      // Assuming p.lastSoldAt exists. If not, check receipts? 
+      // Phase 6 asks to treat missing lastSoldAt as "very old"
+      let daysIdle = 999;
+      if (p.lastSoldAt) {
+        const diff = new Date() - new Date(p.lastSoldAt);
+        daysIdle = Math.floor(diff / (1000 * 60 * 60 * 24));
+      }
+
+      if (daysIdle <= 7) agingBuckets['0-7']++;
+      else if (daysIdle <= 30) agingBuckets['8-30']++;
+      else if (daysIdle <= 90) agingBuckets['31-90']++;
+      else agingBuckets['90+']++;
+
+      // Attach temporary computed props for the report renderer
+      p._computed = {
+        stockCost: qty * cost,
+        retailValue: qty * price,
+        daysIdle: daysIdle,
+        health: daysIdle <= 7 ? 'Healthy' : (daysIdle <= 30 ? 'Slow' : 'Dead')
+      };
+    });
+
+    const expectedStockProfit = totalRetailValue - totalStockCost;
+
     return {
       meta: { branchId, fromDate, toDate },
       receipts: finishedSales,
@@ -323,7 +374,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         tax: totalTax,
         expenses: totalExpenses,
         largestExpense: largestExp,
-        largestExpenseName: largestExpName
+        largestExpenseName: largestExpName,
+        // Inventory
+        stockCost: totalStockCost,
+        retailValue: totalRetailValue,
+        expectedStockProfit: expectedStockProfit,
+        lowStockCount: lowStockCount
       },
       // Aggregates
       aggs: {
@@ -332,7 +388,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         product: prodMap,
         payment: payMap,
         expenseCategory: expCatMap,
-        expenseDaily: dailyExpMap
+        expenseDaily: dailyExpMap,
+        stockCategory: stockCatMap,
+        stockAging: agingBuckets
       }
     };
   }
@@ -372,7 +430,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           renderExpensesReport(context);
           break;
         case 'inventory-report':
-          if (typeof renderInventoryReport === 'function') renderInventoryReport(context);
+          renderInventoryReport(context);
           break;
       }
 
