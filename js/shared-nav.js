@@ -115,6 +115,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileNav();
 });
 
+// Listen for Language Changes to re-render sidebar
+window.addEventListener('languageChanged', (e) => {
+    // Re-render navigation
+    const navContainer = document.querySelector('.sidebar nav') || document.querySelector('aside nav') || document.querySelector('#dynamic-nav');
+    if (navContainer && typeof window.currentPage !== 'undefined') {
+        navContainer.innerHTML = renderNavigation(window.currentPage);
+    }
+    // Re-render footer if exists (not implemented yet but good practice)
+});
+
 function setupMobileNav() {
     // 1. Check if sidebar exists
     const sidebar = document.querySelector('aside');

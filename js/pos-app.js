@@ -128,7 +128,7 @@ function updateShiftCashDisplay() {
   if (cashEl && currentShift) {
     // Note: This is an estimated running total, backend is source of truth on close
     // We can fetch live stats if needed, but for now showing opening cash
-    cashEl.textContent = `${currentShift.openingCash.toFixed(2)} EGP (Base)`;
+    cashEl.textContent = `${currentShift.openingCash.toFixed(2)} ${t('currency') || 'EGP'} (${t('base_cash') || 'Base'})`;
   }
 }
 
@@ -164,7 +164,7 @@ async function closeShiftFlow() {
   document.getElementById('statNetSales').textContent = cashSales.toFixed(2);
 
   const expected = s.openingCash + cashSales;
-  document.getElementById('statExpectedCash').textContent = `${expected.toFixed(2)} EGP`;
+  document.getElementById('statExpectedCash').textContent = `${expected.toFixed(2)} ${t('currency') || 'EGP'}`;
 
   document.getElementById('closeShiftModal').style.display = 'flex';
   document.getElementById('closingCashInput').value = '';
@@ -180,7 +180,7 @@ function calculateShiftDiff() {
   const diffEl = document.getElementById('statDiff');
   const highlight = document.getElementById('diffHighlight');
 
-  diffEl.textContent = `${diff.toFixed(2)} EGP`;
+  diffEl.textContent = `${diff.toFixed(2)} ${t('currency')}`;
   highlight.style.display = 'block';
 
   if (diff === 0) {
@@ -189,16 +189,16 @@ function calculateShiftDiff() {
   } else if (diff > 0) {
     highlight.style.background = '#e3f2fd';
     highlight.style.color = '#1565c0';
-    diffEl.textContent = `+${diff.toFixed(2)} EGP (Overage)`;
+    diffEl.textContent = `+${diff.toFixed(2)} ${t('currency')} (${t('overage')})`;
   } else {
     highlight.style.background = '#ffebee';
     highlight.style.color = '#c62828';
-    diffEl.textContent = `${diff.toFixed(2)} EGP (Shortage)`;
+    diffEl.textContent = `${diff.toFixed(2)} ${t('currency')} (${t('shortage')})`;
   }
 }
 
 async function confirmCloseShift() {
-  if (!confirm('Are you sure you want to close your shift? This will log you out.')) return;
+  if (!confirm(t('close_shift_confirm'))) return;
 
   const closingCashInput = document.getElementById('closingCashInput');
   const closingNotesInput = document.getElementById('closingNotesInput');
@@ -209,12 +209,12 @@ async function confirmCloseShift() {
   const result = await window.electronAPI.closeShift(currentShift._id, closingCash, notes);
 
   if (result && result.success) {
-    alert('Shift closed successfully! Difference: ' + result.shift.difference.toFixed(2));
+    alert(`${t('shift_closed_success')}${result.shift.difference.toFixed(2)}`);
     // Logout or redirect to branch picker
     localStorage.removeItem('activeBranchId');
     window.location.href = 'index.html';
   } else {
-    alert(result?.error || 'Failed to close shift');
+    alert(result?.error || t('failed_close_shift'));
   }
 }
 

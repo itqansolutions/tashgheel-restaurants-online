@@ -89,6 +89,11 @@ const translations = {
     restore_backup: { en: "📤 Restore Backup", ar: "📤 استعادة نسخة احتياطية" },
     restore_backup_desc: { en: "Warning: Restoring will overwrite your current data!", ar: "تحذير: الاستعادة ستمسح البيانات الحالية!" },
     restore_backup_btn: { en: "⚠️ Restore Backup", ar: "⚠️ استعادة النسخة" },
+    auto_backup_settings: { en: "🔄 Automatic Backup", ar: "🔄 النسخ الاحتياطي التلقائي" },
+    auto_backup_desc: { en: "Configure where to save your daily backups automatically.", ar: "قم بتهيئة مكان حفظ النسخ الاحتياطية اليومية تلقائياً." },
+    enable_auto_backup: { en: "Enable Daily Automatic Backup", ar: "تفعيل النسخ الاحتياطي اليومي" },
+    backup_location: { en: "Backup Location", ar: "مسار النسخ الاحتياطي" },
+    choose_folder_btn: { en: "📂 Choose Folder...", ar: "📂 اختر المجلد..." },
 
     // Vendors & Customers
     vendors: { en: "Vendors", ar: "الموردين" },
@@ -369,6 +374,30 @@ const translations = {
 
     // Existing:
     customer_vehicle: { en: "Customer & Vehicle", ar: "العميل والمركبة" },
+
+    // Inventory Dashboard & Badges
+    expired_badge: { en: "Expired", ar: "منتهي للصلاحية" },
+    expiring_soon_badge: { en: "Expiring Soon", ar: "ينتهي قريباً" },
+    dead_stock_badge: { en: "Dead Stock (>30d)", ar: "مخزون راكد (>٣٠ يوم)" },
+    healthy_stock_badge: { en: "Healthy Stock", ar: "مخزون صحي" },
+    no_materials_found: { en: "No materials found.", ar: "لم يتم العثور على مواد." },
+    base_cash: { en: "Base", ar: "أساس" },
+    overage: { en: "Overage", ar: "زيادة" },
+    shortage: { en: "Shortage", ar: "عجز" },
+    sales_cash: { en: "Sales (Cash)", ar: "مبيعات (نقد)" },
+    opening: { en: "Opening", ar: "الافتتاحية" },
+    expected: { en: "Expected", ar: "المتوقع" },
+    physical_cash: { en: "Physical Cash", ar: "النقد الفعلي" },
+    shift_notes_placeholder: { en: "Shift notes...", ar: "ملاحظات الوردية..." },
+    close_shift_confirm: { en: "Are you sure you want to close your shift? This will log you out.", ar: "هل أنت متأكد من إغلاق الوردية؟ سيتم تسجيل خروجك." },
+    shift_closed_success: { en: "Shift closed successfully! Difference: ", ar: "تم إغلاق الوردية بنجاح! الفارق: " },
+    failed_open_shift: { en: "Failed to open shift", ar: "فشل فتح الوردية" },
+    failed_close_shift: { en: "Failed to close shift", ar: "فشل إغلاق الوردية" },
+    slow_stock: { en: "Slow", ar: "بطيء" },
+    healthy: { en: "Healthy", ar: "نشط" },
+    dead: { en: "Dead", ar: "راكد" },
+    exp_days: { en: "Exp: ", ar: "باقي: " },
+    days_suffix: { en: "d", ar: "ي" },
 };
 
 function setLanguage(lang) {
@@ -453,3 +482,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Expose to window
 window.translations = translations;
+window.setLanguage = setLanguage;
