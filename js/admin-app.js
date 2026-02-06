@@ -208,4 +208,113 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('languageChanged', () => {
     // loadUsers(); 
   });
+
+  // === Branch Management ===
+  const branchForm = document.getElementById('branch-form');
+  const branchTableBody = document.getElementById('branch-table-body');
+
+  async function loadBranches() {
+    if (!branchTableBody) return;
+
+    try {
+      let branches = [];
+      if (window.apiFetch) {
+        try {
+          const result = await window.apiFetch('/data/load?collection=branches');
+          branches = result.data || [];
+        } catch (e) {
+          branches = JSON.parse(localStorage.getItem('branches') || '[]');
+        }
+      } else {
+        branches = JSON.parse(localStorage.getItem('branches') || '[]');
+      }
+
+      branchTableBody.innerHTML = '';
+
+      if (branches.length === 0) {
+        branchTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#777;">No branches yet. Add one above!</td></tr>';
+        return;
+      }
+
+      branches.forEach((branch) => {
+        const row = document.createElement('tr');
+        const branchId = branch._id || branch.id;
+
+        row.innerHTML = `
+          <td>
+            <div style="font-weight:bold;">${branch.name || 'Unnamed'}</div>
+            <div style="font-size:0.85em; color:#777;">${branch.address || '-'}</div>
+          </td>
+          <td><span style="background:#e0e7ff; color:#4338ca; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:bold;">${branch.code || '-'}</span></td>
+          <td>${branch.phone || '-'}</td>
+          <td>${branch.settings?.taxRate || branch.taxRate || 0}%</td>
+          <td style="text-align:right;">
+            <button onclick="handleDeleteBranch('${branchId}')" class="btn btn-sm btn-danger" title="Delete" style="padding:4px 8px; font-size:0.8rem;">🗑️</button>
+          </td>
+        `;
+        branchTableBody.appendChild(row);
+      });
+    } catch (e) {
+      console.error('Error loading branches:', e);
+    }
+  }
+
+  window.handleDeleteBranch = async function (branchId) {
+    if (!confirm('Delete this branch?')) return;
+
+    try {
+      if (window.apiFetch) {
+        await window.apiFetch(`/data/delete?collection=branches&id=${branchId}`, { method: 'DELETE' });
+      } else {
+        let branches = JSON.parse(localStorage.getItem('branches') || '[]');
+        branches = branches.filter(b => (b._id || b.id) !== branchId);
+        localStorage.setItem('branches', JSON.stringify(branches));
+      }
+      showToast('🗑️ Branch deleted');
+      loadBranches();
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  };
+
+  if (branchForm) {
+    branchForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('branch-name').value.trim();
+      const code = document.getElementById('branch-code').value.trim().toUpperCase();
+      const phone = document.getElementById('branch-phone').value.trim();
+      const address = document.getElementById('branch-address').value.trim();
+      const taxRate = parseFloat(document.getElementById('branch-tax').value) || 0;
+
+      if (!name || !code) return alert('Name and code required');
+
+      const newBranch = {
+        id: 'branch_' + Date.now(),
+        name, code, phone, address, isActive: true,
+        settings: { taxRate, currency: 'EGP' }
+      };
+
+      try {
+        if (window.apiFetch) {
+          await window.apiFetch('/data/save', {
+            method: 'POST',
+            body: JSON.stringify({ collection: 'branches', data: newBranch })
+          });
+        } else {
+          const branches = JSON.parse(localStorage.getItem('branches') || '[]');
+          branches.push(newBranch);
+          localStorage.setItem('branches', JSON.stringify(branches));
+        }
+
+        showToast('✅ Branch created!');
+        branchForm.reset();
+        loadBranches();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    });
+  }
+
+  loadBranches();
 });

@@ -300,6 +300,60 @@
             </div>
           </div>
 
+
+          <!-- Branch Management -->
+          <div class="card">
+            <div class="card-header">?? Branch Management</div>
+            <div class="card-body">
+              <div style="background:#f0fff4; padding:15px; border-radius:8px; border:1px solid #c6f6d5; margin-bottom:20px;">
+                <h4 style="margin:0 0 10px 0; color:#276749;">Add New Branch</h4>
+                <form id="branch-form">
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                      <label class="form-label">Branch Name</label>
+                      <input type="text" id="branch-name" class="form-control" placeholder="e.g. Main Branch" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Branch Code</label>
+                      <input type="text" id="branch-code" class="form-control" placeholder="e.g. HQ" required style="text-transform:uppercase;" maxlength="10">
+                    </div>
+                  </div>
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                      <label class="form-label">Phone</label>
+                      <input type="tel" id="branch-phone" class="form-control" placeholder="+20 xxx">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Tax Rate (%)</label>
+                      <input type="number" id="branch-tax" class="form-control" value="0" min="0" max="100" step="0.5">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <input type="text" id="branch-address" class="form-control" placeholder="Full address...">
+                  </div>
+                  <div style="text-align:right; margin-top:10px;">
+                    <button class="btn btn-success" type="submit">? Add Branch</button>
+                  </div>
+                </form>
+              </div>
+              <h4 style="margin:0 0 10px 0; color:#34495e;">Existing Branches</h4>
+              <div style="border:1px solid #eee; border-radius:8px; overflow:hidden;">
+                <table class="data-table" style="box-shadow:none; margin:0;">
+                  <thead style="background:#f1f1f1;">
+                    <tr>
+                      <th>Branch</th>
+                      <th>Code</th>
+                      <th>Phone</th>
+                      <th>Tax %</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="branch-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </main>

@@ -47,8 +47,8 @@ function renderNavigation(activePage) {
         { page: 'salesmen', label: t.employees, href: 'salesmen.html' },
         { page: 'receipts', label: t.receipts, href: 'receipts.html' },
         { page: 'reports', label: t.reports, href: 'reports.html' },
-        { page: 'admin', label: t.admin_panel, href: 'admin.html' },
-        { page: 'backup', label: t.backup, href: 'backup.html' }
+        { page: 'admin', label: t.admin_panel, href: 'admin.html' }
+        // Backup page removed - no longer needed
     ];
 
     let navHTML = '';
