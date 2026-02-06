@@ -2,403 +2,489 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Panel - POS</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - F&B POS</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
 </head>
 
-<body>
-  <div class="language-switcher">
-    <button class="lang-btn" data-lang="en">EN</button>
-    <button class="lang-btn" data-lang="ar">AR</button>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex">
+
+  <!-- Mobile Overlay -->
+  <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden glass">
   </div>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h2>Restaurant POS</h2>
-      </div>
-      <nav><!-- Populated by shared-nav.js --></nav>
 
-      <div class="sidebar-footer"
-        style="text-align:center; padding:15px; font-size:0.85em; border-top:1px solid #34495e;">
-        <strong>Tashgheel Services</strong><br>
-        <small style="color:#95a5a6;">powered by itqansolutions © 2025</small><br>
-        <small style="color:#95a5a6;">
-          📧 info@itqansolutions.org<br>
-          📱 +201126522373 / +201155253886
-        </small>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <style>
-        /* Admin Specific Styles */
-        .admin-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          /* Stack vertically */
-          gap: 25px;
-          max-width: 800px;
-          margin: 0 auto;
-        }
-
-        .card {
-          border: none;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-          transition: transform 0.2s;
-        }
-
-        .card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-header {
-          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-          padding: 20px;
-          font-size: 1.1rem;
-          color: #2c3e50;
-          border-bottom: 1px solid #edf2f7;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .card-header::before {
-          content: '';
-          display: inline-block;
-          width: 4px;
-          height: 18px;
-          background: #3498db;
-          border-radius: 2px;
-        }
-
-        .form-label {
-          font-weight: 600;
-          color: #555;
-          margin-bottom: 6px;
-          display: block;
-        }
-
-        .form-control {
-          width: 100%;
-          padding: 10px 12px;
-          border: 1px solid #dfe6e9;
-          border-radius: 6px;
-          transition: all 0.3s;
-        }
-
-        .form-control:focus {
-          border-color: #3498db;
-          box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-          outline: none;
-        }
-
-        .permissions-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 10px;
-          background: #f8f9fa;
-          padding: 15px;
-          border-radius: 8px;
-          border: 1px solid #edf2f7;
-        }
-
-        .permission-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          cursor: pointer;
-          padding: 5px;
-          border-radius: 4px;
-          transition: background 0.2s;
-        }
-
-        .permission-item:hover {
-          background: #e9ecef;
-        }
-
-        .user-list-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 15px;
-          border-bottom: 1px solid #f1f1f1;
-        }
-
-        .user-list-item:last-child {
-          border-bottom: none;
-        }
-
-        .role-badge {
-          padding: 3px 8px;
-          border-radius: 12px;
-          font-size: 0.8rem;
-          text-transform: uppercase;
-          font-weight: bold;
-        }
-
-        .role-admin {
-          background: #fee2e2;
-          color: #b91c1c;
-        }
-
-        .role-manager {
-          background: #e0e7ff;
-          color: #4338ca;
-        }
-
-        .role-cashier {
-          background: #d1fae5;
-          color: #065f46;
-        }
-      </style>
-
-      <header class="top-bar">
-        <h1 data-i18n="admin_panel">⚙️ Admin Panel</h1>
-
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span id="welcomeText" data-i18n="welcome">Welcome,</span>
-          <span id="currentUserName" style="font-weight:bold;">User</span>
-          <span id="userRole" class="role-badge" style="background:#e0e7ff; color:#4338ca;">admin</span>
+  <!-- Sidebar -->
+  <aside id="sidebar"
+    class="w-64 bg-[#1e293b] text-white flex flex-col shrink-0 transition-transform duration-300 absolute lg:relative z-40 h-full -translate-x-full lg:translate-x-0">
+    <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <img src="favicon.png" alt="Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain shadow-sm">
+        <div>
+          <h2 class="font-bold text-sm leading-tight" id="posSystemTitle" data-i18n-key="shop_pos_system">F&B POS System
+          </h2>
+          <p class="text-[10px] text-slate-400">Management System</p>
         </div>
-      </header>
+      </div>
+      <!-- Mobile Close -->
+      <button onclick="toggleSidebar()" class="lg:hidden text-slate-400 hover:text-white">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
 
-      <section class="content-area">
-        <div class="admin-grid">
+    <!-- Navigation -->
+    <div class="flex-1 overflow-y-auto py-4 space-y-1">
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="pos.html">
+        <span class="material-symbols-outlined text-xl">point_of_sale</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_pos">POS</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="products.html">
+        <span class="material-symbols-outlined text-xl">menu_book</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_products">Menu Items</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="inventory.html">
+        <span class="material-symbols-outlined text-xl">inventory_2</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_inventory">Inventory</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="customers.html">
+        <span class="material-symbols-outlined text-xl">group</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_customers">Customers</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="kitchen.html">
+        <span class="material-symbols-outlined text-xl">countertops</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_kitchen">Kitchen</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="receipts.html">
+        <span class="material-symbols-outlined text-xl">receipt_long</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_receipts">Receipts</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="reports.html">
+        <span class="material-symbols-outlined text-xl">assessment</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_reports">Reports</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="vendors.html">
+        <span class="material-symbols-outlined text-xl">store</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_vendors">Vendors</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="expenses.html">
+        <span class="material-symbols-outlined text-xl">payments</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_expenses">Expenses</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="salesmen.html">
+        <span class="material-symbols-outlined text-xl">badge</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_employees">Employees</span>
+      </a>
+      <!-- Active Page -->
+      <a class="flex items-center gap-3 px-6 py-3 bg-slate-800 border-l-4 border-blue-500 text-white" href="admin.html">
+        <span class="material-symbols-outlined text-xl">settings</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_admin">Admin Panel</span>
+      </a>
+      <button onclick="confirmLogout()"
+        class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
+        <span class="material-symbols-outlined text-xl">logout</span>
+        <span class="text-sm font-medium" data-i18n-key="logout">Logout</span>
+      </button>
+      <nav style="display:none;"></nav>
+    </div>
+  </aside>
 
-          <!-- Shop Settings -->
-          <div class="card">
-            <div class="card-header" data-i18n="shop_settings">🏭 Shop Settings</div>
-            <div class="card-body">
-              <form id="shop-settings-form">
-                <div class="form-group">
-                  <label class="form-label" for="shop-name" data-i18n="shop_name">Shop Name</label>
-                  <input type="text" id="shop-name" class="form-control" required
-                    placeholder="e.g. Tashgheel Restaurant">
+  <!-- Main Content Layout -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+
+    <!-- Top Header -->
+    <header
+      class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-20">
+      <div class="flex items-center gap-4">
+        <!-- Mobile Toggle -->
+        <button onclick="toggleSidebar()" class="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+
+        <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span class="material-symbols-outlined text-blue-600">settings</span>
+          <span data-i18n-key="admin_panel">Admin Panel</span>
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-3 sm:gap-4">
+        <div class="text-right hidden sm:block">
+          <div class="text-xs text-slate-400 font-medium" data-i18n-key="welcome">Welcome,</div>
+          <div class="text-sm font-bold text-slate-700 flex items-center justify-end gap-2">
+            <span id="currentUserName">User</span>
+            <span id="userRole"
+              class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] uppercase font-bold">admin</span>
+          </div>
+        </div>
+        <div class="flex bg-slate-100 rounded-lg p-1">
+          <button
+            class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all active"
+            onclick="setLanguage('en')" id="langEn">EN</button>
+          <button
+            class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+            onclick="setLanguage('ar')" id="langAr">AR</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Scroller -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth bg-slate-50">
+      <div class="max-w-4xl mx-auto space-y-8">
+
+        <!-- Shop Settings -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-500">storefront</span>
+            <h2 class="font-bold text-slate-800" data-i18n-key="shop_settings">Shop Settings</h2>
+          </div>
+          <div class="p-6">
+            <form id="shop-settings-form" class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1" for="shop-name"
+                    data-i18n-key="shop_name">Shop Name</label>
+                  <input type="text" id="shop-name"
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    required placeholder="e.g. Tashgheel Restaurant">
                 </div>
-                <div class="form-group">
-                  <label class="form-label" for="shop-address" data-i18n="shop_address">Address & Phone</label>
-                  <textarea id="shop-address" class="form-control" rows="3"
-                    placeholder="Shop address and contact info..."></textarea>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="footer-message" data-i18n="footer_message">Receipt Footer</label>
-                  <input type="text" id="footer-message" class="form-control"
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1" for="footer-message"
+                    data-i18n-key="footer_message">Receipt Footer</label>
+                  <input type="text" id="footer-message"
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                     placeholder="e.g. Thank you for your visit!">
                 </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1" for="shop-address"
+                  data-i18n-key="shop_address">Address & Phone</label>
+                <textarea id="shop-address"
+                  class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                  rows="3" placeholder="Shop address and contact info..."></textarea>
+              </div>
 
-                <div class="form-group">
-                  <label class="form-label">Shop Logo</label>
-                  <div style="display:flex; align-items:center; gap:15px;">
-                    <div
-                      style="width:80px; height:80px; border:2px dashed #ddd; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#fafafa;">
-                      <img id="logo-preview" src="" alt="Logo" style="max-width:100%; max-height:100%; display:none;">
-                      <span id="logo-placeholder" style="color:#aaa; font-size:2rem;">📷</span>
-                    </div>
-                    <div style="flex:1;">
-                      <input type="file" id="shop-logo" accept="image/*" class="form-control">
-                      <small style="color:#888;">Recommended: 200x200px PNG or JPG</small>
-                    </div>
+              <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Shop Logo</label>
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-20 h-20 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center bg-white overflow-hidden relative">
+                    <img id="logo-preview" src="" alt="Logo" class="w-full h-full object-contain hidden z-10">
+                    <span id="logo-placeholder" class="material-symbols-outlined text-3xl text-slate-300">image</span>
+                  </div>
+                  <div class="flex-1">
+                    <input type="file" id="shop-logo" accept="image/*"
+                      class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <p class="text-[10px] text-slate-400 mt-1">Recommended: 200x200px PNG or JPG</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex justify-end pt-2">
+                <button
+                  class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                  type="submit">
+                  <span class="material-symbols-outlined text-[18px]">save</span>
+                  <span data-i18n-key="save">Save Settings</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- User Management -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-500">manage_accounts</span>
+            <h2 class="font-bold text-slate-800" data-i18n-key="user_management">User Management</h2>
+          </div>
+          <div class="p-6">
+            <!-- Add User -->
+            <div class="bg-blue-50/50 p-5 rounded-xl border border-blue-100 mb-6">
+              <h4 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-500 text-sm">person_add</span>
+                Add New User
+              </h4>
+              <form id="user-form" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                      data-i18n-key="username">Username</label>
+                    <input type="text" id="new-username"
+                      class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                      required>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                      data-i18n-key="password">Password</label>
+                    <input type="password" id="new-password"
+                      class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                      required>
                   </div>
                 </div>
 
-                <div style="margin-top:20px; text-align:right;">
-                  <button class="btn btn-success" type="submit">💾 <span data-i18n="save">Save Settings</span></button>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="fullname">Full
+                      Name</label>
+                    <input type="text" id="new-fullname"
+                      class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                      required>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                      data-i18n-key="role">Role</label>
+                    <select id="user-role-select"
+                      class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                      onchange="toggleAdminRoleOther()">
+                      <option value="cashier">Cashier</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                      <option value="inventory_manager">Inventory Manager</option>
+                      <option value="technician">Technician</option>
+                      <option value="Other">Other...</option>
+                    </select>
+                    <input type="text" id="user-role-other"
+                      class="w-full mt-2 p-2 border border-slate-200 rounded-lg text-sm hidden"
+                      placeholder="Enter Custom Role">
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Assign Branch</label>
+                  <select id="user-branch-select"
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white">
+                    <option value="">-- Select Branch --</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Page Access / الصلاحيات</label>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <label
+                      class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                      <input type="checkbox" name="access" value="pos.html" class="w-4 h-4 text-blue-600 rounded"> <span
+                        class="text-sm">POS Sales</span>
+                    </label>
+                    <label
+                      class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                      <input type="checkbox" name="access" value="products.html" class="w-4 h-4 text-blue-600 rounded">
+                      <span class="text-sm">Menu</span>
+                    </label>
+                    <label
+                      class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                      <input type="checkbox" name="access" value="inventory.html" class="w-4 h-4 text-blue-600 rounded">
+                      <span class="text-sm">Inventory</span>
+                    </label>
+                    <label
+                      class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                      <input type="checkbox" name="access" value="kitchen.html" class="w-4 h-4 text-blue-600 rounded">
+                      <span class="text-sm">Kitchen</span>
+                    </label>
+                    <label
+                      class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                      <input type="checkbox" name="access" value="customers.html" class="w-4 h-4 text-blue-600 rounded">
+                      <span class="text-sm">Customers</span>
+                    </label>
+                    <label
+                      class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                      <input type="checkbox" name="access" value="receipts.html" class="w-4 h-4 text-blue-600 rounded">
+                      <span class="text-sm">Receipts</span>
+                    </label>
+                    <label
+                      class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                      <input type="checkbox" name="access" value="reports.html" class="w-4 h-4 text-blue-600 rounded">
+                      <span class="text-sm">Reports</span>
+                    </label>
+                    <label
+                      class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                      <input type="checkbox" name="access" value="admin.html" class="w-4 h-4 text-blue-600 rounded">
+                      <span class="text-sm">Admin</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="flex justify-end mt-4">
+                  <button
+                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                    type="submit">
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    <span data-i18n-key="create_user">Create User</span>
+                  </button>
                 </div>
               </form>
             </div>
-          </div>
 
-          <!-- User Management -->
-          <div class="card">
-            <div class="card-header" data-i18n="user_management">👥 User Management</div>
-            <div class="card-body">
-
-              <!-- Add User Form -->
-              <div
-                style="background:#f8faff; padding:15px; border-radius:8px; border:1px solid #e1e8f0; margin-bottom:20px;">
-                <h4 style="margin:0 0 10px 0; color:#34495e;">Add New User</h4>
-                <form id="user-form">
-                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label class="form-label" data-i18n="username">Username</label>
-                      <input type="text" id="new-username" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label" data-i18n="password">Password</label>
-                      <input type="password" id="new-password" class="form-control" required>
-                    </div>
-                  </div>
-                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label class="form-label" data-i18n="fullname">Full Name</label>
-                      <input type="text" id="new-fullname" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label" data-i18n="role">Role</label>
-                      <select id="user-role-select" class="form-control" onchange="toggleAdminRoleOther()">
-                        <option value="cashier">Cashier</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
-                        <option value="inventory_manager">Inventory Manager</option>
-                        <option value="technician">Technician</option>
-                        <option value="Other">Other...</option>
-                      </select>
-                      <input type="text" id="user-role-other" class="form-control" placeholder="Enter Custom Role"
-                        style="display:none; margin-top:5px;">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Assign Branch</label>
-                      <select id="user-branch-select" class="form-control">
-                        <option value="">-- Select Branch --</option>
-                      </select>
-                    </div>
-                    </div>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Page Access / الصلاحيات</label>
-                    <div class="permissions-grid">
-                      <label class="permission-item"><input type="checkbox" name="access" value="pos.html"> POS
-                        Sales</label>
-                      <label class="permission-item"><input type="checkbox" name="access" value="products.html">
-                        Menu</label>
-                      <label class="permission-item"><input type="checkbox" name="access" value="inventory.html">
-                        Inventory</label>
-                      <label class="permission-item"><input type="checkbox" name="access" value="kitchen.html">
-                        Kitchen</label>
-                      <label class="permission-item"><input type="checkbox" name="access" value="customers.html">
-                        Customers</label>
-                      <label class="permission-item"><input type="checkbox" name="access" value="receipts.html">
-                        Receipts</label>
-                      <label class="permission-item"><input type="checkbox" name="access" value="reports.html">
-                        Reports</label>
-                      <label class="permission-item"><input type="checkbox" name="access" value="admin.html">
-                        Admin</label>
-                    </div>
-                  </div>
-
-                  <div style="text-align:right; margin-top:10px;">
-                    <button class="btn btn-primary" type="submit">➕ <span data-i18n="create_user">Create
-                        User</span></button>
-                  </div>
-                </form>
-              </div>
-
-              <!-- Users List -->
-              <h4 style="margin:0 0 10px 0; color:#34495e;">Existing Users</h4>
-              <div style="border:1px solid #eee; border-radius:8px; overflow:hidden;">
-                <table class="data-table" style="box-shadow:none; margin:0;">
-                  <thead style="background:#f1f1f1;">
-                    <tr>
-                      <th data-i18n="username">User</th>
-                      <th data-i18n="role">Role</th>
-                      <th style="text-align:right;" data-i18n="actions">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="user-table-body">
-                    <!-- Populated by JS -->
-                  </tbody>
-                </table>
-              </div>
-
-            </div>
-          </div>
-
-
-          <!-- Branch Management -->
-          <div class="card">
-            <div class="card-header">?? Branch Management</div>
-            <div class="card-body">
-              <div
-                style="background:#f0fff4; padding:15px; border-radius:8px; border:1px solid #c6f6d5; margin-bottom:20px;">
-                <h4 style="margin:0 0 10px 0; color:#276749;">Add New Branch</h4>
-                <form id="branch-form">
-                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label class="form-label">Branch Name</label>
-                      <input type="text" id="branch-name" class="form-control" placeholder="e.g. Main Branch" required>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Branch Code</label>
-                      <input type="text" id="branch-code" class="form-control" placeholder="e.g. HQ" required
-                        style="text-transform:uppercase;" maxlength="10">
-                    </div>
-                  </div>
-                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label class="form-label">Phone</label>
-                      <input type="tel" id="branch-phone" class="form-control" placeholder="+20 xxx">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Tax Rate (%)</label>
-                      <input type="number" id="branch-tax" class="form-control" value="0" min="0" max="100" step="0.5">
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Address</label>
-                    <input type="text" id="branch-address" class="form-control" placeholder="Full address...">
-                  </div>
-                  <div style="text-align:right; margin-top:10px;">
-                    <button class="btn btn-success" type="submit">? Add Branch</button>
-                  </div>
-                </form>
-              </div>
-              <h4 style="margin:0 0 10px 0; color:#34495e;">Existing Branches</h4>
-              <div style="border:1px solid #eee; border-radius:8px; overflow:hidden;">
-                <table class="data-table" style="box-shadow:none; margin:0;">
-                  <thead style="background:#f1f1f1;">
-                    <tr>
-                      <th>Branch</th>
-                      <th>Code</th>
-                      <th>Phone</th>
-                      <th>Tax %</th>
-                      <th style="text-align:right;">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="branch-table-body"></tbody>
-                </table>
-              </div>
+            <!-- Users List -->
+            <h4 class="font-bold text-slate-700 mb-3 ml-1">Existing Users</h4>
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+              <table class="w-full text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+                  <tr>
+                    <th class="px-4 py-3" data-i18n-key="username">User</th>
+                    <th class="px-4 py-3" data-i18n-key="role">Role</th>
+                    <th class="px-4 py-3 text-right" data-i18n-key="actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="user-table-body" class="divide-y divide-slate-100 text-sm">
+                  <!-- JS Populated -->
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      </section>
+
+        <!-- Branch Management -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-500">domain</span>
+            <h2 class="font-bold text-slate-800">Branch Management</h2>
+          </div>
+          <div class="p-6">
+            <!-- Add Branch -->
+            <div class="bg-green-50/50 p-5 rounded-xl border border-green-100 mb-6">
+              <h4 class="font-bold text-green-800 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-green-600 text-sm">add_business</span>
+                Add New Branch
+              </h4>
+              <form id="branch-form" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Branch Name</label>
+                    <input type="text" id="branch-name"
+                      class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm bg-white"
+                      placeholder="e.g. Main Branch" required>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Branch Code</label>
+                    <input type="text" id="branch-code"
+                      class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm bg-white font-mono uppercase"
+                      placeholder="e.g. HQ" required maxlength="10">
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Phone</label>
+                    <input type="tel" id="branch-phone"
+                      class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm bg-white"
+                      placeholder="+20 xxx">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tax Rate (%)</label>
+                    <input type="number" id="branch-tax"
+                      class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm bg-white"
+                      value="0" min="0" max="100" step="0.5">
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Address</label>
+                  <input type="text" id="branch-address"
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-sm bg-white"
+                    placeholder="Full address...">
+                </div>
+
+                <div class="flex justify-end mt-4">
+                  <button
+                    class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                    type="submit">
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    Add Branch
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Existing Branches -->
+            <h4 class="font-bold text-slate-700 mb-3 ml-1">Existing Branches</h4>
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+              <table class="w-full text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+                  <tr>
+                    <th class="px-4 py-3">Branch</th>
+                    <th class="px-4 py-3">Code</th>
+                    <th class="px-4 py-3">Phone</th>
+                    <th class="px-4 py-3">Tax %</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="branch-table-body" class="divide-y divide-slate-100 text-sm">
+                  <!-- JS Populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </main>
   </div>
-
-  <footer class="footer">
-    Tashgheel POS© 2025 - Designed and developed by <strong>itqan</strong> |
-    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
-  </footer>
 
   <script src="js/web-adapter.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
-  <script src="js/shared-nav.js"></script>
   <script src="js/translations.js"></script>
-  <script>
-    window.currentPage = 'admin';
-  </script>
+  <script>window.currentPage = 'admin';</script>
+  <script src="js/shared-nav.js"></script>
   <script src="js/admin-app.js"></script>
+
   <script>
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobile-overlay');
+      const isClosed = sidebar.classList.contains('-translate-x-full');
+      if (isClosed) {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const currentUser = JSON.parse(localStorage.getItem('currentUser'));
       if (currentUser?.role === 'cashier') {
-        alert('Access denied');
-        window.location.href = 'pos.html';
-      }
-
-      // Connect Save button to shop settings
-      const saveBtn = document.querySelector('.btn-success, button[type="submit"]');
-      if (saveBtn && saveBtn.textContent.includes('Save')) {
-        saveBtn.onclick = function (e) {
-          e.preventDefault();
-          if (typeof window.saveShopSettings === 'function') {
-            window.saveShopSettings();
-          }
-        };
+        // Block cashier if needed, but sidebar usually hides link
+        // window.location.href = 'pos.html';
       }
     });
   </script>

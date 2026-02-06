@@ -2,85 +2,259 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <title data-i18n-key="employees_management">Salesmen</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/salesmen-app.css">
-  <link rel="stylesheet" href="css/payroll.css">
-  <script src="js/web-adapter.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/db.js"></script>
-  <script src="js/translations.js"></script>
-  <!-- Main Logic -->
-  <script src="js/salesmen-app.js" defer></script>
-  <script>window.currentPage = 'salesmen';</script>
-  <script src="js/shared-nav.js" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employees - F&B POS</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Modal Fixes */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal[style*="display: block"] {
+      display: flex !important;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    /* Tab Active State */
+    .tab-btn.active {
+      background-color: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
 </head>
 
-<body>
-  <div class="language-switcher">
-    <button class="lang-btn" data-lang="en">EN</button>
-    <button class="lang-btn" data-lang="ar">AR</button>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex">
+
+  <!-- Mobile Overlay -->
+  <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden glass">
   </div>
 
-  <div class="app">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h2>Restaurant POS</h2>
+  <!-- Sidebar -->
+  <aside id="sidebar"
+    class="w-64 bg-[#1e293b] text-white flex flex-col shrink-0 transition-transform duration-300 absolute lg:relative z-40 h-full -translate-x-full lg:translate-x-0">
+    <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <img src="favicon.png" alt="Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain shadow-sm">
+        <div>
+          <h2 class="font-bold text-sm leading-tight" id="posSystemTitle" data-i18n-key="shop_pos_system">F&B POS System
+          </h2>
+          <p class="text-[10px] text-slate-400">Management System</p>
+        </div>
       </div>
-      <nav><!-- Populated by shared-nav.js --></nav>
+      <!-- Mobile Close -->
+      <button onclick="toggleSidebar()" class="lg:hidden text-slate-400 hover:text-white">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
 
-      <div class="sidebar-footer"
-        style="text-align:center; padding:15px; font-size:0.85em; border-top:1px solid #34495e;">
-        <strong>Tashgheel Services</strong><br>
-        <small style="color:#95a5a6;">powered by itqansolutions © 2025</small><br>
-        <small style="color:#95a5a6;">
-          📧 info@itqansolutions.org<br>
-          📱 +201126522373 / +201155253886
-        </small>
+    <!-- Navigation -->
+    <div class="flex-1 overflow-y-auto py-4 space-y-1">
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="pos.html">
+        <span class="material-symbols-outlined text-xl">point_of_sale</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_pos">POS</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="products.html">
+        <span class="material-symbols-outlined text-xl">menu_book</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_products">Menu Items</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="inventory.html">
+        <span class="material-symbols-outlined text-xl">inventory_2</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_inventory">Inventory</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="customers.html">
+        <span class="material-symbols-outlined text-xl">group</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_customers">Customers</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="kitchen.html">
+        <span class="material-symbols-outlined text-xl">countertops</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_kitchen">Kitchen</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="receipts.html">
+        <span class="material-symbols-outlined text-xl">receipt_long</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_receipts">Receipts</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="reports.html">
+        <span class="material-symbols-outlined text-xl">assessment</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_reports">Reports</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="vendors.html">
+        <span class="material-symbols-outlined text-xl">store</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_vendors">Vendors</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="expenses.html">
+        <span class="material-symbols-outlined text-xl">payments</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_expenses">Expenses</span>
+      </a>
+      <!-- Active Page -->
+      <a class="flex items-center gap-3 px-6 py-3 bg-slate-800 border-l-4 border-blue-500 text-white"
+        href="salesmen.html">
+        <span class="material-symbols-outlined text-xl">badge</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_employees">Employees</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="admin.html">
+        <span class="material-symbols-outlined text-xl">settings</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_admin">Admin Panel</span>
+      </a>
+      <button onclick="confirmLogout()"
+        class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
+        <span class="material-symbols-outlined text-xl">logout</span>
+        <span class="text-sm font-medium" data-i18n-key="logout">Logout</span>
+      </button>
+      <nav style="display:none;"></nav>
+    </div>
+  </aside>
+
+  <!-- Main Content Layout -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+
+    <!-- Top Header -->
+    <header
+      class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-20">
+      <div class="flex items-center gap-4">
+        <!-- Mobile Toggle -->
+        <button onclick="toggleSidebar()" class="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+
+        <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span class="material-symbols-outlined text-blue-600">badge</span>
+          <span class="hidden sm:inline" data-i18n-key="employees_management">Employees & Payroll</span>
+          <span class="sm:hidden">Employees</span>
+        </h1>
       </div>
-    </aside>
 
-    <main class="main-content">
-      <header class="top-bar">
-        <h1 data-i18n-key="employees_management">👔 Employees Management</h1>
-      </header>
+      <div class="flex items-center gap-3 sm:gap-4">
+        <div class="flex bg-slate-100 rounded-lg p-1">
+          <button
+            class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all active"
+            onclick="setLanguage('en')" id="langEn">EN</button>
+          <button
+            class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+            onclick="setLanguage('ar')" id="langAr">AR</button>
+        </div>
+      </div>
+    </header>
 
-      <section class="content-area">
+    <!-- Content Scroller -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth bg-slate-50">
+      <div class="max-w-7xl mx-auto space-y-6">
 
         <!-- Tabs Navigation -->
-        <div class="tabs-nav">
-          <button class="tab-btn active" data-tab="tab-staff" data-i18n-key="tab_staff">👥 Staff Management</button>
-          <button class="tab-btn" data-tab="tab-attendance" data-i18n-key="attendance">📅 Attendance (Daily)</button>
-          <button class="tab-btn" data-tab="tab-targets" data-i18n-key="targets">🎯 Targets</button>
-          <button class="tab-btn" data-tab="tab-financials" data-i18n-key="financials">💰 Financials
-            (Deductions/Bonus)</button>
-          <button class="tab-btn" data-tab="tab-payroll" data-i18n-key="tab_payroll">🧾 Payroll Processing</button>
+        <div class="flex flex-wrap gap-2 pb-2 border-b border-slate-200">
+          <button
+            class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+            data-tab="tab-staff" data-i18n-key="tab_staff">👥 Staff</button>
+          <button
+            class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+            data-tab="tab-attendance" data-i18n-key="attendance">📅 Attendance</button>
+          <button
+            class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+            data-tab="tab-targets" data-i18n-key="targets">🎯 Targets</button>
+          <button
+            class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+            data-tab="tab-financials" data-i18n-key="financials">💰 Financials</button>
+          <button
+            class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+            data-tab="tab-payroll" data-i18n-key="tab_payroll">🧾 Payroll</button>
         </div>
 
         <!-- TAB 1: Staff Management -->
         <div id="tab-staff" class="tab-content active">
-          <div class="card">
-            <div class="card-header">
-              <h3 data-i18n-key="employee_master_data">Employee Master Data</h3>
-              <button class="btn btn-primary" onclick="openEmployeeModal()" data-i18n-key="add_new_employee">➕ Add New
-                Employee</button>
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100">
+              <h3 class="font-bold text-slate-800" data-i18n-key="employee_master_data">Employee Master Data</h3>
+              <button
+                class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+                onclick="openEmployeeModal()" data-i18n-key="add_new_employee">
+                <span class="material-symbols-outlined text-[18px]">add</span>
+                <span class="hidden sm:inline">Add Employee</span>
+              </button>
             </div>
-            <div class="card-body">
-              <table class="data-table">
-                <thead>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
                   <tr>
-                    <th data-i18n-key="name">Name</th>
-                    <th data-i18n-key="role">Role</th>
-                    <th data-i18n-key="base_salary_monthly">Base Salary</th>
-                    <th data-i18n-key="shift_hours_day">Shift Hours</th>
-                    <th data-i18n-key="phone">Mobile</th>
-                    <th data-i18n-key="actions">Actions</th>
+                    <th class="px-6 py-3" data-i18n-key="name">Name</th>
+                    <th class="px-6 py-3" data-i18n-key="role">Role</th>
+                    <th class="px-6 py-3" data-i18n-key="base_salary_monthly">Base Salary</th>
+                    <th class="px-6 py-3" data-i18n-key="shift_hours_day">Hours</th>
+                    <th class="px-6 py-3" data-i18n-key="phone">Mobile</th>
+                    <th class="px-6 py-3" data-i18n-key="actions">Actions</th>
                   </tr>
                 </thead>
-                <tbody id="employees-table-body">
-                  <!-- Populated by JS -->
+                <tbody id="employees-table-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                  <!-- JS Populated -->
                 </tbody>
               </table>
             </div>
@@ -89,262 +263,342 @@
 
         <!-- TAB 2: Attendance -->
         <div id="tab-attendance" class="tab-content">
-          <div class="card">
-            <div class="card-header" style="justify-content: flex-start; gap: 20px;">
-              <h3 data-i18n-key="daily_attendance">Daily Attendance</h3>
-              <input type="date" id="attendance-date" class="form-control" style="width: auto;">
-              <button class="btn btn-secondary" onclick="loadAttendanceForDate()" data-i18n-key="load_attendance">🔄
-                Load</button>
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <div class="flex flex-col sm:flex-row gap-4 items-end sm:items-center mb-4 border-b border-slate-100 pb-4">
+              <div class="flex-1">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                  data-i18n-key="daily_attendance">Attendance Date</label>
+                <input type="date" id="attendance-date"
+                  class="w-full sm:w-auto p-2 border border-slate-200 rounded-lg text-sm">
+              </div>
+              <button
+                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition-colors"
+                onclick="loadAttendanceForDate()" data-i18n-key="load_attendance">🔄 Load</button>
             </div>
-            <div class="card-body">
-              <p class="hint-text" data-i18n-key="attendance_hint">Enter <strong>Actual Hours</strong> worked. System
-                calculates Overtime/Shortage
-                automatically.</p>
-              <table class="data-table">
-                <thead>
+
+            <p class="text-xs text-slate-500 mb-4 bg-slate-50 p-2 rounded border border-slate-100 border-l-4 border-l-blue-400"
+              data-i18n-key="attendance_hint">
+              ℹ️ Enter <strong>Actual Hours</strong>. System calculates Overtime/Shortage automatically.
+            </p>
+
+            <div class="overflow-x-auto rounded-lg border border-slate-100 mb-4">
+              <table class="w-full text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
                   <tr>
-                    <th data-i18n-key="employee">Employee</th>
-                    <th data-i18n-key="expected_hours">Shift Hours (Expected)</th>
-                    <th data-i18n-key="actual_hours">Actual Hours</th>
-                    <th data-i18n-key="diff">Difference</th>
-                    <th data-i18n-key="status">Status</th>
+                    <th class="px-4 py-3" data-i18n-key="employee">Employee</th>
+                    <th class="px-4 py-3" data-i18n-key="expected_hours">Expected</th>
+                    <th class="px-4 py-3" data-i18n-key="actual_hours">Actual</th>
+                    <th class="px-4 py-3" data-i18n-key="diff">Diff</th>
+                    <th class="px-4 py-3" data-i18n-key="status">Status</th>
                   </tr>
                 </thead>
-                <tbody id="attendance-table-body">
-                  <!-- Populated by JS -->
+                <tbody id="attendance-table-body" class="divide-y divide-slate-100 text-sm">
+                  <!-- JS Populated -->
                 </tbody>
               </table>
-              <div style="margin-top: 20px; text-align: right;">
-                <button class="btn btn-success" onclick="saveAttendance()" data-i18n-key="save_attendance">💾 Save Daily
-                  Attendance</button>
-              </div>
+            </div>
+
+            <div class="flex justify-end">
+              <button
+                class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95"
+                onclick="saveAttendance()" data-i18n-key="save_attendance">💾 Save Attendance</button>
             </div>
           </div>
         </div>
 
         <!-- TAB 2a: Targets -->
         <div id="tab-targets" class="tab-content">
-          <div class="card">
-            <div class="card-header">
-              <h3 data-i18n-key="monthly_targets">Monthly Sales Targets</h3>
-              <div style="display:flex; gap:10px;">
-                <input type="month" id="targets-month-picker" onchange="loadTargetsTable()">
-                <button class="btn btn-success" onclick="saveTargets()" data-i18n-key="save">💾 Save Targets</button>
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-bold text-slate-800" data-i18n-key="monthly_targets">Monthly Sales Targets</h3>
+              <div class="flex gap-2">
+                <input type="month" id="targets-month-picker" onchange="loadTargetsTable()"
+                  class="p-2 border border-slate-200 rounded-lg text-sm bg-slate-50">
+                <button class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg"
+                  onclick="saveTargets()" data-i18n-key="save">Save</button>
               </div>
             </div>
-            <table class="data-table">
-              <thead>
+            <table class="w-full text-left">
+              <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
                 <tr>
-                  <th data-i18n-key="employee">Employee</th>
-                  <th data-i18n-key="target_egp">Values (EGP)</th>
+                  <th class="px-6 py-3" data-i18n-key="employee">Employee</th>
+                  <th class="px-6 py-3" data-i18n-key="target_egp">Target Amount (EGP)</th>
                 </tr>
               </thead>
-              <tbody id="targets-table-body"></tbody>
+              <tbody id="targets-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
             </table>
           </div>
         </div>
 
         <!-- TAB 3: Financials -->
         <div id="tab-financials" class="tab-content">
-          <div class="card">
-            <div class="card-header">
-              <h3 data-i18n-key="add_transaction">Add Deduction / Bonus</h3>
-            </div>
-            <div class="card-body">
-              <form id="financial-form" class="form-grid">
-                <div class="form-group">
-                  <label data-i18n-key="employee">Employee</label>
-                  <select id="fin-employee" required></select>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Add Transaction Form -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:col-span-1 h-fit">
+              <h3 class="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100" data-i18n-key="add_transaction">
+                Add Deduction / Bonus</h3>
+              <form id="financial-form" class="space-y-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                    data-i18n-key="employee">Employee</label>
+                  <select id="fin-employee" required
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none sm:text-sm"></select>
                 </div>
-                <div class="form-group">
-                  <label data-i18n-key="category">Type</label>
-                  <select id="fin-type" required>
-                    <option value="deduction" data-i18n-key="deduction">🔴 Deduction (Loan/Advance)</option>
-                    <option value="bonus" data-i18n-key="bonus">🟢 Bonus / Reward</option>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                    data-i18n-key="category">Type</label>
+                  <select id="fin-type" required
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none sm:text-sm">
+                    <option value="deduction" data-i18n-key="deduction">🔴 Deduction</option>
+                    <option value="bonus" data-i18n-key="bonus">🟢 Bonus</option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label data-i18n-key="amount">Amount</label>
-                  <input type="number" id="fin-amount" min="1" step="0.5" required>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                    data-i18n-key="amount">Amount</label>
+                  <input type="number" id="fin-amount" min="1" step="0.5" required
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold">
                 </div>
-                <div class="form-group">
-                  <label data-i18n-key="date">Date</label>
-                  <input type="date" id="fin-date" required>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="date">Date</label>
+                  <input type="date" id="fin-date" required
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none sm:text-sm">
                 </div>
-                <div class="form-group" style="grid-column: 1/-1">
-                  <label data-i18n-key="reason_note">Reason / Note</label>
-                  <input type="text" id="fin-reason">
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                    data-i18n-key="reason_note">Reason / Note</label>
+                  <input type="text" id="fin-reason"
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none sm:text-sm">
                 </div>
-                <div class="form-group">
-                  <button type="submit" class="btn btn-warning" data-i18n-key="add_transaction_btn">➕ Add
-                    Transaction</button>
-                </div>
+                <button type="submit"
+                  class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg shadow-sm transition-colors mt-2"
+                  data-i18n-key="add_transaction_btn">Add Transaction</button>
               </form>
             </div>
-          </div>
 
-          <div class="card mt-20">
-            <h3 data-i18n-key="transaction_history">Transaction History (Current Month)</h3>
-            <div class="filters" style="margin-bottom: 10px;">
-              <select id="hist-month"></select>
-              <select id="hist-year"></select>
-              <button class="btn btn-sm btn-secondary" onclick="loadFinancialHistory()"
-                data-i18n-key="filter">Filter</button>
+            <!-- History Table -->
+            <div
+              class="bg-white rounded-xl shadow-sm border border-slate-200 lg:col-span-2 overflow-hidden flex flex-col">
+              <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-700" data-i18n-key="transaction_history">History</h3>
+                <div class="flex gap-2">
+                  <select id="hist-month" class="p-1 border border-slate-200 rounded text-sm"></select>
+                  <select id="hist-year" class="p-1 border border-slate-200 rounded text-sm"></select>
+                  <button class="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs font-bold"
+                    onclick="loadFinancialHistory()" data-i18n-key="filter">Filter</button>
+                </div>
+              </div>
+              <div class="overflow-x-auto flex-1">
+                <table class="w-full text-left">
+                  <thead class="bg-white text-xs font-semibold text-slate-500 uppercase border-b border-slate-100">
+                    <tr>
+                      <th class="px-4 py-3" data-i18n-key="date">Date</th>
+                      <th class="px-4 py-3" data-i18n-key="employee">Employee</th>
+                      <th class="px-4 py-3" data-i18n-key="category">Type</th>
+                      <th class="px-4 py-3" data-i18n-key="amount">Amount</th>
+                      <th class="px-4 py-3" data-i18n-key="description">Reason</th>
+                      <th class="px-4 py-3" data-i18n-key="actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="financials-history-body" class="divide-y divide-slate-50 text-sm"></tbody>
+                </table>
+              </div>
             </div>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th data-i18n-key="date">Date</th>
-                  <th data-i18n-key="employee">Employee</th>
-                  <th data-i18n-key="category">Type</th>
-                  <th data-i18n-key="amount">Amount</th>
-                  <th data-i18n-key="description">Reason</th>
-                  <th data-i18n-key="actions">Action</th>
-                </tr>
-              </thead>
-              <tbody id="financials-history-body"></tbody>
-            </table>
           </div>
         </div>
 
         <!-- TAB 4: Payroll Processing -->
         <div id="tab-payroll" class="tab-content">
-          <div class="card">
-            <div class="card-header">
-              <h3 data-i18n-key="monthly_payroll">Monthly Payroll Processing</h3>
-              <div style="display:flex; gap:10px;">
-                <select id="payroll-month"></select>
-                <select id="payroll-year"></select>
-                <button class="btn btn-primary" onclick="calculatePayrollPreview()" data-i18n-key="calc_preview">📊
-                  Calculate Preview</button>
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+              <div>
+                <h3 class="text-lg font-bold text-slate-800" data-i18n-key="monthly_payroll">Monthly Payroll Processing
+                </h3>
+                <p class="text-sm text-slate-500">Calculate salaries based on attendance, deductions, and commissions.
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                <select id="payroll-month" class="p-2 border border-slate-200 rounded-lg text-sm bg-white"></select>
+                <select id="payroll-year" class="p-2 border border-slate-200 rounded-lg text-sm bg-white"></select>
+                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm"
+                  onclick="calculatePayrollPreview()" data-i18n-key="calc_preview">📊 Calculate</button>
               </div>
             </div>
-            <div class="card-body">
-              <!-- Data for Print Header -->
-              <div id="print-header">
-                <h1>Tashgheel Restaurant</h1>
-                <h2>Payroll Report / تقرير الرواتب</h2>
-                <p id="print-date"></p>
-              </div>
 
-              <div id="payroll-status-banner" class="alert hidden"></div>
+            <!-- Print Header (Hidden on Screen) -->
+            <div id="print-header" class="hidden print:block text-center mb-6">
+              <h1 class="text-2xl font-bold">Tashgheel Restaurant</h1>
+              <h2 class="text-xl">Payroll Report / تقرير الرواتب</h2>
+              <p id="print-date" class="text-slate-500"></p>
+            </div>
 
-              <table class="data-table payroll-table">
-                <thead>
+            <div id="payroll-status-banner" class="hidden mb-4 p-3 rounded-lg text-sm font-bold border"></div>
+
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+              <table class="w-full text-left data-table payroll-table">
+                <thead class="bg-slate-100 text-xs font-bold text-slate-600 uppercase tracking-wider">
                   <tr>
-                    <th data-i18n-key="employee">Employee</th>
-                    <th data-i18n-key="base_salary_monthly">Base Salary</th>
-                    <!-- Merged Hours -->
-                    <th data-i18n-key="actual_hours">Actual Hours</th>
-                    <th data-i18n-key="hour_diff">Diff (Amt)</th>
-
-                    <th data-i18n-key="deductions">Deductions</th>
-                    <th data-i18n-key="bonuses">Bonuses</th>
-                    <th data-i18n-key="sales_achieved">Achieved Sales</th>
-
-                    <th data-i18n-key="final_salary">FINAL SALARY</th>
+                    <th class="px-4 py-3" data-i18n-key="employee">Employee</th>
+                    <th class="px-4 py-3" data-i18n-key="base_salary_monthly">Base</th>
+                    <th class="px-4 py-3" data-i18n-key="actual_hours">Hrs</th>
+                    <th class="px-4 py-3" data-i18n-key="hour_diff">Diff($)</th>
+                    <th class="px-4 py-3 text-red-600" data-i18n-key="deductions">Ded</th>
+                    <th class="px-4 py-3 text-green-600" data-i18n-key="bonuses">Bon</th>
+                    <th class="px-4 py-3" data-i18n-key="sales_achieved">Sales</th>
+                    <th class="px-4 py-3 bg-slate-200 font-extrabold text-slate-800" data-i18n-key="final_salary">FINAL
+                    </th>
                   </tr>
                 </thead>
-                <tbody id="payroll-preview-body"></tbody>
+                <tbody id="payroll-preview-body" class="divide-y divide-slate-100 text-sm"></tbody>
               </table>
+            </div>
 
-              <div class="payroll-actions" style="margin-top: 20px; text-align: right;">
-                <button class="btn btn-danger" id="btn-close-payroll" onclick="closePayrollPeriod()"
-                  data-i18n-key="close_period_btn">🔒 Close Period &
-                  Finalize</button>
-                <button class="btn btn-secondary" onclick="printPayrollReport()" data-i18n-key="print_report_btn">🖨️
-                  Print Report</button>
-              </div>
+            <div class="flex justify-end gap-3 mt-6 print:hidden">
+              <button
+                class="px-5 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold flex items-center gap-2"
+                onclick="printPayrollReport()" data-i18n-key="print_report_btn">
+                <span class="material-symbols-outlined text-[18px]">print</span> Print
+              </button>
+              <button id="btn-close-payroll"
+                class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold shadow-sm flex items-center gap-2"
+                onclick="closePayrollPeriod()" data-i18n-key="close_period_btn">
+                <span class="material-symbols-outlined text-[18px]">lock</span> Close Period
+              </button>
             </div>
           </div>
         </div>
 
-      </section>
-
-      <!-- Employee Modal -->
-      <div id="employee-modal" class="modal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 data-i18n-key="employee_details">Employee Details</h2>
-            <span class="close-modal" onclick="closeEmployeeModal()">&times;</span>
-          </div>
-          <form id="employee-form" class="form-grid">
-            <input type="hidden" id="emp-id">
-            <div class="form-group">
-              <label data-i18n-key="fullname">Full Name</label>
-              <input type="text" id="emp-name" required>
-            </div>
-            <div class="form-group">
-              <label data-i18n-key="role">Role</label>
-              <select id="emp-role-select" onchange="toggleRoleOther()"
-                style="width:100%; padding:8px; margin-bottom:5px;">
-                <option value="Manager">Manager</option>
-                <option value="Cashier">Cashier</option>
-                <option value="Waiter">Waiter</option>
-                <option value="Delivery Man">Delivery Man</option>
-                <option value="Chef">Chef</option>
-                <option value="Other">Other...</option>
-              </select>
-              <input type="text" id="emp-role-other" placeholder="Enter Role" style="display:none; margin-top:5px;">
-            </div>
-            <div class="form-group">
-              <label>Linked System User</label>
-              <select id="emp-user-link" style="width:100%; padding:8px;">
-                <option value="">-- None --</option>
-                <!-- Populated by JS -->
-              </select>
-              <small style="color:#666;">Links this employee to a login account.</small>
-            </div>
-            <div class="form-group">
-              <label data-i18n-key="national_id">National ID</label>
-              <input type="text" id="emp-nid">
-            </div>
-            <div class="form-group">
-              <label data-i18n-key="phone">Phone</label>
-              <input type="text" id="emp-phone">
-            </div>
-            <div class="form-group">
-              <label data-i18n-key="base_salary_monthly">Base Salary (Monthly)</label>
-              <input type="number" id="emp-salary" min="0" required>
-            </div>
-            <div class="form-group">
-              <label data-i18n-key="working_days_month">Working Days/Month</label>
-              <input type="number" id="emp-days" value="26" min="1" max="31" required>
-            </div>
-            <div class="form-group">
-              <label data-i18n-key="shift_hours_day">Shift Hours/Day</label>
-              <input type="number" id="emp-hours" value="9" min="1" max="24" required>
-            </div>
-            <div class="form-group">
-              <label data-i18n-key="address">Address</label>
-              <input type="text" id="emp-address">
-            </div>
-            <div class="form-group" style="grid-column:1/-1; margin-top:20px;">
-              <button type="submit" class="btn btn-success" style="width:100%" data-i18n-key="save">Save
-                Employee</button>
-            </div>
-          </form>
-        </div>
       </div>
     </main>
   </div>
 
-  <footer class="footer">
-    Tashgheel Restaurant© 2025</strong> |
-    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
-    <span id="footerText">Designed and developed by itqan</span>
-  </footer>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-      // Waiters shouldn't see confidential data, but Managers/Admin should.
-      if (currentUser?.role === 'cashier' || currentUser?.role === 'waiter') {
-        alert('Access denied');
-        window.location.href = 'pos.html';
-      }
-    });
-  </script>
 
+  <!-- MODALS -->
+
+  <!-- Employee Modal -->
+  <div id="employee-modal" class="modal">
+    <div class="modal-content w-full max-w-lg p-6">
+      <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+        <h2 class="text-xl font-bold text-slate-800" data-i18n-key="employee_details">Employee Details</h2>
+        <button onclick="closeEmployeeModal()" class="text-slate-400 hover:text-slate-600"><span
+            class="material-symbols-outlined">close</span></button>
+      </div>
+
+      <form id="employee-form" class="space-y-4">
+        <input type="hidden" id="emp-id">
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="fullname">Full Name
+              *</label>
+            <input type="text" id="emp-name" required
+              class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="role">Role *</label>
+            <select id="emp-role-select" onchange="toggleRoleOther()"
+              class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+              <option value="Manager">Manager</option>
+              <option value="Cashier">Cashier</option>
+              <option value="Waiter">Waiter</option>
+              <option value="Delivery Man">Delivery Man</option>
+              <option value="Chef">Chef</option>
+              <option value="Other">Other...</option>
+            </select>
+            <input type="text" id="emp-role-other" placeholder="Enter Role"
+              class="w-full mt-2 p-2 border border-slate-200 rounded-lg text-sm hidden">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Linked System User</label>
+          <select id="emp-user-link"
+            class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-mono text-sm">
+            <option value="">-- None --</option>
+            <!-- Populated by JS -->
+          </select>
+          <p class="text-[10px] text-slate-400 mt-1">Links this employee to a a login account.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="national_id">National
+              ID</label>
+            <input type="text" id="emp-nid"
+              class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="phone">Phone</label>
+            <input type="text" id="emp-phone"
+              class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+        </div>
+
+        <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
+          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Contract Terms</h4>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-1" data-i18n-key="base_salary_monthly">Monthly
+                Salary</label>
+              <input type="number" id="emp-salary" min="0" required
+                class="w-full p-2 border border-slate-200 rounded-lg text-sm font-bold">
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-1" data-i18n-key="working_days_month">Days/Month</label>
+              <input type="number" id="emp-days" value="26" min="1" max="31" required
+                class="w-full p-2 border border-slate-200 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-1" data-i18n-key="shift_hours_day">Hours/Day</label>
+              <input type="number" id="emp-hours" value="9" min="1" max="24" required
+                class="w-full p-2 border border-slate-200 rounded-lg text-sm">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="address">Address</label>
+          <input type="text" id="emp-address"
+            class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-4">
+          <button type="button" class="px-5 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium"
+            onclick="closeEmployeeModal()" data-i18n-key="cancel">Cancel</button>
+          <button type="submit"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm"
+            data-i18n-key="save">Save Employee</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/web-adapter.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/translations.js"></script>
+  <script src="js/salesmen-app.js"></script>
+  <script>window.currentPage = 'salesmen';</script>
+  <script src="js/shared-nav.js"></script>
+
+  <!-- Mobile Sidebar Logic -->
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobile-overlay');
+      const isClosed = sidebar.classList.contains('-translate-x-full');
+
+      if (isClosed) {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      }
+    }
+
+    // Tab Logic (Simple fallback if JS fails, but main logic is in app.js)
+  </script>
 </body>
 
 </html>

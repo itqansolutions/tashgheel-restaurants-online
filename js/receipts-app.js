@@ -55,16 +55,31 @@ async function loadServiceReceipts() {
 
     filtered.forEach(sale => {
         const row = document.createElement('tr');
+        row.className = "hover:bg-slate-50 transition-colors group border-b border-slate-50 last:border-0";
+
+        const statusColors = {
+            'finished': 'bg-green-50 text-green-700 border-green-100',
+            'cancelled': 'bg-red-50 text-red-700 border-red-100',
+            'partial_return': 'bg-amber-50 text-amber-700 border-amber-100',
+            'full_return': 'bg-orange-50 text-orange-700 border-orange-100'
+        };
+        const statusClass = statusColors[sale.status] || 'bg-slate-100 text-slate-600 border-slate-200';
+
         row.innerHTML = `
-            <td>${sale.id}</td>
-            <td>${new Date(sale.date).toLocaleString()}</td>
-            <td>${sale.cashier}</td>
-            <td>${t(sale.method)}</td>
-            <td>${sale.total.toFixed(2)}</td>
-            <td><span class="badge badge-success">${t(sale.status)}</span></td>
-            <td>-</td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="window.printStoredReceipt('${sale.id}')">👁️ ${t('View', 'عرض')}</button>
+            <td class="px-6 py-4 text-sm font-mono text-slate-500">${sale.id.slice(-8)}</td>
+            <td class="px-6 py-4 text-sm text-slate-700">
+                ${new Date(sale.date).toLocaleString([], { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </td>
+            <td class="px-6 py-4 text-sm font-medium text-slate-800">${sale.cashier || '-'}</td>
+            <td class="px-6 py-4 text-sm text-slate-600 capitalize">${t(sale.method)}</td>
+            <td class="px-6 py-4 text-right text-sm font-bold text-slate-900">${sale.total.toFixed(2)}</td>
+            <td class="px-6 py-4 text-center">
+                <span class="px-2 py-1 rounded text-xs font-bold border ${statusClass}">${t(sale.status)}</span>
+            </td>
+            <td class="px-6 py-4 text-center">
+                <button class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors mx-auto" onclick="window.printStoredReceipt('${sale.id}')" title="View Receipt">
+                    <span class="material-symbols-outlined text-[18px]">receipt</span>
+                </button>
             </td>
         `;
         tbody.appendChild(row);

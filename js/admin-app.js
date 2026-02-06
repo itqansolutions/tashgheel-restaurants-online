@@ -100,19 +100,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     users.forEach((user) => {
       const row = document.createElement('tr');
-      // Badge class based on role
-      const badgeClass = `role-${user.role}`;
+      row.className = "hover:bg-slate-50 transition-colors group";
+
+      // Badge logic
+      let badgeClass = "bg-slate-100 text-slate-600";
+      if (user.role === 'admin') badgeClass = "bg-red-100 text-red-700 border border-red-200";
+      else if (user.role === 'manager') badgeClass = "bg-purple-100 text-purple-700 border border-purple-200";
+      else if (user.role === 'cashier') badgeClass = "bg-green-100 text-green-700 border border-green-200";
 
       row.innerHTML = `
-        <td>
-            <div style="font-weight:bold;">${user.username}</div>
-            <div style="font-size:0.85em; color:#777;">${user.fullName || user.username}</div>
+        <td class="px-4 py-3">
+            <div class="font-bold text-slate-800">${user.username}</div>
+            <div class="text-xs text-slate-500">${user.fullName || user.username}</div>
         </td>
-        <td><span class="role-badge ${badgeClass}">${user.role}</span></td>
-        <td style="text-align:right;">
+        <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide ${badgeClass}">${user.role}</span>
+        </td>
+        <td class="px-4 py-3 text-right">
              ${user.username !== 'admin' ?
-          `<button onclick="handleDeleteUser(${user.id})" class="btn btn-sm btn-danger" title="Delete">🗑️</button>` :
-          `<span style="color:#aaa; font-size:0.8em;">Protected</span>`
+          `<button onclick="handleDeleteUser(${user.id})" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete"><span class="material-symbols-outlined text-[16px]">delete</span></button>` :
+          `<span class="text-xs text-slate-300 italic">Protected</span>`
         }
         </td>
       `;
@@ -245,17 +252,20 @@ document.addEventListener('DOMContentLoaded', () => {
         branches.forEach((branch) => {
           const row = document.createElement('tr');
           const branchId = branch._id || branch.id;
+          row.className = "hover:bg-slate-50 transition-colors group";
 
           row.innerHTML = `
-          <td>
-            <div style="font-weight:bold;">${branch.name || 'Unnamed'}</div>
-            <div style="font-size:0.85em; color:#777;">${branch.address || '-'}</div>
+          <td class="px-4 py-3">
+            <div class="font-bold text-slate-800">${branch.name || 'Unnamed'}</div>
+            <div class="text-xs text-slate-500">${branch.address || '-'}</div>
           </td>
-          <td><span style="background:#e0e7ff; color:#4338ca; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:bold;">${branch.code || '-'}</span></td>
-          <td>${branch.phone || '-'}</td>
-          <td>${branch.settings?.taxRate || branch.taxRate || 0}%</td>
-          <td style="text-align:right;">
-            <button onclick="handleDeleteBranch('${branchId}')" class="btn btn-sm btn-danger" title="Delete" style="padding:4px 8px; font-size:0.8rem;">🗑️</button>
+          <td class="px-4 py-3">
+              <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg text-xs font-mono font-bold border border-blue-100">${branch.code || '-'}</span>
+          </td>
+          <td class="px-4 py-3 text-slate-600 text-sm">${branch.phone || '-'}</td>
+          <td class="px-4 py-3 text-slate-600 text-sm">${branch.settings?.taxRate || branch.taxRate || 0}%</td>
+          <td class="px-4 py-3 text-right">
+            <button onclick="handleDeleteBranch('${branchId}')" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete"><span class="material-symbols-outlined text-[16px]">delete</span></button>
           </td>
         `;
           branchTableBody.appendChild(row);

@@ -3,132 +3,295 @@
 
 <head>
   <meta charset="UTF-8">
-  <title data-i18n-key="expenses" data-i18n-ar="المصاريف">Expenses</title>
-  <link rel="stylesheet" href="css/expenses.css">
-  <link rel="stylesheet" href="css/styles.css">
-  <script src="js/web-adapter.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/db.js"></script>
-  <script>window.currentPage = 'expenses';</script>
-  <script src="js/shared-nav.js"></script>
-  <script src="js/translations.js"></script>
-  <script defer src="js/expenses-app.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expenses - F&B POS</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
 </head>
 
-<body>
-  <div class="language-switcher">
-    <button class="lang-btn" data-lang="en">EN</button>
-    <button class="lang-btn" data-lang="ar">AR</button>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex">
+
+  <!-- Mobile Overlay -->
+  <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden glass">
   </div>
 
-  <div class="app">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h2>Restaurant POS</h2>
+  <!-- Sidebar -->
+  <aside id="sidebar"
+    class="w-64 bg-[#1e293b] text-white flex flex-col shrink-0 transition-transform duration-300 absolute lg:relative z-40 h-full -translate-x-full lg:translate-x-0">
+    <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <img src="favicon.png" alt="Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain shadow-sm">
+        <div>
+          <h2 class="font-bold text-sm leading-tight" id="posSystemTitle" data-i18n-key="shop_pos_system">F&B POS System
+          </h2>
+          <p class="text-[10px] text-slate-400">Management System</p>
+        </div>
       </div>
-      <nav><!-- Populated by shared-nav.js --></nav>
-    </aside>
+      <!-- Mobile Close -->
+      <button onclick="toggleSidebar()" class="lg:hidden text-slate-400 hover:text-white">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
 
-    <main class="main-content">
-      <header class="top-bar">
-        <h1 data-i18n-key="expenses" data-i18n-ar="المصاريف">💰 Expenses</h1>
-      </header>
+    <!-- Navigation -->
+    <div class="flex-1 overflow-y-auto py-4 space-y-1">
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="pos.html">
+        <span class="material-symbols-outlined text-xl">point_of_sale</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_pos">POS</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="products.html">
+        <span class="material-symbols-outlined text-xl">menu_book</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_products">Menu Items</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="inventory.html">
+        <span class="material-symbols-outlined text-xl">inventory_2</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_inventory">Inventory</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="customers.html">
+        <span class="material-symbols-outlined text-xl">group</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_customers">Customers</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="kitchen.html">
+        <span class="material-symbols-outlined text-xl">countertops</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_kitchen">Kitchen</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="receipts.html">
+        <span class="material-symbols-outlined text-xl">receipt_long</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_receipts">Receipts</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="reports.html">
+        <span class="material-symbols-outlined text-xl">assessment</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_reports">Reports</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="vendors.html">
+        <span class="material-symbols-outlined text-xl">store</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_vendors">Vendors</span>
+      </a>
+      <!-- Active Page -->
+      <a class="flex items-center gap-3 px-6 py-3 bg-slate-800 border-l-4 border-blue-500 text-white"
+        href="expenses.html">
+        <span class="material-symbols-outlined text-xl">payments</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_expenses">Expenses</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="salesmen.html">
+        <span class="material-symbols-outlined text-xl">badge</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_employees">Employees</span>
+      </a>
+      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        href="admin.html">
+        <span class="material-symbols-outlined text-xl">settings</span>
+        <span class="text-sm font-medium" data-i18n-key="nav_admin">Admin Panel</span>
+      </a>
+      <button onclick="confirmLogout()"
+        class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
+        <span class="material-symbols-outlined text-xl">logout</span>
+        <span class="text-sm font-medium" data-i18n-key="logout">Logout</span>
+      </button>
+      <nav style="display:none;"></nav>
+    </div>
+  </aside>
 
-      <section class="content-area">
-        <!-- New Expense Form Card -->
-        <div class="card mb-20">
-          <div class="card-header">
-            <h3 data-i18n-key="add_expense" data-i18n-ar="إضافة مصروف">➕ Add Expense</h3>
+  <!-- Main Content Layout -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+
+    <!-- Top Header -->
+    <header
+      class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-20">
+      <div class="flex items-center gap-4">
+        <!-- Mobile Toggle -->
+        <button onclick="toggleSidebar()" class="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+
+        <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span class="material-symbols-outlined text-blue-600">payments</span>
+          <span data-i18n-key="expenses">Expenses</span>
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-3 sm:gap-4">
+        <div class="flex bg-slate-100 rounded-lg p-1">
+          <button
+            class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all active"
+            onclick="setLanguage('en')" id="langEn">EN</button>
+          <button
+            class="lang-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+            onclick="setLanguage('ar')" id="langAr">AR</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Scroller -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth bg-slate-50">
+      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Add Expense Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 h-fit lg:col-span-1">
+          <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+            <h2 class="font-bold text-slate-800" data-i18n-key="add_expense">Add Expense</h2>
+            <span class="material-symbols-outlined text-slate-400">post_add</span>
           </div>
-          <div class="card-body">
-            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-              <div class="form-group">
-                <label data-i18n-key="date" data-i18n-ar="التاريخ">Date</label>
-                <input type="date" id="expenseDate" class="form-control">
+          <div class="p-6">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="date">Date</label>
+                <input type="date" id="expenseDate"
+                  class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
               </div>
-              <div class="form-group">
-                <label data-i18n-key="seller" data-i18n-ar="البائع">Seller</label>
-                <select id="expenseSeller" class="form-control"></select>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                  data-i18n-key="seller">Seller</label>
+                <select id="expenseSeller"
+                  class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm"></select>
               </div>
-              <div class="form-group" style="grid-column: span 2;">
-                <label data-i18n-key="description" data-i18n-ar="الوصف">Description</label>
-                <input type="text" id="expenseDesc" class="form-control" placeholder="e.g. Paper, Delivery...">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                  data-i18n-key="description">Description</label>
+                <input type="text" id="expenseDesc" placeholder="e.g. Supplies..."
+                  class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
               </div>
-              <div class="form-group">
-                <label data-i18n-key="amount" data-i18n-ar="المبلغ">Amount</label>
-                <input type="number" id="expenseAmount" step="0.01" class="form-control" placeholder="0.00">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1"
+                  data-i18n-key="amount">Amount</label>
+                <input type="number" id="expenseAmount" step="0.01" placeholder="0.00"
+                  class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg">
               </div>
-              <div class="form-group">
-                <label data-i18n-key="method" data-i18n-ar="طريقة الدفع">Payment Method</label>
-                <select id="expenseMethod" class="form-control">
-                  <option value="cash" data-i18n-key="cash" data-i18n-ar="نقدي">Cash</option>
-                  <option value="card" data-i18n-key="card" data-i18n-ar="بطاقة">Card</option>
-                  <option value="mobile" data-i18n-key="mobile" data-i18n-ar="موبايل">Mobile</option>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="method">Payment
+                  Method</label>
+                <select id="expenseMethod"
+                  class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm">
+                  <option value="cash" data-i18n-key="cash">Cash</option>
+                  <option value="card" data-i18n-key="card">Card</option>
+                  <option value="mobile" data-i18n-key="mobile">Mobile</option>
                 </select>
               </div>
-            </div>
-            <div style="margin-top: 15px; text-align: right;">
-              <button class="btn btn-primary" onclick="addExpense()" data-i18n-key="add_expense"
-                data-i18n-ar="إضافة مصروف">💾 Save Expense</button>
+
+              <button
+                class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                onclick="addExpense()">
+                <span class="material-symbols-outlined">save</span>
+                <span data-i18n-key="save">Save Expense</span>
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- Expenses List Card -->
-        <div class="card">
-          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <span data-i18n-key="expenses_list" data-i18n-ar="قائمة المصاريف">📋 Expenses List</span>
-
-            <div class="filter-controls" style="display: flex; gap: 10px;">
-              <input type="date" id="filterDate" class="form-control" style="width: auto;">
-              <select id="filterSeller" class="form-control" style="width: auto;"></select>
-              <button class="btn btn-secondary btn-sm" onclick="filterExpenses()" data-i18n-key="filter"
-                data-i18n-ar="فلترة">🔍</button>
-              <button class="btn btn-secondary btn-sm" onclick="resetFilter()" data-i18n-key="reset"
-                data-i18n-ar="إعادة تعيين">🔄</button>
+        <!-- Expenses List -->
+        <div
+          class="bg-white rounded-xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col h-[600px] lg:h-auto">
+          <div class="p-4 border-b border-slate-100 flex flex-wrap gap-3 justify-between items-center bg-slate-50">
+            <h2 class="font-bold text-slate-700 flex items-center gap-2">
+              <span class="material-symbols-outlined text-slate-500">list_alt</span>
+              <span data-i18n-key="expenses_list">Expenses List</span>
+            </h2>
+            <div class="flex gap-2">
+              <input type="date" id="filterDate" class="p-1.5 border border-slate-200 rounded-lg text-xs w-32">
+              <select id="filterSeller" class="p-1.5 border border-slate-200 rounded-lg text-xs w-28"></select>
+              <button
+                class="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-600 transition-colors"
+                onclick="filterExpenses()">
+                <span class="material-symbols-outlined text-lg">search</span>
+              </button>
+              <button
+                class="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-600 transition-colors"
+                onclick="resetFilter()">
+                <span class="material-symbols-outlined text-lg">refresh</span>
+              </button>
             </div>
           </div>
-          <div class="card-body">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th data-i18n-key="date" data-i18n-ar="التاريخ">Date</th>
-                  <th data-i18n-key="seller" data-i18n-ar="البائع">Seller</th>
-                  <th data-i18n-key="description" data-i18n-ar="الوصف">Description</th>
-                  <th data-i18n-key="method" data-i18n-ar="الدفع">Method</th>
-                  <th data-i18n-key="amount" data-i18n-ar="المبلغ">Amount</th>
-                  <th data-i18n-key="actions" data-i18n-ar="الإجراءات">Actions</th>
+
+          <div class="overflow-auto flex-1 p-0">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-white sticky top-0 z-10 shadow-sm">
+                <tr class="text-xs font-semibold text-slate-500 uppercase border-b border-slate-100">
+                  <th class="px-4 py-3 bg-slate-50 w-12 text-center">#</th>
+                  <th class="px-4 py-3 bg-slate-50" data-i18n-key="date">Date</th>
+                  <th class="px-4 py-3 bg-slate-50" data-i18n-key="seller">Seller</th>
+                  <th class="px-4 py-3 bg-slate-50" data-i18n-key="description">Description</th>
+                  <th class="px-4 py-3 bg-slate-50" data-i18n-key="method">Method</th>
+                  <th class="px-4 py-3 bg-slate-50 text-right" data-i18n-key="amount">Amount</th>
+                  <th class="px-4 py-3 bg-slate-50 w-16"></th>
                 </tr>
               </thead>
-              <tbody id="expenses-table-body">
-                <!-- Filled by JS -->
+              <tbody id="expenses-table-body" class="divide-y divide-slate-100 text-sm">
+                <!-- JS Filled -->
               </tbody>
             </table>
-            <div
-              style="margin-top: 20px; text-align: right; font-size: 1.2em; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-              💰 <span data-i18n-key="total" data-i18n-ar="الإجمالي">Total:</span> <span id="total-expenses">0.00</span>
-              EGP
+          </div>
+
+          <div class="p-4 border-t border-slate-200 bg-slate-100 flex justify-end items-center gap-4">
+            <span class="uppercase text-xs font-bold text-slate-500" data-i18n-key="total">Total Expenses:</span>
+            <div class="text-2xl font-bold text-slate-800 font-mono">
+              <span id="total-expenses">0.00</span> <span class="text-sm font-normal text-slate-500">EGP</span>
             </div>
           </div>
         </div>
-      </section>
+
+      </div>
     </main>
   </div>
 
   <script src="js/web-adapter.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
+  <script src="js/translations.js"></script>
+  <script src="js/expenses-app.js"></script>
+  <script>window.currentPage = 'expenses';</script>
+  <script src="js/shared-nav.js"></script>
+
   <script>
-    // Managed by js/translations.js
-  </script>
-
-
-  // Global logout
-  window.logout = function () {
-  localStorage.removeItem('currentUser');
-  window.location.href = 'index.html';
-  }
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobile-overlay');
+      const isClosed = sidebar.classList.contains('-translate-x-full');
+      if (isClosed) {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      }
+    }
   </script>
 </body>
 

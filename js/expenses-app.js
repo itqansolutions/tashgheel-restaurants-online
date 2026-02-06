@@ -141,21 +141,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let total = 0;
     allExpenses.forEach((e, idx) => {
       const badge = e.type === 'vendor_payment'
-        ? `<span style="background:#3498db;color:white;padding:2px 6px;border-radius:3px;font-size:0.8em;">${t('Vendor', 'مورد')}</span>`
+        ? `<span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-blue-200 ml-2 uppercase tracking-wide inline-block align-middle">${t('Vendor', 'مورد')}</span>`
         : '';
 
       const tr = document.createElement('tr');
+      tr.className = "hover:bg-slate-50 transition-colors group";
+
       tr.innerHTML = `
-                <td>${idx + 1}</td>
-                <td>${e.date}</td>
-                <td>${e.seller || '-'}</td>
-                <td>${e.description} ${badge}</td>
-                <td>${t(methodLabel(e.method, 'en'), methodLabel(e.method, 'ar'))}</td>
-                <td>${parseFloat(e.amount).toFixed(2)}</td>
-                <td>
+                <td class="px-4 py-3 text-center text-slate-400 font-mono text-xs">${idx + 1}</td>
+                <td class="px-4 py-3 text-slate-600 whitespace-nowrap">${e.date}</td>
+                <td class="px-4 py-3 font-medium text-slate-800">${e.seller || '-'}</td>
+                <td class="px-4 py-3 text-slate-600 max-w-xs truncate" title="${e.description}">
+                    ${e.description} ${badge}
+                </td>
+                <td class="px-4 py-3 text-slate-500 capitalize text-xs">${t(methodLabel(e.method, 'en'), methodLabel(e.method, 'ar'))}</td>
+                <td class="px-4 py-3 text-right font-mono font-bold text-slate-800">${parseFloat(e.amount).toFixed(2)}</td>
+                <td class="px-4 py-3 text-center">
                     ${e.source === 'manual'
-          ? `<button class="btn btn-danger btn-sm" onclick="deleteExpense('${e.id}')">🗑️</button>`
-          : '<span style="color:#999;">Auto</span>'}
+          ? `<button class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100 mx-auto opacity-0 group-hover:opacity-100 focus:opacity-100" onclick="deleteExpense('${e.id}')"><span class="material-symbols-outlined text-[16px]">delete</span></button>`
+          : '<span class="text-xs text-slate-400 italic">Auto</span>'}
                 </td>
             `;
       tbody.appendChild(tr);

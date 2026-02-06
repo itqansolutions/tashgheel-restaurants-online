@@ -77,45 +77,54 @@ function renderApp() {
         }
 
         const card = document.createElement('div');
-        card.className = 'customer-card';
+        card.className = 'bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col group';
+
         card.innerHTML = `
-            <div class="card-header-bg">
-                <h3>${c.name}</h3>
-                <div class="mobile-badge">
-                   <span>📱</span> ${c.mobile}
+            <div class="px-5 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-start">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg">${c.name}</h3>
+                    <div class="flex items-center gap-2 text-slate-500 text-sm mt-1">
+                        <span class="material-symbols-outlined text-[16px]">smartphone</span> 
+                        <span>${c.mobile}</span>
+                    </div>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 text-xs font-bold">
+                    ${c.name.charAt(0).toUpperCase()}
                 </div>
             </div>
             
-            <div class="card-body">
+            <div class="p-5 flex-1 space-y-3">
                 ${c.notes ? `
-                <div class="info-row" style="background:#fff3cd; padding:5px; border-radius:4px; font-size:0.85em;">
-                   <span>⚠️ ${c.notes}</span>
+                <div class="bg-amber-50 text-amber-800 px-3 py-2 rounded-lg text-xs font-medium flex items-start gap-2 border border-amber-100">
+                   <span class="material-symbols-outlined text-[16px] text-amber-500">warning</span>
+                   <span>${c.notes}</span>
                 </div>` : ''}
 
-                <div class="info-row">
-                   <span>📍</span>
-                   <div>
+                <div class="flex items-start gap-3">
+                   <span class="material-symbols-outlined text-slate-400 mt-0.5">location_on</span>
+                   <div class="text-sm">
                        ${addressCount > 0 ?
-                `<span>${mainAddr.area}</span><br>
-                          <small style="color:#888;">${mainAddr.street}</small>
+                `<span class="font-semibold text-slate-700 block">${mainAddr.area}</span>
+                          <span class="text-slate-500 leading-tight block mt-0.5">${mainAddr.street || ''}</span>
                          `
-                : '<span style="color:#aaa;">No address saved</span>'}
+                : '<span class="text-slate-400 italic">No address saved</span>'}
                    </div>
                 </div>
 
                 ${addressCount > 1 ? `
-                  <div style="margin-top:5px;">
-                    <span class="address-badge">+ ${addressCount - 1} more locations</span>
+                  <div class="pl-8">
+                    <span class="inline-block bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] font-bold tracking-wide uppercase border border-blue-100">+ ${addressCount - 1} more locations</span>
                   </div>
                 ` : ''}
             </div>
 
-            <div class="action-row">
-                <button class="btn btn-sm btn-info btn-icon" onclick="openDetails(${c.id})" style="flex:1;">
-                  <span>📋</span> <span>${t('Details', 'التفاصيل')}</span>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex gap-2">
+                <button class="flex-1 flex items-center justify-center gap-2 py-2 bg-white border border-slate-200 hover:bg-blue-50 hover:border-blue-200 text-slate-600 hover:text-blue-700 rounded-lg text-sm font-medium transition-colors shadow-sm" onclick="openDetails(${c.id})">
+                  <span class="material-symbols-outlined text-[18px]">visibility</span> 
+                  <span>${t('Details', 'التفاصيل')}</span>
                 </button>
-                <button class="btn btn-sm btn-danger btn-icon" onclick="deleteCustomer(${c.id})" style="width:40px;">
-                  <span>🗑️</span>
+                <button class="w-10 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 text-slate-400 hover:text-red-600 rounded-lg transition-colors shadow-sm" onclick="deleteCustomer(${c.id})">
+                  <span class="material-symbols-outlined text-[18px]">delete</span>
                 </button>
             </div>
         `;
@@ -137,20 +146,27 @@ function renderAreasList() {
     const areas = window.DB.getDeliveryAreas();
 
     if (areas.length === 0) {
-        list.innerHTML = '<p style="color:#777; text-align:center;">No areas defined.</p>';
+        list.innerHTML = '<div class="p-4 text-center text-slate-400 text-sm border border-dashed border-slate-300 rounded-lg">No areas defined.</div>';
         return;
     }
 
     areas.forEach(a => {
         const item = document.createElement('div');
-        item.style.borderBottom = '1px solid #eee';
-        item.style.padding = '8px';
-        item.style.display = 'flex';
-        item.style.justifyContent = 'space-between';
+        item.className = 'flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100 mb-2 group hover:border-blue-200 transition-colors';
 
         item.innerHTML = `
-            <span><b>${a.name}</b> (${a.fee} LE)</span>
-            <button class="btn btn-sm btn-danger" onclick="deleteArea(${a.id})">x</button>
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-sm">map</span>
+                </div>
+                <div>
+                    <div class="font-bold text-slate-700 text-sm">${a.name}</div>
+                    <div class="text-xs text-slate-500 font-medium">Fee: ${parseFloat(a.fee).toFixed(2)}</div>
+                </div>
+            </div>
+            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" onclick="deleteArea(${a.id})">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+            </button>
         `;
         list.appendChild(item);
     });

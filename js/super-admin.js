@@ -58,35 +58,70 @@ function renderTenantsTable(tenants) {
 
     tenants.forEach(tenant => {
         const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0";
 
         const expiryDate = tenant.subscriptionEndsAt ? new Date(tenant.subscriptionEndsAt) : new Date(tenant.trialEndsAt);
         const isExpired = new Date() > expiryDate;
 
-        const statusClass = tenant.status === 'active' ? (isExpired ? 'status-suspended' : 'status-active') : `status-${tenant.status}`;
+        let statusClass = "bg-slate-100 text-slate-600 border-slate-200";
+        let statusIcon = "help";
+
+        if (tenant.status === 'active') {
+            if (isExpired) {
+                statusClass = "bg-red-50 text-red-600 border-red-100";
+                statusIcon = "history"; // Expired
+            } else {
+                statusClass = "bg-green-50 text-green-600 border-green-100";
+                statusIcon = "check_circle"; // Active
+            }
+        } else if (tenant.status === 'on_hold') {
+            statusClass = "bg-amber-50 text-amber-600 border-amber-100";
+            statusIcon = "pause_circle";
+        }
+
         const statusLabel = tenant.status === 'active' ? (isExpired ? 'Expired' : 'Active') : tenant.status.replace('_', ' ');
 
         tr.innerHTML = `
-            <td>
-                <strong>${tenant.businessName}</strong><br>
-                <small style="color:#666;">ID: ${tenant._id}</small>
+            <td class="px-6 py-4">
+                <div class="font-bold text-slate-800 text-base">${tenant.businessName}</div>
+                <div class="text-xs font-mono text-slate-400 mt-0.5">ID: ${tenant._id}</div>
             </td>
-            <td>
-                📧 ${tenant.email}<br>
-                📱 ${tenant.phone}
+            <td class="px-6 py-4">
+                <div class="flex flex-col gap-1 text-sm text-slate-600">
+                    <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">mail</span> ${tenant.email}</span>
+                    <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">call</span> ${tenant.phone}</span>
+                </div>
             </td>
-            <td>
-                <span class="status-badge ${statusClass}">${statusLabel}</span>
+            <td class="px-6 py-4">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${statusClass} uppercase tracking-wide">
+                    <span class="material-symbols-outlined text-[14px]">${statusIcon}</span>
+                    ${statusLabel}
+                </span>
             </td>
-            <td>
-                ${expiryDate.toLocaleDateString()} ${expiryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <td class="px-6 py-4">
+                <div class="text-sm font-medium text-slate-700">${expiryDate.toLocaleDateString()}</div>
+                <div class="text-xs text-slate-400">${expiryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </td>
-            <td>
-                <button onclick="updateStatus('${tenant._id}', '${tenant.status === 'active' ? 'on_hold' : 'active'}')" class="btn-sm ${tenant.status === 'active' ? 'btn-warning' : 'btn-success'}">
-                    ${tenant.status === 'active' ? '⏸️ Hold' : '▶️ Activate'}
-                </button>
-                <button onclick="openExtendModal('${tenant._id}', '${tenant.businessName}')" class="btn-sm btn-info">⏳ Extend</button>
-                <button onclick="openPasswordModal('${tenant._id}', '${tenant.businessName}')" class="btn-sm btn-primary">🔑 Pass</button>
-                <button onclick="terminateTenant('${tenant._id}')" class="btn-sm btn-danger">🗑️ Terminate</button>
+            <td class="px-6 py-4 text-right">
+                <div class="flex justify-end gap-2">
+                    <button onclick="updateStatus('${tenant._id}', '${tenant.status === 'active' ? 'on_hold' : 'active'}')" 
+                            class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors border ${tenant.status === 'active' ? 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100' : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'}"
+                            title="${tenant.status === 'active' ? 'Suspend' : 'Activate'}">
+                        <span class="material-symbols-outlined text-[18px]">${tenant.status === 'active' ? 'pause' : 'play_arrow'}</span>
+                    </button>
+                    
+                    <button onclick="openExtendModal('${tenant._id}', '${tenant.businessName}')" class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100" title="Extend Subscription">
+                        <span class="material-symbols-outlined text-[18px]">update</span>
+                    </button>
+                    
+                    <button onclick="openPasswordModal('${tenant._id}', '${tenant.businessName}')" class="w-8 h-8 flex items-center justify-center bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors border border-purple-100" title="Reset Password">
+                        <span class="material-symbols-outlined text-[18px]">key</span>
+                    </button>
+                    
+                    <button onclick="terminateTenant('${tenant._id}')" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete Tenant">
+                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);

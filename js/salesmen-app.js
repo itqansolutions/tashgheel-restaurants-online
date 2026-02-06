@@ -111,15 +111,23 @@ function renderEmployeesTable() {
 
   allEmployees.forEach(emp => {
     const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50 transition-colors group";
+
     tr.innerHTML = `
-            <td>${emp.name}</td>
-            <td><span class="badge badge-info">${emp.role || 'Staff'}</span></td>
-            <td>${emp.baseSalary || 0}</td>
-            <td>${emp.shiftHours || 9}</td>
-            <td>${emp.mobile || '-'}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="editEmployee(${emp.id})">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${emp.id})">🗑️</button>
+            <td class="px-6 py-4 font-medium text-slate-900">${emp.name}</td>
+            <td class="px-6 py-4">
+                <span class="px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">${emp.role || 'Staff'}</span>
+            </td>
+            <td class="px-6 py-4 font-mono text-slate-600">${parseFloat(emp.baseSalary || 0).toFixed(2)}</td>
+            <td class="px-6 py-4 text-slate-500">${emp.shiftHours || 9}h</td>
+            <td class="px-6 py-4 text-slate-500">${emp.mobile || '-'}</td>
+            <td class="px-6 py-4 flex gap-2">
+                <button class="w-8 h-8 flex items-center justify-center bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors border border-amber-100" onclick="editEmployee(${emp.id})">
+                    <span class="material-symbols-outlined text-[18px]">edit</span>
+                </button>
+                <button class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" onclick="deleteEmployee(${emp.id})">
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
             </td>
         `;
     tbody.appendChild(tr);
@@ -249,24 +257,26 @@ function loadAttendanceForDate() {
 
     const expected = emp.shiftHours || 9;
     const diff = record.actualHours - expected;
-    const statusColor = diff < 0 ? 'red' : (diff > 0 ? 'green' : 'black');
+    const statusColorClass = diff < 0 ? 'text-red-600' : (diff > 0 ? 'text-green-600' : 'text-slate-400');
     const diffText = diff > 0 ? `+${diff}` : `${diff}`;
 
     const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50 transition-colors";
+
     tr.innerHTML = `
-            <td>${emp.name}</td>
-            <td>${expected} H</td>
-            <td>
-                <input type="number" class="form-control" style="width:80px" 
+            <td class="px-4 py-3 font-medium text-slate-900">${emp.name}</td>
+            <td class="px-4 py-3 text-slate-500">${expected} H</td>
+            <td class="px-4 py-3">
+                <input type="number" class="w-24 p-1 border border-slate-300 rounded text-center focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold bg-white" 
                        value="${record.actualHours}" 
                        min="0" max="24" step="0.5"
                        onchange="updateAttendanceRow(this, ${expected}, ${emp.id})">
             </td>
-            <td style="color:${statusColor}; font-weight:bold;">${diffText} H</td>
-            <td>
-                <select class="form-control" onchange="updateAttendanceStatus(this, ${emp.id})">
+            <td class="px-4 py-3 font-bold ${statusColorClass} font-mono">${diffText} H</td>
+            <td class="px-4 py-3">
+                <select class="p-1 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" onchange="updateAttendanceStatus(this, ${emp.id})">
                     <option value="present" ${record.status === 'present' ? 'selected' : ''}>Present</option>
-                    <option value="absent" ${record.status === 'absent' ? 'selected' : ''}>Absent</option>
+                    <option value="absent" ${record.status === 'absent' ? 'selected' : 'class="text-red-500"'}>Absent</option>
                     <option value="leave" ${record.status === 'leave' ? 'selected' : ''}>Sick Leave</option>
                     <option value="off" ${record.status === 'off' ? 'selected' : ''}>Day Off</option>
                 </select>
@@ -325,10 +335,14 @@ function loadTargetsTable() {
     const tVal = monthTargets[emp.id] ? monthTargets[emp.id].target : 0;
 
     const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50 transition-colors";
     tr.innerHTML = `
-            <td>${emp.name}</td>
-            <td>
-                <input type="number" class="form-control target-input" data-empid="${emp.id}" value="${tVal}">
+            <td class="px-6 py-3 font-medium text-slate-900">${emp.name}</td>
+            <td class="px-6 py-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-slate-400 font-bold">EGP</span>
+                    <input type="number" class="target-input w-32 p-2 border border-slate-300 rounded-lg text-right font-mono font-bold focus:ring-2 focus:ring-green-500 outline-none" data-empid="${emp.id}" value="${tVal}">
+                </div>
             </td>
         `;
     tbody.appendChild(tr);
@@ -411,13 +425,30 @@ function loadFinancialHistory() {
 
   filtered.forEach(t => {
     const row = document.createElement('tr');
+    row.className = "hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0";
+
+    const badgeClass = t.type === 'bonus'
+      ? 'bg-green-100 text-green-700 border-green-200'
+      : 'bg-red-100 text-red-700 border-red-200';
+
+    const icon = t.type === 'bonus' ? 'trending_up' : 'trending_down';
+
     row.innerHTML = `
-            <td>${t.date}</td>
-            <td>${t.empName}</td>
-            <td><span class="badge ${t.type === 'bonus' ? 'badge-success' : 'badge-danger'}">${t.type.toUpperCase()}</span></td>
-            <td>${t.amount}</td>
-            <td>${t.reason || '-'}</td>
-            <td><button class="btn btn-sm btn-danger" onclick="deleteTransaction(${t.id})">x</button></td>
+            <td class="px-4 py-3 text-slate-500 text-xs">${t.date}</td>
+            <td class="px-4 py-3 font-medium text-slate-800">${t.empName}</td>
+            <td class="px-4 py-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold border ${badgeClass}">
+                    <span class="material-symbols-outlined text-[14px]">${icon}</span>
+                    ${t.type.toUpperCase()}
+                </span>
+            </td>
+            <td class="px-4 py-3 font-mono font-bold text-slate-800">${parseFloat(t.amount).toFixed(2)}</td>
+            <td class="px-4 py-3 text-slate-600 text-sm max-w-xs truncate" title="${t.reason || ''}">${t.reason || '-'}</td>
+            <td class="px-4 py-3">
+                <button class="w-6 h-6 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors" onclick="deleteTransaction(${t.id})">
+                    <span class="material-symbols-outlined text-[14px]">close</span>
+                </button>
+            </td>
         `;
     tbody.appendChild(row);
   });
@@ -592,30 +623,36 @@ function renderPayrollTable(data, isClosed) {
     grandTotal += parseFloat(row.finalSalary);
 
     const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-200 last:border-0";
+
     tr.innerHTML = `
-            <td><strong>${row.name}</strong></td>
-            <td>${row.baseSalary}</td>
-            <td>${row.actualHours}</td>
-            <td style="color:${parseFloat(row.diffValue) < 0 ? 'red' : 'green'}">
+            <td class="px-4 py-3">
+                <div class="font-bold text-slate-800">${row.name}</div>
+            </td>
+            <td class="px-4 py-3 font-mono text-slate-500">${row.baseSalary}</td>
+            <td class="px-4 py-3 text-slate-600">${row.actualHours}</td>
+            <td class="px-4 py-3 font-mono font-bold ${parseFloat(row.diffValue) < 0 ? 'text-red-500' : 'text-green-600'}">
                 ${row.diffValue}
             </td>
-            <td style="color:red">- ${row.deductions}</td>
-            <td style="color:green">+ ${row.bonuses}</td>
-            <td>
-                ${row.achievedSales} <br>
-                <small style="color:green; font-weight:bold;">(Comm: ${row.commission})</small>
+            <td class="px-4 py-3 text-red-600 font-mono">- ${row.deductions}</td>
+            <td class="px-4 py-3 text-green-600 font-mono">+ ${row.bonuses}</td>
+            <td class="px-4 py-3 text-xs">
+                <div class="font-bold text-slate-700">${row.achievedSales}</div>
+                <div class="text-green-600 font-bold">(Comm: ${row.commission})</div>
             </td>
-            <td class="final-salary">${row.finalSalary}</td>
+            <td class="px-4 py-3 font-mono text-lg font-bold text-blue-700 bg-blue-50/50">
+                ${row.finalSalary}
+            </td>
         `;
     tbody.appendChild(tr);
   });
 
   // Footer Row
   const ftr = document.createElement('tr');
-  ftr.style.background = '#f8f9fa';
+  ftr.className = "bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300";
   ftr.innerHTML = `
-        <td colspan="7" style="text-align:right; font-weight:bold;">TOTAL PAYOUT:</td>
-        <td class="final-salary">${grandTotal.toFixed(2)}</td>
+        <td colspan="7" class="px-4 py-3 text-right uppercase tracking-wider text-xs text-slate-500">Total Payout:</td>
+        <td class="px-4 py-3 font-mono text-xl text-blue-800">${grandTotal.toFixed(2)}</td>
     `;
   tbody.appendChild(ftr);
 }

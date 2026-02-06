@@ -33,23 +33,28 @@ function loadKitchenOrders() {
         const date = new Date(sale.date);
         const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // Filter items that are "Menu Items" (not direct products if needed, but usually everything goes to kitchen?)
-        // Let's assume everything goes to kitchen for now.
-
         const card = document.createElement('div');
-        card.className = 'order-card';
+        card.className = 'bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-lg flex flex-col';
+
         card.innerHTML = `
-            <div class="order-header">
-                <strong>#${sale.id.slice(-5)}</strong>
-                <span class="order-time">${time}</span>
+            <div class="bg-slate-700 px-4 py-3 flex justify-between items-center border-b border-slate-600">
+                <div class="font-bold text-amber-500 text-lg">#${sale.id.slice(-5)}</div>
+                <div class="text-slate-400 text-sm font-mono bg-slate-800 px-2 py-1 rounded border border-slate-700">${time}</div>
             </div>
-            <ul class="order-items">
+            
+            <ul class="p-4 space-y-3 flex-1 overflow-y-auto">
                 ${sale.items.map(item => `
-                    <li class="order-item">
-                        <span><span class="item-qty">${item.qty}x</span> ${item.name}</span>
+                    <li class="flex justify-between items-start border-b border-slate-700/50 pb-2 last:border-0 last:pb-0">
+                        <span class="text-slate-200 font-medium">${item.name}</span>
+                        <span class="font-bold text-amber-400 bg-amber-900/30 px-2 py-0.5 rounded text-sm">${item.qty}x</span>
                     </li>
                 `).join('')}
             </ul>
+
+            <div class="px-4 py-3 bg-slate-700/50 border-t border-slate-700 flex justify-between items-center">
+                 <span class="text-xs text-slate-500 uppercase font-bold tracking-wider">Status</span>
+                 <span class="text-xs font-bold text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-900/50">PREPARING</span>
+            </div>
         `;
         grid.appendChild(card);
     });

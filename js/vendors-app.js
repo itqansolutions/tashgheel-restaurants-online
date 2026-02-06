@@ -59,26 +59,52 @@ function renderVendors() {
 
     vendors.forEach(v => {
         const card = document.createElement('div');
-        card.className = 'vendor-card';
+        card.className = 'bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col group';
 
-        const creditClass = v.credit > 0 ? 'credit-negative' : v.credit < 0 ? 'credit-positive' : '';
+        const creditClass = v.credit > 0 ? 'bg-red-50 text-red-600 border-red-100' : v.credit < 0 ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-500 border-slate-100';
         const creditLabel = v.credit > 0 ? t('We Owe', 'علينا') : v.credit < 0 ? t('They Owe', 'لنا') : t('Settled', 'خالص');
 
         card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="px-5 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-start">
                 <div>
-                    <h3>${v.name}</h3>
-                    <p style="margin:5px 0; color:#666;">📱 ${v.mobile || 'N/A'}</p>
-                    <p style="margin:5px 0; color:#666;">📍 ${v.address || 'N/A'}</p>
-                </div>
-                <div style="text-align:right;">
-                    <div class="${creditClass}" style="font-size:1.2em; margin-bottom:10px;">
-                        ${creditLabel}: ${Math.abs(v.credit || 0).toFixed(2)}
+                    <h3 class="font-bold text-slate-800 text-lg">${v.name}</h3>
+                    <div class="flex items-center gap-2 text-slate-500 text-sm mt-1">
+                        <span class="material-symbols-outlined text-[16px]">smartphone</span>
+                        <span>${v.mobile || 'N/A'}</span>
                     </div>
-                    <button class="btn btn-sm btn-success" onclick="openPaymentModal(${v.id})" ${v.credit <= 0 ? 'disabled' : ''}>💰 ${t('Pay', 'دفع')}</button>
-                    <button class="btn btn-sm btn-info" onclick="printVendorReport('${v.id}')">📄 ${t('Report', 'تقرير')}</button>
-                    <button class="btn btn-sm btn-secondary" onclick="editVendor(${v.id})">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteVendor(${v.id})">🗑️</button>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                    ${v.name.charAt(0).toUpperCase()}
+                </div>
+            </div>
+
+            <div class="p-5 flex-1 space-y-4">
+                <div class="flex items-start gap-3 text-sm text-slate-600">
+                    <span class="material-symbols-outlined text-slate-400 mt-0.5">store</span>
+                    <span>${v.address || 'No address provided'}</span>
+                </div>
+                
+                <div class="flex items-center justify-between p-3 rounded-lg border ${creditClass}">
+                    <span class="text-xs font-bold uppercase tracking-wider opacity-80">${creditLabel}</span>
+                    <span class="text-lg font-bold">${Math.abs(v.credit || 0).toFixed(2)}</span>
+                </div>
+            </div>
+
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex gap-2">
+                <button class="flex-1 flex items-center justify-center gap-2 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm ${v.credit <= 0 ? 'opacity-50 cursor-not-allowed' : ''}" onclick="openPaymentModal(${v.id})" ${v.credit <= 0 ? 'disabled' : ''}>
+                    <span class="material-symbols-outlined text-[18px]">payments</span>
+                    <span>${t('Pay', 'دفع')}</span>
+                </button>
+                <div class="flex gap-1">
+                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors" onclick="printVendorReport('${v.id}')" title="Report">
+                        <span class="material-symbols-outlined text-[18px]">description</span>
+                    </button>
+                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors" onclick="editVendor(${v.id})" title="Edit">
+                        <span class="material-symbols-outlined text-[18px]">edit</span>
+                    </button>
+                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" onclick="deleteVendor(${v.id})" title="Delete">
+                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
                 </div>
             </div>
         `;
