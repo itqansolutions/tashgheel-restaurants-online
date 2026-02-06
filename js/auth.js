@@ -1139,7 +1139,18 @@ function changePassword(currentPassword, newPassword, confirmPassword) {
 // Check if user session is valid
 function isSessionValid() {
     var currentUser = getCurrentUser();
-    if (!currentUser) return false;
+    if (!currentUser) {
+        // 🚀 WEB/SaaS MODE FALLBACK: 
+        // In web mode, HTTP-Only cookies manage the actual session on the server.
+        // The client doesn't have direct access to the token.
+        // If we have an activeBranchId, it means the user COMPLETED a login flow.
+        const activeBranch = localStorage.getItem('activeBranchId');
+        if (activeBranch && activeBranch !== 'null' && activeBranch !== 'bypass') {
+            console.log('ℹ️ isSessionValid: No local session object, but activeBranchId found. Trusting cookie auth.');
+            return true; // Trust that a valid cookie session exists
+        }
+        return false;
+    }
 
     // 🚀 SaaS/API Mode: If we have an API token, the session is managed by the server
     if (currentUser.token) return true;
