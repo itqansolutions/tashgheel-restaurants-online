@@ -198,11 +198,18 @@
                     class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                     <div class="text-sm text-slate-500 font-medium">Manage your raw material suppliers and payments.
                     </div>
-                    <button onclick="openAddVendorModal()"
-                        class="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-sm transition-all active:scale-95">
-                        <span class="material-symbols-outlined">add_business</span>
-                        <span data-i18n-key="add_vendor">Add Vendor</span>
-                    </button>
+                    <div class="w-full sm:w-auto flex gap-2">
+                        <button onclick="printAllVendorsReport()"
+                            class="flex-1 sm:flex-initial flex justify-center items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold shadow-sm transition-all active:scale-95 border border-slate-200">
+                            <span class="material-symbols-outlined">print</span>
+                            <span>Summary</span>
+                        </button>
+                        <button onclick="openAddVendorModal()"
+                            class="flex-1 sm:flex-initial flex justify-center items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-sm transition-all active:scale-95">
+                            <span class="material-symbols-outlined">add_business</span>
+                            <span data-i18n-key="add_vendor">Add Vendor</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Vendors Grid -->

@@ -102,15 +102,29 @@ async function buildReportContext() {
     }
 
     // 2. Data Fetching (Current Period)
-    const [receipts, rawProducts, rawExpenses, shifts] = await Promise.all([
+    const [receipts, rawProducts, rawExpenses, shifts, rawIngredients] = await Promise.all([
         window.electronAPI.getSalesHistory ? window.electronAPI.getSalesHistory({ branchId, from: fromDate.getTime(), to: toDate.getTime() }) : [],
         window.electronAPI.getParts ? window.electronAPI.getParts() : [],
         window.DataCache && window.DataCache.expenses ? window.DataCache.expenses.filter(e => {
             const d = new Date(e.date);
             return (!branchId || branchId === 'all' || e.branchId == branchId) && d >= fromDate && d <= toDate;
         }) : [],
-        window.electronAPI.getShifts ? window.electronAPI.getShifts({ branchId }) : []
+        window.electronAPI.getShifts ? window.electronAPI.getShifts({ branchId }) : [],
+        window.DB ? window.DB.getIngredients() : [] // Fetch Ingredients for Costing
     ]);
+
+    // Helper: Dynamic Cost Engine
+    const getProductCost = (product) => {
+        if (product.type === 'composite' && product.recipe && product.recipe.length > 0) {
+            return product.recipe.reduce((total, item) => {
+                const ing = rawIngredients.find(i => i.id == item.ingredientId);
+                const unitCost = ing ? parseFloat(ing.cost || 0) : 0;
+                // Handle Waste/Yield if needed (assuming recipe qty is gross or simple)
+                return total + (unitCost * parseFloat(item.qty));
+            }, 0);
+        }
+        return parseFloat(product.cost || product.unitCost) || 0;
+    };
 
     // 2b. Trend Step: Fetch Previous Period Data?
     // For MVP performance, we might simulate or just skip if too heavy. 
@@ -261,7 +275,7 @@ async function buildReportContext() {
     // Inventory Aggregation
     rawProducts.forEach(p => {
         const qty = parseFloat(p.qty) || 0;
-        const cost = parseFloat(p.cost || p.unitCost) || 0;
+        const cost = getProductCost(p); // Use Dynamic Cost Logic
         const price = parseFloat(p.price) || 0;
         const min = parseFloat(p.minStock || 5);
 

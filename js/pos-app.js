@@ -240,8 +240,8 @@ function renderCategories() {
     const btn = document.createElement('button');
     const isActive = currentCategory === cat;
     btn.className = `px-5 py-2 text-xs font-bold rounded-full flex-shrink-0 transition-all border ${isActive
-        ? 'bg-primary text-white shadow-lg border-primary'
-        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-primary'
+      ? 'bg-primary text-white shadow-lg border-primary'
+      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-primary'
       }`;
     btn.textContent = cat === 'All' ? (t('all') || 'All') : cat;
     btn.onclick = () => {
@@ -1216,20 +1216,17 @@ function processSale(method) {
   };
 
   // Stock Deduction Logic
-  // 🚀 MOVED TO BACKEND (SaaS Phase 3)
-  /*
   cart.forEach(item => {
-      // 1. Deduct Main Item
-      processStockDeduction(item.product_id, item.qty, item.sizeId);
+    // 1. Deduct Main Item
+    processStockDeduction(item.product_id, item.qty, item.sizeId);
 
-      // 2. Deduct Add-ons
-      if (item.addons && item.addons.length > 0) {
-          item.addons.forEach(addon => {
-              processStockDeduction(addon.id, item.qty * addon.qty, null);
-          });
-      }
+    // 2. Deduct Add-ons
+    if (item.addons && item.addons.length > 0) {
+      item.addons.forEach(addon => {
+        processStockDeduction(addon.id, item.qty * (addon.qty || 1), null);
+      });
+    }
   });
-  */
 
 
   // Save Sale
@@ -1284,14 +1281,27 @@ function processStockDeduction(productId, qtyToDeduct, sizeId) {
         }
 
         // Update Ingredient Stock
-        ingredient.stock = (parseFloat(ingredient.stock) || 0) - consumeQty;
+        const oldStock = parseFloat(ingredient.stock) || 0;
+        ingredient.stock = oldStock - consumeQty;
+        ingredient.lastUsedAt = new Date().toISOString(); // Track Usage for Health
         window.DB.saveIngredient(ingredient);
+
+        // Sync with Backend
+        if (window.electronAPI.updateStock) {
+          window.electronAPI.updateStock(ingredient.id, ingredient.stock);
+        }
       }
     });
   } else {
     // Direct Stock Deduction
-    product.stock = (parseFloat(product.stock) || 0) - qtyToDeduct;
+    const oldStock = parseFloat(product.stock) || 0;
+    product.stock = oldStock - qtyToDeduct;
     window.DB.savePart(product);
+
+    // Sync with Backend
+    if (window.electronAPI.updateStock) {
+      window.electronAPI.updateStock(product.id, product.stock);
+    }
   }
 }
 

@@ -8,6 +8,9 @@
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jsPDF & AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
   <!-- Fonts & Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -158,11 +161,18 @@
             <h2 class="text-lg font-semibold text-slate-700" data-i18n-key="product_list">Menu Items</h2>
             <p class="text-sm text-slate-500">Manage your restaurant offerings, prices, and recipes.</p>
           </div>
-          <button onclick="openProductModal()"
-            class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95">
-            <span class="material-symbols-outlined text-xl">add</span>
-            <span data-i18n-key="add_product">Add Product</span>
-          </button>
+          <div class="flex gap-2">
+            <button onclick="exportMenuPDF()"
+              class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 border border-slate-200">
+              <span class="material-symbols-outlined text-xl">picture_as_pdf</span>
+              <span>Export Menu</span>
+            </button>
+            <button onclick="openProductModal()"
+              class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95">
+              <span class="material-symbols-outlined text-xl">add</span>
+              <span data-i18n-key="add_product">Add Product</span>
+            </button>
+          </div>
         </div>
 
         <!-- Main Grid -->

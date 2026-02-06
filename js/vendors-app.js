@@ -369,6 +369,89 @@ window.printVendorReport = function printVendorReport(vendorId) {
     document.body.insertAdjacentHTML('beforeend', reportHTML);
 }
 
+// Print All Vendors Summary
+window.printAllVendorsReport = function () {
+    const lang = localStorage.getItem('pos_language') || 'en';
+    const isRTL = lang === 'ar';
+    const vendors = window.DB.getVendors();
+    const shopName = localStorage.getItem('shopName') || 'Tashgheel Services';
+
+    let totalDebt = 0;
+    let totalCredit = 0;
+
+    const rows = vendors.map(v => {
+        const credit = v.credit || 0; // Postive = Owe Vendor, Negative = Vendor Owes Us
+        if (credit > 0) totalDebt += credit;
+        else totalCredit += Math.abs(credit);
+
+        return `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px; border: 1px solid #ddd;">${v.name}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">${v.mobile || '-'}</td>
+                <td style="padding: 10px; border: 1px solid #ddd; text-align: ${isRTL ? 'left' : 'right'}; font-weight: bold; color: ${credit > 0 ? '#e74c3c' : (credit < 0 ? '#27ae60' : '#7f8c8d')}">
+                    ${credit.toFixed(2)}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    const html = `
+        <html>
+        <head>
+            <title>${t('Vendor Summary', 'ملخص الموردين')}</title>
+            <style>
+                body { font-family: Arial, sans-serif; direction: ${isRTL ? 'rtl' : 'ltr'}; padding: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th { background: #34495e; color: white; padding: 12px; border: 1px solid #ddd; }
+                .summary-box { margin-top:30px; display:flex; gap:20px; justify-content:flex-end; }
+                .box { padding:15px; border-radius:8px; border:1px solid #ddd; min-width:150px; text-align:center; }
+                @media print { .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1>${shopName}</h1>
+                <h2>${t('Vendor Indebtedness Report', 'تقرير مديونية الموردين')}</h2>
+                <p>${new Date().toLocaleDateString()}</p>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: ${isRTL ? 'right' : 'left'}">${t('Vendor', 'المورد')}</th>
+                        <th style="text-align: ${isRTL ? 'right' : 'left'}">${t('Mobile', 'الجوال')}</th>
+                        <th style="text-align: ${isRTL ? 'left' : 'right'}">${t('Balance (You Owe)', 'الرصيد (مستحق عليك)')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+
+            <div class="summary-box">
+                <div class="box" style="background:#ffebee; border-color:#ef5350; color:#c62828;">
+                    <strong>${t('Total Debt (Payable)', 'إجمالي المستحق للموردين')}</strong><br>
+                    <span style="font-size:1.5em; font-weight:bold;">${totalDebt.toFixed(2)}</span>
+                </div>
+                <div class="box" style="background:#e8f5e9; border-color:#66bb6a; color:#2e7d32;">
+                    <strong>${t('Vendor Credit (Receivable)', 'إجمالي المستحق لنا')}</strong><br>
+                    <span style="font-size:1.5em; font-weight:bold;">${totalCredit.toFixed(2)}</span>
+                </div>
+            </div>
+
+            <div class="no-print" style="text-align: center; margin-top: 40px;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: #34495e; color: white; border: none; cursor: pointer;">🖨️ Print</button>
+            </div>
+            <script>window.onload = () => window.print();</script>
+        </body>
+        </html>
+    `;
+
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+};
+
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
 }

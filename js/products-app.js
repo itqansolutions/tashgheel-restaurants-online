@@ -476,6 +476,7 @@ function handleAddProduct(e) {
 
     // Recipe Logic
     recipe: hasSizes ? [] : currentSingleRecipe,
+    type: (hasSizes || currentSingleRecipe.length > 0) ? 'composite' : 'simple',
 
     hasSizes: hasSizes,
     sizes: hasSizes ? currentSizes : [],
@@ -794,6 +795,70 @@ function loadCategories() {
     list.appendChild(li);
   });
 }
+
+// Menu PDF Export
+window.exportMenuPDF = function () {
+  if (!window.jspdf) return alert('PDF Library not loaded');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const shopName = localStorage.getItem('shopName') || 'My Restaurant';
+  // Logo? Handling base64 logo in PDF is tricky if not pre-loaded. We'll skip or use simple text for now.
+
+  // Header
+  doc.setFontSize(22);
+  doc.text(shopName, 105, 20, { align: 'center' });
+  doc.setFontSize(14);
+  doc.text('Menu', 105, 30, { align: 'center' });
+
+  const products = window.DB.getParts();
+  const categories = [...new Set(products.map(p => p.category || 'Uncategorized'))].sort();
+
+  let yPos = 40;
+
+  categories.forEach(cat => {
+    // Category Header
+    doc.setFontSize(16);
+    doc.setTextColor(41, 128, 185); // Blue
+    doc.text(cat, 14, yPos);
+    yPos += 8;
+
+    // Table
+    const items = products.filter(p => (p.category || 'Uncategorized') === cat);
+    const tableData = items.map(p => {
+      // Price Logic (Ranges if size)
+      let priceStr = parseFloat(p.price || 0).toFixed(2);
+      if (p.hasSizes && p.sizes && p.sizes.length) {
+        const min = Math.min(...p.sizes.map(s => s.price));
+        priceStr = `${min.toFixed(2)}+`;
+      }
+      return [p.name, p.partNumber || '-', priceStr];
+    });
+
+    doc.autoTable({
+      startY: yPos,
+      head: [['Item', 'Code', 'Price']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [66, 66, 66] },
+      margin: { left: 14, right: 14 },
+      didDrawPage: (data) => {
+        // simple footer or something?
+      }
+    });
+
+    yPos = doc.lastAutoTable.finalY + 15; // Space for next category
+
+    // Page break if needed? autoTable handles its own page breaks, but manual yPos might drift?
+    // simple check
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+  });
+
+  doc.save('Menu_Export.pdf');
+};
 
 function handleAddCategory(e) {
   e.preventDefault();

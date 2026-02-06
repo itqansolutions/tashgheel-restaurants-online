@@ -43,12 +43,66 @@ function loadVendors() {
 function loadInventory() {
     const materials = window.DB.getIngredients();
     const vendors = window.DB.getVendors();
-    const tbody = document.getElementById('inventory-table-body');
     const search = document.getElementById('searchBox').value.toLowerCase();
-
-    tbody.innerHTML = '';
+    const container = document.getElementById('inventory-table-container'); // Assuming this is the container for the entire inventory display
 
     const filtered = materials.filter(m => m.name.toLowerCase().includes(search));
+
+    container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-red-50 p-4 rounded-xl border border-red-100 flex items-center justify-between">
+                <div>
+                    <div class="text-xs font-bold text-red-500 uppercase">Expired</div>
+                    <div class="text-xl font-bold text-red-700" id="alert-expired-count">0</div>
+                </div>
+                <span class="material-symbols-outlined text-red-400 text-3xl">event_busy</span>
+            </div>
+             <div class="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between">
+                <div>
+                    <div class="text-xs font-bold text-amber-500 uppercase">Expiring Soon</div>
+                    <div class="text-xl font-bold text-amber-700" id="alert-expiring-count">0</div>
+                </div>
+                <span class="material-symbols-outlined text-amber-400 text-3xl">history</span>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
+                 <div>
+                    <div class="text-xs font-bold text-slate-500 uppercase">Dead Stock (>30d)</div>
+                    <div class="text-xl font-bold text-slate-700" id="alert-dead-count">0</div>
+                </div>
+                <span class="material-symbols-outlined text-slate-400 text-3xl">inventory_2</span>
+            </div>
+             <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center justify-between">
+                 <div>
+                    <div class="text-xs font-bold text-emerald-500 uppercase">Healty Stock</div>
+                    <div class="text-xl font-bold text-emerald-700" id="alert-healthy-count">0</div>
+                </div>
+                <span class="material-symbols-outlined text-emerald-400 text-3xl">check_circle</span>
+            </div>
+        </div>
+
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200 sticky top-0">
+                <tr>
+                    <th class="px-6 py-3">Material Name</th>
+                    <th class="px-6 py-3">Unit</th>
+                    <th class="px-6 py-3 text-right">Cost</th>
+                    <th class="px-6 py-3 text-center">Stock</th>
+                    <th class="px-6 py-3 text-right">Value</th>
+                    <th class="px-6 py-3">Vendor</th>
+                    <th class="px-6 py-3 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white" id="inventory-table-body">
+                <!-- Rows -->
+            </tbody>
+        </table>
+    `;
+
+    const tbody = container.querySelector('tbody');
+    let expiredCount = 0;
+    let expiringCount = 0;
+    let deadCount = 0;
+    let healthyCount = 0;
 
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No materials found.</td></tr>';
@@ -59,11 +113,57 @@ function loadInventory() {
         const vendor = vendors.find(v => v.id == m.vendorId);
         const totalValue = (parseFloat(m.cost) * parseFloat(m.stock)).toFixed(2);
 
+        // Expiration Logic
+        let expiryBadge = '';
+        if (m.expirationDate) {
+            const exp = new Date(m.expirationDate);
+            const today = new Date();
+            const diffTime = exp - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays <= 0) {
+                expiryBadge = `<div class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded mt-1 border border-red-200 w-fit flex items-center gap-1 font-bold">
+                                    <span class="material-symbols-outlined text-[10px]">warning</span> Expired
+                                </div>`;
+                expiredCount++;
+            } else if (diffDays <= 30) {
+                expiryBadge = `<div class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mt-1 border border-amber-200 w-fit flex items-center gap-1 font-bold">
+                                    <span class="material-symbols-outlined text-[10px]">history</span> Exp: ${diffDays}d
+                                </div>`;
+                expiringCount++;
+            }
+        }
+
+        // Health Logic (Movement)
+        let healthBadge = '';
+        let daysIdle = 999; // Default to very old if no lastUsedAt
+        if (m.lastUsedAt) {
+            const diff = new Date() - new Date(m.lastUsedAt);
+            daysIdle = Math.floor(diff / (1000 * 60 * 60 * 24));
+        }
+
+        if (daysIdle <= 7) {
+            healthBadge = `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold border border-emerald-200 ml-1">Healthy</span>`;
+            healthyCount++;
+        } else if (daysIdle <= 30) {
+            healthBadge = `<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold border border-blue-100 ml-1">Slow</span>`;
+        } else {
+            healthBadge = `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold border border-slate-200 ml-1">Dead</span>`;
+            deadCount++;
+        }
+
+
         const row = document.createElement('tr');
         row.className = "hover:bg-slate-50 transition-colors group";
 
         row.innerHTML = `
-            <td class="px-6 py-4 text-sm font-medium text-slate-800">${m.name}</td>
+            <td class="px-6 py-4 text-sm font-medium text-slate-800">
+                <div class="flex items-center">
+                    ${m.name}
+                    ${healthBadge}
+                </div>
+                ${expiryBadge}
+            </td>
             <td class="px-6 py-4">
                 <span class="px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">${m.unit}</span>
             </td>
@@ -89,6 +189,12 @@ function loadInventory() {
         `;
         tbody.appendChild(row);
     });
+
+    // Update Counts
+    document.getElementById('alert-expired-count').textContent = expiredCount;
+    document.getElementById('alert-expiring-count').textContent = expiringCount;
+    document.getElementById('alert-dead-count').textContent = deadCount;
+    document.getElementById('alert-healthy-count').textContent = healthyCount;
 }
 
 function handleSaveMaterial(e) {
@@ -114,6 +220,7 @@ function handleSaveMaterial(e) {
             name,
             unit,
             cost,
+            expirationDate: document.getElementById('material-expiration').value || null,
             vendorId: vendorId || null
             // Stock is handled separately for SaaS
         };
@@ -182,6 +289,7 @@ function editMaterial(id) {
     document.getElementById('material-unit').value = material.unit;
     document.getElementById('material-cost').value = material.cost;
     document.getElementById('material-stock').value = material.stock;
+    document.getElementById('material-expiration').value = material.expirationDate || "";
     document.getElementById('material-vendor').value = material.vendorId || "";
 }
 
