@@ -76,20 +76,7 @@ function renderNavigation(activePage) {
     return navHTML;
 }
 
-function renderFooter() {
-    const lang = localStorage.getItem('pos_language') || 'en';
 
-    return `
-        <div class="sidebar-footer" style="text-align:center; padding:15px; font-size:0.85em; border-top:1px solid #34495e;">
-            <strong>Tashgheel Services</strong><br>
-            <small style="color:#95a5a6;">powered by itqansolutions © 2025</small><br>
-            <small style="color:#95a5a6;">
-                📧 info@itqansolutions.org<br>
-                📱 +201126522373 / +201155253886
-            </small>
-        </div>
-    `;
-}
 
 window.confirmLogout = function () {
     const lang = localStorage.getItem('pos_language') || 'en';
@@ -104,26 +91,25 @@ window.confirmLogout = function () {
 // Auto-apply navigation and footer on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Apply navigation if sidebar nav exists
-    const navContainer = document.querySelector('.sidebar nav');
+    // Apply navigation
+    // Priority: .sidebar nav (if specific structure), else aside nav, else aside .nav-container
+    const navContainer = document.querySelector('.sidebar nav') || document.querySelector('aside nav') || document.querySelector('#dynamic-nav');
+
     if (navContainer && typeof window.currentPage !== 'undefined') {
         navContainer.innerHTML = renderNavigation(window.currentPage);
-    } else {
-        // Fallback for pages where .sidebar nav might be just <nav> inside aside
-        const plainNav = document.querySelector('aside nav');
-        if (plainNav && typeof window.currentPage !== 'undefined') {
-            plainNav.innerHTML = renderNavigation(window.currentPage);
-        }
     }
 
-    // Apply footer if sidebar exists
-    const sidebar = document.querySelector('.sidebar') || document.querySelector('aside');
-    if (sidebar) {
-        // Remove old footer if exists
-        const oldFooter = sidebar.querySelector('.sidebar-footer');
-        if (oldFooter) oldFooter.remove();
-
-        // Add new footer
-        sidebar.innerHTML += renderFooter();
+    // Inject Custom Scrollbar Styles Globally
+    if (!document.getElementById('scrollbar-styles')) {
+        const style = document.createElement('style');
+        style.id = 'scrollbar-styles';
+        style.textContent = `
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+            ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        `;
+        document.head.appendChild(style);
     }
 
     setupMobileNav();

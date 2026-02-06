@@ -114,70 +114,9 @@
     </div>
 
     <!-- Navigation -->
-    <div class="flex-1 overflow-y-auto py-4 space-y-1">
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="pos.html">
-        <span class="material-symbols-outlined text-xl">point_of_sale</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_pos">POS</span>
-      </a>
-      <!-- Active Page -->
-      <a class="flex items-center gap-3 px-6 py-3 bg-slate-800 border-l-4 border-blue-500 text-white"
-        href="products.html">
-        <span class="material-symbols-outlined text-xl">menu_book</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_products">Menu Items</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="inventory.html">
-        <span class="material-symbols-outlined text-xl">inventory_2</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_inventory">Inventory</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="customers.html">
-        <span class="material-symbols-outlined text-xl">group</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_customers">Customers</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="kitchen.html">
-        <span class="material-symbols-outlined text-xl">countertops</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_kitchen">Kitchen</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="receipts.html">
-        <span class="material-symbols-outlined text-xl">receipt_long</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_receipts">Receipts</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="reports.html">
-        <span class="material-symbols-outlined text-xl">assessment</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_reports">Reports</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="vendors.html">
-        <span class="material-symbols-outlined text-xl">store</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_vendors">Vendors</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="expenses.html">
-        <span class="material-symbols-outlined text-xl">payments</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_expenses">Expenses</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="salesmen.html">
-        <span class="material-symbols-outlined text-xl">badge</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_employees">Employees</span>
-      </a>
-      <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        href="admin.html">
-        <span class="material-symbols-outlined text-xl">settings</span>
-        <span class="text-sm font-medium" data-i18n-key="nav_admin">Admin Panel</span>
-      </a>
-      <button onclick="confirmLogout()"
-        class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
-        <span class="material-symbols-outlined text-xl">logout</span>
-        <span class="text-sm font-medium" data-i18n-key="logout">Logout</span>
-      </button>
-      <nav style="display:none;"></nav>
-    </div>
+    <nav class="flex-1 overflow-y-auto py-4 space-y-1" id="dynamic-nav">
+      <!-- Populated by shared-nav.js -->
+    </nav>
   </aside>
 
   <!-- Main Content Layout -->
