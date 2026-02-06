@@ -45,10 +45,18 @@ async function loadTenants() {
 
         if (response.status === 401) return logout();
 
-        const tenants = await response.json();
-        renderTenantsTable(tenants);
+        let tenants;
+        try {
+            tenants = await response.json();
+            renderTenantsTable(tenants);
+        } catch (e) {
+            const text = await response.text();
+            console.error('API Error (Non-JSON):', text);
+            document.getElementById('tenants-table').innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Server Error: ${text || 'Unknown Error'}</td></tr>`;
+        }
     } catch (err) {
         console.error('Failed to load tenants', err);
+        document.getElementById('tenants-table').innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Connection Failed</td></tr>`;
     }
 }
 
@@ -141,7 +149,13 @@ async function updateStatus(id, status) {
             },
             body: JSON.stringify({ status })
         });
-        if (response.ok) loadTenants();
+
+        if (response.ok) {
+            loadTenants();
+        } else {
+            const text = await response.text();
+            alert('Error: ' + text);
+        }
     } catch (err) { alert('Error updating status'); }
 }
 
@@ -167,6 +181,9 @@ async function confirmExtend() {
         if (response.ok) {
             closeModal('extendModal');
             loadTenants();
+        } else {
+            const text = await response.text();
+            alert('Error: ' + text);
         }
     } catch (err) { alert('Error extending subscription'); }
 }
@@ -215,6 +232,9 @@ async function terminateTenant(id) {
         if (response.ok) {
             alert('Tenant terminated');
             loadTenants();
+        } else {
+            const text = await response.text();
+            alert('Error: ' + text);
         }
     } catch (err) { alert('Error terminating tenant'); }
 }

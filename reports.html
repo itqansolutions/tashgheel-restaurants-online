@@ -2,185 +2,350 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title data-i18n-key="page_title" data-i18n-ar="التقارير">Reports - POS</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/report-app.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n-key="page_title" data-i18n-ar="التقارير">Reports - Tashgheel POS</title>
 
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <!-- Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .report-tab.active {
+      background-color: #eff6ff;
+      color: #2563eb;
+      border-bottom: 2px solid #2563eb;
+    }
+  </style>
 </head>
 
-<body>
-  <div class="language-switcher">
-    <button class="lang-btn" data-lang="en">EN</button>
-    <button class="lang-btn" data-lang="ar">AR</button>
-  </div>
+<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
 
-  <div class="app">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h2>Restaurant POS</h2>
+  <!-- Sidebar (Placeholder for shared-nav.js) -->
+  <aside class="w-64 bg-slate-900 text-white flex-shrink-0 hidden md:flex flex-col">
+    <div class="h-16 flex items-center px-6 border-b border-slate-800">
+      <h2 class="text-xl font-bold tracking-tight">Tashgheel POS</h2>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      <!-- Populated by shared-nav.js -->
+    </nav>
+    <div class="p-4 border-t border-slate-800">
+      <button
+        class="flex items-center gap-3 text-slate-400 hover:text-white transition-colors w-full p-2 rounded-lg hover:bg-slate-800"
+        onclick="logout()">
+        <span class="material-symbols-outlined">logout</span>
+        <span data-i18n-key="logout">Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Bar -->
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 z-10">
+      <div class="flex items-center gap-4">
+        <button class="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+        <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span class="material-symbols-outlined text-blue-600">analytics</span>
+          <span data-i18n-key="reports" data-i18n-ar="التقارير">Reports Analytics</span>
+        </h1>
       </div>
-      <nav><!-- Populated by shared-nav.js --></nav>
-    </aside>
 
-    <main class="main-content">
-      <header class="top-bar">
-        <h1 data-i18n-key="reports" data-i18n-ar="التقارير">Reports</h1>
-      </header>
-
-      <section class="content-area">
-        <div class="card">
-          <div class="tabs" id="report-tabs">
-            <button class="tab report-tab" data-tab="sales" data-i18n-key="total_sales"
-              data-i18n-ar="إجمالي المبيعات">🧾 Total Sales</button>
-            <button class="tab report-tab" data-tab="visits" data-i18n-key="visits_report"
-              data-i18n-ar="تقرير الزيارات">🔧 Visits</button>
-            <button class="tab report-tab admin-only" data-tab="cogs" data-i18n-key="cogs"
-              data-i18n-ar="تكلفة البضاعة">📦 COGS</button>
-            <button class="tab report-tab admin-only" data-tab="profit" data-i18n-key="profit" data-i18n-ar="الربح">💰
-              Profit</button>
-            <button class="tab report-tab admin-only" data-tab="returns" data-i18n-key="returns"
-              data-i18n-ar="المرتجعات">↩️ Returns</button>
-            <button class="tab report-tab" data-tab="by-product" data-i18n-key="sales_by_product"
-              data-i18n-ar="المبيعات حسب المنتج">📦 Sales by Product</button>
-            <button class="tab report-tab" data-tab="by-category" data-i18n-key="sales_by_category"
-              data-i18n-ar="المبيعات حسب التصنيف">🗂️ Sales by Category</button>
-            <button class="tab report-tab" data-tab="by-user" data-i18n-key="sales_by_user"
-              data-i18n-ar="المبيعات حسب المستخدم">👤 Sales by User</button>
-            <button class="tab report-tab" data-tab="expenses" data-i18n-key="expenses" data-i18n-ar="المصاريف">💸
-              Expenses</button>
-            <button class="tab report-tab admin-only" data-tab="stock-value" data-i18n-key="stock_value"
-              data-i18n-ar="تكلفة المخزون">🏷️ Stock Value</button>
-
-          </div>
-
-          <div class="form-inline-group mt-20">
-            <div class="form-group">
-              <label for="from-date" data-i18n-key="from" data-i18n-ar="من">From:</label>
-              <input type="date" id="from-date">
-            </div>
-            <div class="form-group">
-              <label for="to-date" data-i18n-key="to" data-i18n-ar="إلى">To:</label>
-              <input type="date" id="to-date">
-            </div>
-          </div>
-
-          <div class="report-cards mt-20">
-            <div class="report-card" id="card-sales">
-              <div class="report-title">🧾 <span data-i18n-key="total_sales" data-i18n-ar="إجمالي المبيعات">Total
-                  Sales</span></div>
-              <div class="report-summary">
-                <div><strong>💵 <span data-i18n-key="cash_sales" data-i18n-ar="مبيعات نقدية">Cash Sales:</span></strong>
-                  <span id="total-sales-cash">0.00 EGP</span>
-                </div>
-                <div><strong>💳 <span data-i18n-key="card_sales" data-i18n-ar="مبيعات كارت">Card Sales:</span></strong>
-                  <span id="total-sales-card">0.00 EGP</span>
-                </div>
-                <div><strong>📱 <span data-i18n-key="mobile_sales" data-i18n-ar="مبيعات موبايل">Mobile
-                      Sales:</span></strong> <span id="total-sales-mobile">0.00 EGP</span></div>
-                <div><strong>🔻 <span data-i18n-key="total_discounts" data-i18n-ar="إجمالي الخصومات">Total
-                      Discounts:</span></strong> <span id="total-discounts">0.00 EGP</span></div>
-              </div>
-            </div>
-
-            <div class="report-card" id="card-visits" style="display:none;">
-              <div class="report-title">🔧 <span data-i18n-key="visits_report" data-i18n-ar="تقرير الزيارات">Visits
-                  Report</span></div>
-              <div class="report-summary">
-                <div><strong>🔢 <span data-i18n-key="visits_count" data-i18n-ar="عدد الزيارات">Visits
-                      Count:</span></strong> <span id="visits-count">0</span></div>
-                <div><strong>💵 <span data-i18n-key="visits_price" data-i18n-ar="إجمالي الزيارات">Visits
-                      Price:</span></strong> <span id="visits-price">0.00 EGP</span></div>
-              </div>
-              <table class="report-table" id="table-visits"></table>
-            </div>
-
-            <div class="report-card admin-only" id="card-cogs" style="display:none;">
-              <div class="report-title">📦 <span data-i18n-key="cogs" data-i18n-ar="تكلفة البضاعة">COGS</span></div>
-              <div id="total-cogs"></div>
-            </div>
-
-            <div class="report-card admin-only" id="card-profit" style="display:none;">
-              <div class="report-title">💰 <span data-i18n-key="profit" data-i18n-ar="الربح">Profit</span></div>
-              <div id="total-profit"></div>
-            </div>
-
-            <div class="report-card admin-only" id="card-returns" style="display:none;">
-              <div class="report-title">↩️ <span data-i18n-key="returns" data-i18n-ar="المرتجعات">Returns</span></div>
-              <div id="total-returns"></div>
-            </div>
-
-            <div class="report-card" id="card-by-product" style="display: none;">
-              <div class="report-title" data-i18n-key="sales_by_product" data-i18n-ar="المبيعات حسب المنتج">📦 Sales by
-                Product</div>
-              <div class="export-buttons">
-                <button onclick="exportTableToExcel('table-by-product')">📊 Excel</button>
-                <button onclick="exportTableToPDF('table-by-product')">📄 PDF</button>
-              </div>
-              <table class="report-table" id="table-by-product"></table>
-            </div>
-
-            <div class="report-card" id="card-by-category" style="display: none;">
-              <div class="report-title" data-i18n-key="sales_by_category" data-i18n-ar="المبيعات حسب التصنيف">🗂️ Sales
-                by Category</div>
-              <div class="export-buttons">
-                <button onclick="exportTableToExcel('table-by-category')">📊 Excel</button>
-                <button onclick="exportTableToPDF('table-by-category')">📄 PDF</button>
-              </div>
-              <table class="report-table" id="table-by-category"></table>
-            </div>
-
-            <div class="report-card" id="card-by-user" style="display: none;">
-              <div class="report-title" data-i18n-key="sales_by_user" data-i18n-ar="المبيعات حسب المستخدم">👤 Sales by
-                User</div>
-              <div class="export-buttons">
-                <button onclick="exportTableToExcel('table-by-user')">📊 Excel</button>
-                <button onclick="exportTableToPDF('table-by-user')">📄 PDF</button>
-              </div>
-              <table class="report-table" id="table-by-user"></table>
-            </div>
-
-            <div class="report-card" id="card-expenses" style="display: none;">
-              <div class="report-title" data-i18n-key="expenses_report" data-i18n-ar="تقرير المصاريف">💸 Expenses Report
-              </div>
-              <div class="export-buttons">
-                <button onclick="exportTableToExcel('table-expenses')">📊 Excel</button>
-                <button onclick="exportTableToPDF('table-expenses')">📄 PDF</button>
-              </div>
-              <div class="report-summary">
-                <div><strong><span data-i18n-key="total_expenses" data-i18n-ar="إجمالي المصاريف">Total
-                      Expenses:</span></strong> <span id="total-expenses-amount">0.00 EGP</span></div>
-              </div>
-              <table class="report-table" id="table-expenses"></table>
-            </div>
-          </div>
-
-          <!-- === تكلفة المخزون === -->
-          <div class="report-card admin-only" id="card-stock-value" style="display:none;">
-            <div class="report-title">🏷️ <span data-i18n-key="stock_value" data-i18n-ar="تكلفة المخزون">Stock
-                Value</span></div>
-            <div class="export-buttons">
-              <button onclick="exportTableToExcel('table-stock-value')">📊 Excel</button>
-              <button onclick="exportTableToPDF('table-stock-value')">📄 PDF</button>
-            </div>
-            <table class="report-table" id="table-stock-value"></table>
-          </div>
-
-
+      <div class="flex items-center gap-3">
+        <div class="language-switcher flex bg-slate-100 p-1 rounded-lg">
+          <button class="lang-btn px-3 py-1 text-xs font-bold rounded-md transition-colors" data-lang="en">EN</button>
+          <button class="lang-btn px-3 py-1 text-xs font-bold rounded-md transition-colors" data-lang="ar">AR</button>
         </div>
-      </section>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 sm:p-8">
+      <div class="max-w-7xl mx-auto space-y-6">
+
+        <!-- Controls & Filters -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          <div class="flex flex-col md:flex-row gap-6 justify-between items-end">
+
+            <!-- Navigation Tabs -->
+            <div class="w-full overflow-x-auto pb-2 -mb-2">
+              <div class="flex gap-6 border-b border-slate-200 min-w-max" id="report-tabs">
+                <button
+                  class="report-tab active pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2"
+                  data-tab="live">
+                  <span class="material-symbols-outlined text-[18px]">radio_button_checked</span> Live Monitor
+                </button>
+                <button
+                  class="report-tab pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2"
+                  data-tab="sales">
+                  <span class="material-symbols-outlined text-[18px]">payments</span> Sales
+                </button>
+                <button
+                  class="report-tab pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2"
+                  data-tab="visits">
+                  <span class="material-symbols-outlined text-[18px]">handyman</span> Visits
+                </button>
+                <button
+                  class="report-tab pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2 admin-only"
+                  data-tab="cogs">
+                  <span class="material-symbols-outlined text-[18px]">inventory_2</span> COGS
+                </button>
+                <button
+                  class="report-tab pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2"
+                  data-tab="expenses">
+                  <span class="material-symbols-outlined text-[18px]">account_balance_wallet</span> Expenses
+                </button>
+                <button
+                  class="report-tab pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2 admin-only"
+                  data-tab="stock-value">
+                  <span class="material-symbols-outlined text-[18px]">attach_money</span> Stock Value
+                </button>
+              </div>
+            </div>
+
+            <!-- Date Filters -->
+            <div class="flex items-center gap-3 w-full md:w-auto flex-shrink-0">
+              <div class="flex-1 md:w-40">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="from">From</label>
+                <input type="date" id="from-date"
+                  class="w-full text-sm border-slate-200 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+              </div>
+              <div class="flex-1 md:w-40">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="to">To</label>
+                <input type="date" id="to-date"
+                  class="w-full text-sm border-slate-200 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- === CONTENT AREAS === -->
+
+        <!-- 1. LIVE MONITOR -->
+        <div id="card-live" class="report-card space-y-6">
+          <!-- KPI Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                  <span class="material-symbols-outlined text-[18px]">attach_money</span>
+                </div>
+                <h3 class="text-sm font-bold text-slate-500">Today's Revenue</h3>
+              </div>
+              <div class="text-2xl font-bold text-slate-800" id="live-revenue">0.00 EGP</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                  <span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+                </div>
+                <h3 class="text-sm font-bold text-slate-500">Orders Count</h3>
+              </div>
+              <div class="text-2xl font-bold text-slate-800" id="live-orders">0</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                  <span class="material-symbols-outlined text-[18px]">receipt_long</span>
+                </div>
+                <h3 class="text-sm font-bold text-slate-500">Avg Ticket</h3>
+              </div>
+              <div class="text-2xl font-bold text-slate-800" id="live-avg">0.00 EGP</div>
+            </div>
+          </div>
+
+          <!-- Shift Info -->
+          <div id="live-shift-info"></div>
+
+          <!-- Recent Activity Table -->
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-800 flex items-center gap-2">
+              <span class="material-symbols-outlined text-slate-400">schedule</span> Recent Orders
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">
+                  <tr>
+                    <th class="px-6 py-3">Order ID</th>
+                    <th class="px-6 py-3">Amount</th>
+                    <th class="px-6 py-3">Method</th>
+                    <th class="px-6 py-3">Cashier</th>
+                    <th class="px-6 py-3">Time</th>
+                  </tr>
+                </thead>
+                <tbody id="live-recent-body" class="divide-y divide-slate-100 text-sm text-slate-600">
+                  <!-- Populated JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. TOTAL SALES REPORT -->
+        <div id="card-sales" class="report-card hidden space-y-6">
+          <!-- Summary Stats -->
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span class="material-symbols-outlined text-blue-600">summarize</span> Sales Summary
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div>
+                <div class="text-xs text-slate-500 uppercase font-bold mb-1">Cash Sales</div>
+                <div class="text-xl font-bold text-slate-800" id="total-sales-cash">0.00 EGP</div>
+              </div>
+              <div>
+                <div class="text-xs text-slate-500 uppercase font-bold mb-1">Card Sales</div>
+                <div class="text-xl font-bold text-slate-800" id="total-sales-card">0.00 EGP</div>
+              </div>
+              <div>
+                <div class="text-xs text-slate-500 uppercase font-bold mb-1">Mobile Wallet</div>
+                <div class="text-xl font-bold text-slate-800" id="total-sales-mobile">0.00 EGP</div>
+              </div>
+              <div>
+                <div class="text-xs text-slate-500 uppercase font-bold mb-1">Total Discounts</div>
+                <div class="text-xl font-bold text-red-600" id="total-discounts">0.00 EGP</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sales History Table -->
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+              <div class="font-bold text-slate-800">Sales History</div>
+
+              <!-- Pagination Controls -->
+              <div class="flex items-center gap-2">
+                <button id="prev-page" class="p-1 rounded hover:bg-slate-100 disabled:opacity-50">
+                  <span class="material-symbols-outlined">chevron_left</span>
+                </button>
+                <span id="page-info" class="text-xs font-semibold text-slate-500">Page 1</span>
+                <button id="next-page" class="p-1 rounded hover:bg-slate-100 disabled:opacity-50">
+                  <span class="material-symbols-outlined">chevron_right</span>
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">
+                  <tr>
+                    <th class="px-6 py-3">ID</th>
+                    <th class="px-6 py-3">Date</th>
+                    <th class="px-6 py-3">Method</th>
+                    <th class="px-6 py-3">Cashier</th>
+                    <th class="px-6 py-3">Total</th>
+                  </tr>
+                </thead>
+                <tbody id="sales-history-body" class="divide-y divide-slate-100 text-sm text-slate-600"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. VISITS REPORT -->
+        <div id="card-visits" class="report-card hidden space-y-6">
+          <!-- Visits Stats -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <div class="text-sm text-slate-500 font-bold mb-1">Visits Count</div>
+                <div class="text-2xl font-bold text-slate-800" id="visits-count">0</div>
+              </div>
+              <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                <span class="material-symbols-outlined">room</span>
+              </div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <div class="text-sm text-slate-500 font-bold mb-1">Total Visits Value</div>
+                <div class="text-2xl font-bold text-slate-800" id="visits-price">0.00 EGP</div>
+              </div>
+              <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                <span class="material-symbols-outlined">payments</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visits Table -->
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-800">Completed Visits</div>
+            <div class="overflow-x-auto">
+              <table id="table-visits" class="w-full text-left text-sm text-slate-600"></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. EXPENSES REPORT -->
+        <div id="card-expenses" class="report-card hidden space-y-6">
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-bold text-lg text-slate-800">Total Expenses</h3>
+              <div class="export-buttons flex gap-2">
+                <button onclick="exportTableToExcel('table-expenses')"
+                  class="text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">Excel</button>
+                <button onclick="exportTableToPDF('table-expenses')"
+                  class="text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">PDF</button>
+              </div>
+            </div>
+            <div class="text-3xl font-bold text-slate-800 mb-6" id="total-expenses-amount">0.00 EGP</div>
+
+            <div class="overflow-x-auto">
+              <table id="table-expenses" class="w-full text-left text-sm text-slate-600"></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. COGS & PROFIT (Admin) -->
+        <div id="card-cogs" class="report-card admin-only hidden">
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-md">
+            <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <span class="material-symbols-outlined text-amber-500">inventory</span> Cost of Goods Sold
+            </h3>
+            <div class="text-3xl font-bold text-slate-800 mt-4" id="total-cogs">0.00 EGP</div>
+          </div>
+        </div>
+
+        <!-- 6. STOCK VALUE (Admin) -->
+        <div id="card-stock-value" class="report-card admin-only hidden space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-bold text-slate-800">Stock Value by Category</h3>
+              <div class="export-buttons flex gap-2">
+                <button onclick="exportTableToExcel('table-stock-value')"
+                  class="text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">Excel</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table id="table-stock-value" class="w-full text-left text-sm text-slate-600"></table>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </main>
   </div>
 
-  <footer class="footer">
-    Tashgheel POS© 2025</strong> |
-    <a href="tel:+201126522373">+201126522373 / +201155253886</a>
-    <span id="footerText">Designed and developed by itqan</span>
+  <!-- Footer -->
+  <footer
+    class="fixed bottom-0 right-0 p-2 text-xs text-slate-400 bg-white/80 backdrop-blur-sm rounded-tl-lg hidden sm:block">
+    Tashgheel POS v2.0
   </footer>
+
+  <!-- Scripts -->
   <script src="js/web-adapter.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
@@ -188,18 +353,6 @@
   <script src="js/shared-nav.js"></script>
   <script src="js/translations.js"></script>
   <script src="js/reports-app.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-      if (currentUser?.role === 'cashier') {
-        alert('Access denied');
-        window.location.href = 'pos.html';
-      }
-    });
-  </script>
-  <script>
-    // setLanguage is now handled by js/translations.js
-  </script>
 
 </body>
 

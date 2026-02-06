@@ -59,14 +59,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (currentShift) {
         const cashSales = currentShift.totals?.cashTotal || 0;
         shiftInfo.innerHTML = `
-          <div style="background:#fff3e0; padding:10px; border-radius:8px; border:1px solid #ffe0b2; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+          <div class="bg-amber-50 p-4 rounded-lg border border-amber-100 mb-4 flex justify-between items-center text-sm">
             <div>
-              <span style="font-weight:bold; color:#e65100;">Active Shift:</span> 
-              ${new Date(currentShift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <span class="font-bold text-amber-700">Active Shift:</span> 
+              <span class="text-amber-900">${new Date(currentShift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <div>
-              <span style="font-weight:bold; color:#bf360c;">Drawer Expected:</span> 
-              ${(currentShift.openingCash + cashSales).toFixed(2)} EGP
+              <span class="font-bold text-amber-700">Drawer Expected:</span> 
+              <span class="text-amber-900 font-mono font-bold">${(currentShift.openingCash + cashSales).toFixed(2)} EGP</span>
             </div>
           </div>
         `;
@@ -80,13 +80,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     (recentOrders || []).forEach(order => {
       const tr = document.createElement('tr');
+      tr.className = "border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors";
       const time = new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       tr.innerHTML = `
-                <td>#${order.id}</td>
-                <td>${order.total.toFixed(2)}</td>
-                <td>${order.paymentMethod || 'cash'}</td>
-                <td>${order.cashier || '-'}</td>
-                <td>${time}</td>
+                <td class="px-6 py-3 font-mono text-slate-500">#${order.id.toString().slice(-6)}</td>
+                <td class="px-6 py-3 font-bold text-slate-700">${order.total.toFixed(2)}</td>
+                <td class="px-6 py-3 capitalize">${order.paymentMethod || 'cash'}</td>
+                <td class="px-6 py-3">${order.cashier || '-'}</td>
+                <td class="px-6 py-3 text-slate-400">${time}</td>
             `;
       tbody.appendChild(tr);
     });
@@ -113,13 +114,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     sales.forEach(sale => {
       const tr = document.createElement('tr');
+      tr.className = "border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors";
       const dateStr = new Date(sale.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
       tr.innerHTML = `
-                <td>#${sale.id}</td>
-                <td>${dateStr}</td>
-                <td>${sale.paymentMethod || 'cash'}</td>
-                <td>${sale.cashier || '-'}</td>
-                <td><strong>${sale.total.toFixed(2)}</strong></td>
+                <td class="px-6 py-3 font-mono text-slate-500">#${sale.id.toString().slice(-6)}</td>
+                <td class="px-6 py-3 text-slate-600">${dateStr}</td>
+                <td class="px-6 py-3 capitalize badge-cell"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">${sale.paymentMethod || 'cash'}</span></td>
+                <td class="px-6 py-3">${sale.cashier || '-'}</td>
+                <td class="px-6 py-3 font-bold text-slate-800">${sale.total.toFixed(2)}</td>
             `;
       tbody.appendChild(tr);
     });
@@ -230,15 +232,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Net revenue table
     const tbody = document.getElementById('daily-summary-body');
-    tbody.innerHTML = `
-      <tr><td>Gross Sales</td><td style="font-weight:bold; color:#047857;">+${totalRevenue.toFixed(2)}</td></tr>
-      <tr><td>Discounts Applied</td><td style="color:#dc2626;">-${totalDiscounts.toFixed(2)}</td></tr>
-      <tr><td>Delivery Fees Collected</td><td style="color:#0369a1;">+${totalDelivery.toFixed(2)}</td></tr>
-      <tr style="background:#f0fdf4;"><td style="font-weight:bold;">Net Revenue</td><td style="font-weight:bold; font-size:1.2rem; color:#065f46;">${(netRevenue + totalDelivery).toFixed(2)}</td></tr>
-      <tr><td>Cash Collected</td><td>${totalCash.toFixed(2)}</td></tr>
-      <tr><td>Card Collected</td><td>${totalCard.toFixed(2)}</td></tr>
-      <tr><td>Mobile Payments</td><td>${totalMobile.toFixed(2)}</td></tr>
-    `;
+    // Note: In the new HTML redesign (if implemented), we might need to target a specific container or create this table structure locally if it doesn't exist in the main markup yet as a dedicated card. 
+    // Assuming we might add a Daily Summary card or this function is used elsewhere. 
+    // For now, let's keep the logic but style the HTML output string.
+
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="px-6 py-3">Gross Sales</td>
+            <td class="px-6 py-3 font-bold text-green-700">+${totalRevenue.toFixed(2)}</td>
+        </tr>
+        <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="px-6 py-3">Discounts Applied</td>
+            <td class="px-6 py-3 font-bold text-red-600">-${totalDiscounts.toFixed(2)}</td>
+        </tr>
+        <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="px-6 py-3">Delivery Fees Collected</td>
+            <td class="px-6 py-3 font-bold text-blue-600">+${totalDelivery.toFixed(2)}</td>
+        </tr>
+        <tr class="bg-green-50/50 hover:bg-green-50">
+            <td class="px-6 py-3 font-bold text-slate-800">Net Revenue</td>
+            <td class="px-6 py-3 font-bold text-lg text-emerald-700">${(netRevenue + totalDelivery).toFixed(2)}</td>
+        </tr>
+        <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="px-6 py-3 pl-8 text-slate-500">Cash Collected</td>
+            <td class="px-6 py-3 text-slate-500">${totalCash.toFixed(2)}</td>
+        </tr>
+        <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="px-6 py-3 pl-8 text-slate-500">Card Collected</td>
+            <td class="px-6 py-3 text-slate-500">${totalCard.toFixed(2)}</td>
+        </tr>
+        <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="px-6 py-3 pl-8 text-slate-500">Mobile Payments</td>
+            <td class="px-6 py-3 text-slate-500">${totalMobile.toFixed(2)}</td>
+        </tr>
+        `;
+    }
   }
 
   // === SHIFT REPORT ===
@@ -279,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.innerHTML = '';
 
     if (shifts.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#666;">No shifts found for this period.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-400">No shifts found for this period.</td></tr>';
       return;
     }
 
@@ -288,6 +317,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     shifts.forEach(shift => {
       const tr = document.createElement('tr');
+      tr.className = "border-b border-slate-50 hover:bg-slate-50 transition-colors";
+
       const openedAt = shift.openedAt ? new Date(shift.openedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '-';
       const closedAt = shift.closedAt ? new Date(shift.closedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Open';
       const openingCash = shift.openingCash || 0;
@@ -296,23 +327,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const difference = shift.difference || (closingCash - expectedCash);
       const status = shift.status || 'unknown';
 
-      const diffClass = difference >= 0 ? 'color:#047857;' : 'color:#dc2626;';
+      const diffClass = difference >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold';
       const diffSign = difference >= 0 ? '+' : '';
-      const statusBadge = status === 'open'
-        ? '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:0.8rem;">Open</span>'
-        : status === 'closed'
-          ? '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:0.8rem;">Closed</span>'
-          : '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-size:0.8rem;">' + status + '</span>';
+
+      let statusBadge = '';
+      if (status === 'open') statusBadge = '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">Open</span>';
+      else if (status === 'closed') statusBadge = '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">Closed</span>';
+      else statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-200">${status}</span>`;
 
       tr.innerHTML = `
-        <td>${shift.cashierName || shift.cashierId || '-'}</td>
-        <td>${openedAt}</td>
-        <td>${closedAt}</td>
-        <td>${openingCash.toFixed(2)}</td>
-        <td>${expectedCash.toFixed(2)}</td>
-        <td>${status === 'open' ? '-' : closingCash.toFixed(2)}</td>
-        <td style="${diffClass}">${status === 'open' ? '-' : diffSign + difference.toFixed(2)}</td>
-        <td>${statusBadge}</td>
+        <td class="px-6 py-3 font-medium text-slate-700">${shift.cashierName || shift.cashierId || '-'}</td>
+        <td class="px-6 py-3 text-slate-500 text-xs">${openedAt}</td>
+        <td class="px-6 py-3 text-slate-500 text-xs">${closedAt}</td>
+        <td class="px-6 py-3">${openingCash.toFixed(2)}</td>
+        <td class="px-6 py-3">${expectedCash.toFixed(2)}</td>
+        <td class="px-6 py-3">${status === 'open' ? '-' : closingCash.toFixed(2)}</td>
+        <td class="px-6 py-3 ${diffClass}">${status === 'open' ? '-' : diffSign + difference.toFixed(2)}</td>
+        <td class="px-6 py-3">${statusBadge}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -350,19 +381,21 @@ document.addEventListener('DOMContentLoaded', () => {
       totalValue += value;
 
       const tr = document.createElement('tr');
-      tr.style.background = isOut ? '#fef2f2' : isLow ? '#fffbeb' : '';
+      tr.className = "border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors";
+      if (isOut) tr.classList.add("bg-red-50/50", "hover:bg-red-50");
+      else if (isLow) tr.classList.add("bg-amber-50/50", "hover:bg-amber-50");
 
-      let statusBadge = '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:0.75rem;">In Stock</span>';
-      if (isOut) statusBadge = '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-size:0.75rem;">Out of Stock</span>';
-      else if (isLow) statusBadge = '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:0.75rem;">Low Stock</span>';
+      let statusBadge = '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">In Stock</span>';
+      if (isOut) statusBadge = '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">Out of Stock</span>';
+      else if (isLow) statusBadge = '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">Low Stock</span>';
 
       tr.innerHTML = `
-        <td style="font-weight:500;">${item.name || 'Unnamed'}</td>
-        <td>${item.category || '-'}</td>
-        <td>${qty}</td>
-        <td>${cost.toFixed(2)}</td>
-        <td style="font-weight:bold;">${value.toFixed(2)}</td>
-        <td>${statusBadge}</td>
+        <td class="px-6 py-3 font-medium text-slate-800">${item.name || 'Unnamed'}</td>
+        <td class="px-6 py-3 text-slate-500">${item.category || '-'}</td>
+        <td class="px-6 py-3 font-bold">${qty}</td>
+        <td class="px-6 py-3">${cost.toFixed(2)}</td>
+        <td class="px-6 py-3 font-bold text-slate-700">${value.toFixed(2)}</td>
+        <td class="px-6 py-3">${statusBadge}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -377,9 +410,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const products = window.DB.getParts();
     const table = document.getElementById('table-stock-value');
     table.innerHTML = '';
-    const headerRow = document.createElement('tr');
-    headerRow.innerHTML = `<th>${t('Category', 'التصنيف')}</th><th>${t('Total Stock Cost', 'إجمالي تكلفة المخزون')} (${t('EGP', 'ج.م')})</th>`;
-    table.appendChild(headerRow);
+
+    // Header
+    const thead = table.createTHead();
+    const headerRow = thead.insertRow();
+    headerRow.className = "bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200";
+
+    const th1 = document.createElement('th'); th1.className = "px-6 py-3"; th1.textContent = t('Category', 'التصنيف');
+    const th2 = document.createElement('th'); th2.className = "px-6 py-3"; th2.textContent = `${t('Total Stock Cost', 'إجمالي تكلفة المخزون')} (${t('EGP', 'ج.م')})`;
+    headerRow.appendChild(th1);
+    headerRow.appendChild(th2);
+
+    const tbody = table.createTBody();
+    tbody.className = "divide-y divide-slate-100 text-sm text-slate-600";
 
     const categoryMap = {};
     products.forEach(p => {
@@ -389,9 +432,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     for (const cat in categoryMap) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<td>${cat}</td><td>${categoryMap[cat].toFixed(2)}</td>`;
-      table.appendChild(row);
+      const row = tbody.insertRow();
+      row.className = "hover:bg-slate-50 transition-colors";
+      row.innerHTML = `<td class="px-6 py-3 font-medium text-slate-800">${cat}</td><td class="px-6 py-3 font-bold text-slate-700">${categoryMap[cat].toFixed(2)}</td>`;
     }
   }
 
@@ -399,11 +442,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const table = document.getElementById(tableId);
     if (!table) return;
     table.innerHTML = '';
-    const thead = table.insertRow();
-    headers.forEach(h => { const th = document.createElement('th'); th.textContent = h; thead.appendChild(th); });
+
+    // Create Header
+    const thead = table.createTHead();
+    const headerRow = thead.insertRow();
+    headerRow.className = "bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200";
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.className = "px-6 py-3";
+      th.textContent = h;
+      headerRow.appendChild(th);
+    });
+
+    // Create Body
+    const tbody = table.createTBody();
+    tbody.className = "divide-y divide-slate-100 text-sm text-slate-600";
+
     data.forEach(row => {
-      const tr = table.insertRow();
-      fields.forEach(f => { const td = tr.insertCell(); td.textContent = (row[f] || 0).toFixed ? row[f].toFixed(2) : row[f]; });
+      const tr = tbody.insertRow();
+      tr.className = "hover:bg-slate-50 transition-colors";
+      fields.forEach(f => {
+        const td = tr.insertCell();
+        td.className = "px-6 py-3";
+        const val = row[f];
+        // Simple formatting check
+        td.textContent = (typeof val === 'number' && !Number.isInteger(val)) ? val.toFixed(2) : (val || '-');
+      });
     });
   }
 
