@@ -219,25 +219,28 @@ async function initializeDataSystem() {
             // If offline, trust local session for now (Optional: enforce online logic?)
         }
 
-        for (const key of keys) {
-            // 🚀 NUCLEAR OPTION: Prevent 'session' from EVER being loaded from disk
-            // This protects the in-memory authenticated session from being overwritten by a stale file
-            if (key === 'session') continue;
+        // 🚀 TIMING OPTIMIZATION: Parallel Loading
+        // Instead of waiting for each file sequentially, we fire all requests at once.
+        const loadPromises = keys.map(async (key) => {
+            if (key === 'session') return;
 
             let fileData = null;
 
-            // 1. Try Read File
-            const fileContent = await window.electronAPI.readData(key);
-            if (fileContent) {
-                try {
-                    // Handle both raw string (legacy/local) and pre-parsed object (web adapter)
-                    fileData = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
-                } catch (e) {
-                    fileData = fileContent;
+            // 1. Try Read File (Async)
+            try {
+                const fileContent = await window.electronAPI.readData(key);
+                if (fileContent) {
+                    try {
+                        fileData = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
+                    } catch (e) {
+                        fileData = fileContent;
+                    }
                 }
+            } catch (err) {
+                console.warn(`Failed to load ${key} from API`, err);
             }
 
-            // 2. Fallback to LocalStorage if file read failed
+            // 2. Fallback to LocalStorage (Sync)
             if (!fileData) {
                 const local = localStorage.getItem('pos_backup_' + key);
                 if (local) {
@@ -246,13 +249,18 @@ async function initializeDataSystem() {
                 }
             }
 
+            // 3. Store in Memory Cache
             if (fileData) {
                 window.DataCache[key] = fileData;
-                console.log(`✅ Loaded ${key}.`);
+                // console.log(`✅ Loaded ${key}.`); // Spam reduction
             } else {
                 window.DataCache[key] = [];
             }
-        }
+        });
+
+        // Wait for ALL loads to complete (or fail gracefully)
+        await Promise.all(loadPromises);
+        console.log(`✅ System Data Loaded: ${keys.length} entities processed.`);
 
         if (migrationNeeded) {
             console.log('Migration/Recovery completed successfully.');
