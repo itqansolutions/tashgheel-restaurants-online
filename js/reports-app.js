@@ -195,30 +195,74 @@ document.addEventListener('DOMContentLoaded', async () => {
     let totalDiscounts = 0;
     let totalReturns = 0;
     let cogs = 0;
+    let totalTax = 0;
+
+    // Aggregation Containers
+    const catMap = {};
+    const cashierMap = {};
+    const prodMap = {};
+    const payMap = {};
 
     finishedSales.forEach(r => {
-      grossSales += (r.subtotal || r.total); // Usually Subtotal is before discount. If not available, use total + discount
-      if (!r.subtotal && r.total) {
-        grossSales += (r.total + (r.discount || 0));
-      }
+      // Financials
+      const subtotal = r.subtotal || r.total; // Prefer subtotal (pre-tax/disc)
+      const discount = r.discount || 0;
+      const tax = r.tax || 0; // Assuming receipt has tax field
+      const total = r.total || (subtotal - discount + tax);
 
-      totalDiscounts += (r.discount || 0);
+      grossSales += subtotal;
+      totalDiscounts += discount;
+      totalTax += tax;
 
-      // COGS Calc
+      // Payment Map
+      const method = (r.paymentMethod || 'cash').toLowerCase();
+      let pKey = 'cash';
+      if (method.includes('card') || method.includes('visa')) pKey = 'card';
+      else if (method.includes('wallet') || method.includes('mobile')) pKey = 'wallet';
+      else pKey = 'cash';
+
+      payMap[pKey] = (payMap[pKey] || 0) + total;
+
+      // Cashier Map
+      const cashier = r.cashier || 'Unknown';
+      if (!cashierMap[cashier]) cashierMap[cashier] = { count: 0, gross: 0, discount: 0, net: 0 };
+      cashierMap[cashier].count++;
+      cashierMap[cashier].gross += subtotal;
+      cashierMap[cashier].discount += discount;
+      cashierMap[cashier].net += (subtotal - discount); // Net for cashier usually excludes tax in some systems, but simple net = gross - disc
+
+      // Items Loop (Category & Products)
       if (r.items) {
         r.items.forEach(item => {
-          // Check for service items (non-stock)
           if (item.code && item.code.startsWith('SVC-')) return;
           const qty = item.qty || 1;
           const cost = item.cost || item.unitCost || 0;
+          const price = item.price || 0;
+          const lineTotal = price * qty;
+
           cogs += (qty * cost);
+
+          // Product Key
+          const pName = item.name || item.description || 'Unknown Item';
+          if (!prodMap[pName]) prodMap[pName] = { qty: 0, gross: 0, net: 0 };
+          prodMap[pName].qty += qty;
+          prodMap[pName].gross += lineTotal;
+          // Net for item is harder without line-level discount. approx:
+          prodMap[pName].net += lineTotal;
+
+          // Category Key
+          const cat = item.category || 'Uncategorized';
+          if (!catMap[cat]) catMap[cat] = { qty: 0, gross: 0, net: 0 };
+          catMap[cat].qty += qty;
+          catMap[cat].gross += lineTotal;
+          catMap[cat].net += lineTotal;
         });
       }
     });
 
     // Sum Returns Value
     returns.forEach(r => {
-      totalReturns += (r.total || 0); // Return total is usually the money back
+      totalReturns += (r.total || 0);
     });
 
     const netSales = grossSales - totalDiscounts - totalReturns;
@@ -239,7 +283,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         cogs,
         profit,
         discounts: totalDiscounts,
-        returns: totalReturns
+        returns: totalReturns,
+        tax: totalTax
+      },
+      // Aggregates
+      aggs: {
+        category: catMap,
+        cashier: cashierMap,
+        product: prodMap,
+        payment: payMap
       }
     };
   }
@@ -260,7 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           renderLiveMonitor(context);
           break;
         case 'sales':
-          if (typeof renderSalesStats === 'function') await renderSalesStats(context);
+          renderSalesStats(context);
           break;
         case 'inventory-report':
           if (typeof renderInventoryReport === 'function') renderInventoryReport(context);
@@ -276,7 +328,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // === 7. LIVE MONITOR RENDERER (Phase 2) ===
   function renderLiveMonitor(ctx) {
-    const { receipts, totals, returns } = ctx;
+    const { receipts, totals } = ctx;
 
     // 1. KPI Cards
     document.getElementById('live-net-sales').textContent = totals.netSales.toFixed(2);
@@ -291,10 +343,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 2. Charts
     renderSalesPerHourChart(receipts);
-    renderPaymentPie(receipts);
+    renderPaymentPie(receipts, 'chart-payment-method');
 
     // 3. Recent Orders
-    renderRecentOrders(ctx.allReceipts); // Show all including returns/voids
+    renderRecentOrders(ctx.allReceipts);
 
     // 4. Shift Bar (Mock for now, will connect to real session later)
     // If we have shift data in context
@@ -306,9 +358,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // === 8. SALES DEEP DIVE RENDERER (Phase 3) ===
+  function renderSalesStats(ctx) {
+    const { totals, receipts, aggs } = ctx;
+
+    // 1. Summary Cards
+    document.getElementById('sales-gross').textContent = totals.grossSales.toFixed(2);
+    document.getElementById('sales-net').textContent = totals.netSales.toFixed(2);
+    document.getElementById('sales-tax').textContent = totals.tax.toFixed(2);
+    document.getElementById('sales-orders').textContent = receipts.length;
+
+    const avg = receipts.length > 0 ? (totals.netSales / receipts.length) : 0;
+    document.getElementById('sales-avg').textContent = avg.toFixed(2);
+
+    // 2. Charts
+    renderPaymentPie(receipts, 'chart-sales-payment');
+    renderCategoryChart(aggs.category);
+
+    // 3. Tables
+    renderCategoryTable(aggs.category, totals.netSales);
+    renderCashierTable(aggs.cashier);
+    renderTopProductsTable(aggs.product);
+  }
+
+  // --- CHART HELPERS ---
   function renderSalesPerHourChart(receipts) {
-    const ctx = document.getElementById('chart-sales-hour');
-    if (!ctx) return;
+    const canvas = document.getElementById('chart-sales-hour');
+    if (!canvas) return;
 
     // Destroy old
     if (window.salesHourChart) window.salesHourChart.destroy();
@@ -323,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Create Labels (00:00 - 23:00)
     const labels = buckets.map((_, i) => `${i}:00`);
 
-    window.salesHourChart = new Chart(ctx, {
+    window.salesHourChart = new Chart(canvas, {
       type: 'line',
       data: {
         labels: labels,
@@ -348,11 +424,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  function renderPaymentPie(receipts) {
-    const ctx = document.getElementById('chart-payment-method');
-    if (!ctx) return;
+  function renderPaymentPie(receipts, canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
 
-    if (window.paymentPieChart) window.paymentPieChart.destroy();
+    // We reuse this logic for both Live and Sales tabs, keep robust
+    // Store instances in a map/window prop to destroy correctly or unique IDs
+    // For simplicity, we attach to window by ID
+    const chartKey = canvasId === 'chart-payment-method' ? 'paymentPieChartLive' : 'paymentPieChartSales';
+    if (window[chartKey]) window[chartKey].destroy();
 
     let cash = 0, card = 0, wallet = 0;
     receipts.forEach(r => {
@@ -362,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       else cash += r.total;
     });
 
-    window.paymentPieChart = new Chart(ctx, {
+    window[chartKey] = new Chart(canvas, {
       type: 'doughnut',
       data: {
         labels: ['Cash', 'Card', 'Wallet'],
@@ -376,11 +456,101 @@ document.addEventListener('DOMContentLoaded', async () => {
         responsive: true,
         maintainAspectRatio: false,
         cutout: '70%',
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
-        }
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
       }
     });
+  }
+
+  function renderCategoryChart(catMap) {
+    const canvas = document.getElementById('chart-sales-category');
+    if (!canvas) return;
+    if (window.categoryChart) window.categoryChart.destroy();
+
+    const labels = Object.keys(catMap);
+    const data = Object.values(catMap).map(c => c.net);
+
+    window.categoryChart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Sales',
+          data: data,
+          backgroundColor: '#3b82f6',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { grid: { display: false } } },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  // --- TABLE HELPERS ---
+  function renderCategoryTable(catMap, totalNet) {
+    const tbody = document.getElementById('table-sales-category');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    Object.entries(catMap)
+      .sort((a, b) => b[1].net - a[1].net)
+      .forEach(([cat, stats]) => {
+        const pct = totalNet > 0 ? (stats.net / totalNet) * 100 : 0;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-50";
+        tr.innerHTML = `
+                <td class="px-4 py-2 font-medium text-slate-700">${cat}</td>
+                <td class="px-4 py-2">${stats.qty}</td>
+                <td class="px-4 py-2 font-bold">${stats.net.toFixed(2)}</td>
+                <td class="px-4 py-2 text-slate-400">${pct.toFixed(1)}%</td>
+              `;
+        tbody.appendChild(tr);
+      });
+  }
+
+  function renderCashierTable(cashierMap) {
+    const tbody = document.getElementById('table-sales-cashier');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    Object.entries(cashierMap)
+      .sort((a, b) => b[1].net - a[1].net)
+      .forEach(([name, stats]) => {
+        const avg = stats.count > 0 ? stats.net / stats.count : 0;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-50";
+        tr.innerHTML = `
+                <td class="px-4 py-2 font-medium text-slate-700">${name}</td>
+                <td class="px-4 py-2">${stats.count}</td>
+                <td class="px-4 py-2 font-bold">${stats.net.toFixed(2)}</td>
+                <td class="px-4 py-2 text-slate-400">${avg.toFixed(2)}</td>
+              `;
+        tbody.appendChild(tr);
+      });
+  }
+
+  function renderTopProductsTable(prodMap) {
+    const tbody = document.getElementById('table-sales-products');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    Object.entries(prodMap)
+      .sort((a, b) => b[1].net - a[1].net)
+      .slice(0, 20) // Top 20
+      .forEach(([name, stats]) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-50";
+        tr.innerHTML = `
+                <td class="px-6 py-3 font-medium text-slate-700">${name}</td>
+                <td class="px-6 py-3">${stats.qty}</td>
+                <td class="px-6 py-3 text-slate-500">${stats.gross.toFixed(2)}</td>
+                <td class="px-6 py-3 font-bold text-slate-800">${stats.net.toFixed(2)}</td>
+              `;
+        tbody.appendChild(tr);
+      });
   }
 
   function renderRecentOrders(allReceipts) {
