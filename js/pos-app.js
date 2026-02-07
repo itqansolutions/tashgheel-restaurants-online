@@ -813,6 +813,8 @@ function prodWithAddons(product) {
   const modal = document.getElementById('addonsModal');
   document.getElementById('addonsProductTitle').textContent = product.name;
 
+  document.getElementById('addonModalNote').value = ''; // Reset note
+
   // Setup Sizes
   const sizeArea = document.getElementById('size-selection-area');
   const sizeList = document.getElementById('sizes-list');
@@ -902,7 +904,8 @@ function confirmAddons() {
       return;
     }
 
-    addItemToCartFinal(pendingProduct, selectedAddons, selectedSize);
+    const note = document.getElementById('addonModalNote').value.trim();
+    addItemToCartFinal(pendingProduct, selectedAddons, selectedSize, note);
     closeAddonsModal();
   }
 }
@@ -918,7 +921,7 @@ window.confirmAddons = confirmAddons;
 window.closeAddonsModal = closeAddonsModal;
 window.toggleAddonSelection = toggleAddonSelection;
 
-function addItemToCartFinal(product, addons = [], sizeObj = null) {
+function addItemToCartFinal(product, addons = [], sizeObj = null, note = '') {
   addons.sort((a, b) => a.id - b.id);
   const addonSignature = addons.map(a => a.id).join(',');
   const sizeSignature = sizeObj ? sizeObj.id : 'single';
@@ -968,7 +971,8 @@ function addItemToCartFinal(product, addons = [], sizeObj = null) {
       addons: addons,
       addonSignature: addonSignature,
       sizeSignature: sizeSignature,
-      sizeId: sizeObj ? sizeObj.id : null
+      sizeId: sizeObj ? sizeObj.id : null,
+      note: note
     });
   }
 
@@ -1025,6 +1029,7 @@ function updateCartDisplay() {
         <p class="text-xs font-bold truncate text-slate-800 dark:text-slate-200" title="${displayName}">${displayName}</p>
         <p class="text-[10px] text-slate-500 font-medium">${item.price.toFixed(2)} x ${item.qty} ${discountText}</p>
         ${addonsHtml}
+        ${item.note ? `<p class="text-[10px] text-amber-600 font-bold italic mt-0.5">Note: ${item.note}</p>` : ''}
       </div>
       <div class="flex flex-col items-end gap-1">
         <p class="text-xs font-black text-slate-800 dark:text-slate-100">${(finalPrice * item.qty).toFixed(2)}</p>
@@ -1198,6 +1203,7 @@ function processSale(method) {
     cashier: cashierName,
     salesman: salesman,
     status: "finished",
+    note: document.getElementById('orderNoteInput')?.value.trim() || '', // Order Level Note
     kitchenStatus: 'pending', // KDS Flag
     total: grandTotal,
     subtotal: subtotal,
@@ -1216,7 +1222,8 @@ function processSale(method) {
       qty: item.qty,
       price: item.price,
       cost: item.cost,
-      discount: item.discount
+      discount: item.discount,
+      note: item.note || '' // Item Level Note
     }))
   };
 
@@ -1239,6 +1246,7 @@ function processSale(method) {
   printReceipt(sale);
 
   cart = [];
+  document.getElementById('orderNoteInput').value = '';
   updateCartDisplay();
 
   // Refresh generic views

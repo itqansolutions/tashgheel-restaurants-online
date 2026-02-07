@@ -447,7 +447,8 @@ function handleAddProduct(e) {
 
     // ... cost logic
     if (currentSingleRecipe.length > 0) {
-      cost = parseFloat(document.getElementById('single-recipe-total').textContent) || 0;
+      const totalEl = document.getElementById('display-total-cost');
+      cost = totalEl ? (parseFloat(totalEl.textContent) || 0) : 0;
     } else {
       cost = parseFloat(document.getElementById("product-cost").value) || 0;
     }

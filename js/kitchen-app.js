@@ -66,15 +66,19 @@ function loadKitchenOrders() {
                     ${typeBadge}
                 </div>
                 ${tableInfo}
+                ${sale.note ? `<div class="mt-2 p-2 bg-red-900/30 border border-red-800 rounded text-xs text-red-200 font-bold italic">Note: ${sale.note}</div>` : ''}
                 ${timerHtml}
                 <div class="text-[10px] text-slate-500 mt-1">${time}</div>
             </div>
             
             <ul class="p-4 space-y-3 flex-1 overflow-y-auto min-h-[150px]">
                 ${sale.items.map(item => `
-                    <li class="flex justify-between items-start border-b border-slate-700/50 pb-2 last:border-0 last:pb-0">
-                        <span class="text-slate-200 font-medium text-sm leading-tight">${item.name}</span>
-                        <span class="font-bold text-slate-900 bg-amber-500 px-2 py-0.5 rounded text-sm shrink-0 ml-2">${item.qty}</span>
+                    <li class="flex flex-col border-b border-slate-700/50 pb-2 last:border-0 last:pb-0">
+                        <div class="flex justify-between items-start">
+                             <span class="text-slate-200 font-medium text-sm leading-tight">${item.name}</span>
+                             <span class="font-bold text-slate-900 bg-amber-500 px-2 py-0.5 rounded text-sm shrink-0 ml-2">${item.qty}</span>
+                        </div>
+                        ${item.note ? `<span class="text-[11px] text-red-300 italic mt-0.5 ml-2">◦ ${item.note}</span>` : ''}
                     </li>
                 `).join('')}
             </ul>

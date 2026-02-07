@@ -280,6 +280,13 @@
         </div>
       </div>
 
+      <!-- Order Note -->
+      <div class="px-4 pt-2">
+        <textarea id="orderNoteInput" rows="1"
+          class="w-full p-2 text-xs border border-slate-200 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50"
+          placeholder="Order Note (Kitchen)..."></textarea>
+      </div>
+
     </div>
 
     <!-- Cart Items -->
@@ -427,6 +434,13 @@
         <div id="sizes-list" class="flex flex-wrap gap-2"></div>
       </div>
       <div id="addonsList" class="max-h-60 overflow-y-auto border p-2 mb-4 rounded"></div>
+
+      <!-- Item Note -->
+      <div class="mb-4">
+        <label class="block text-xs font-bold text-gray-500 mb-1">Special Instructions / Note:</label>
+        <input type="text" id="addonModalNote" class="w-full p-2 border rounded text-sm"
+          placeholder="e.g. No onions, Extra spicy...">
+      </div>
       <div class="flex gap-2">
         <button onclick="confirmAddons()" class="flex-1 py-2 bg-success text-white rounded font-bold">Add to
           Cart</button>
