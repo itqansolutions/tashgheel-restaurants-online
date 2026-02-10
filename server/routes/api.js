@@ -92,12 +92,8 @@ router.get('/data/read/:key', async (req, res) => {
 // List Data Files
 router.get('/data/list', async (req, res) => {
     try {
-        const files = await storage.listDataFiles();
-        const tenantPrefix = req.tenantId ? `${req.tenantId}_` : '';
-        const filtered = files
-            .filter(f => f.startsWith(tenantPrefix))
-            .map(f => f.replace(tenantPrefix, ''));
-        res.json(filtered);
+        const files = await storage.listDataFiles(req.tenantId);
+        res.json(files);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

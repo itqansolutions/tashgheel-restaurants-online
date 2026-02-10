@@ -241,17 +241,38 @@ async function deleteMany(collectionName, query) {
 }
 
 
-// List all .json files in data directory
-async function listDataFiles() {
+// List all data keys (Filesystem + MongoDB)
+async function listDataFiles(tenantId) {
+    const keys = new Set();
+
+    // 1. MongoDB: query distinct keys for this tenant
+    if (IS_MONGO) {
+        try {
+            const tid = tenantId || 'global';
+            const mongoKeys = await Data.distinct('key', { tenantId: tid });
+            mongoKeys.forEach(k => keys.add(k));
+        } catch (err) {
+            console.error('Mongo listDataFiles Error:', err);
+        }
+    }
+
+    // 2. Filesystem fallback (strip tenantId prefix if present)
     await ensureDataDir();
     try {
         const files = await fs.readdir(DATA_DIR);
-        return files
+        const prefix = tenantId ? `${tenantId}_` : '';
+        files
             .filter(file => file.endsWith('.json'))
-            .map(file => file.replace('.json', ''));
-    } catch (err) {
-        return [];
-    }
+            .forEach(file => {
+                let name = file.replace('.json', '');
+                if (prefix && name.startsWith(prefix)) {
+                    name = name.slice(prefix.length);
+                }
+                keys.add(name);
+            });
+    } catch (err) { /* ignore */ }
+
+    return Array.from(keys);
 }
 
 // Check if file exists
