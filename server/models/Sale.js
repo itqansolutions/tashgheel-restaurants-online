@@ -2,14 +2,23 @@ const mongoose = require('mongoose');
 
 const saleItemSchema = new mongoose.Schema({
     id: String, // Product ID (String for legacy support)
+    code: String, // Product code / partNumber
     name: String,
     qty: Number,
     price: Number,
     cost: Number, // Snapshot of cost at time of sale (CRITICAL for P&L)
+    note: { type: String, default: '' }, // Item-level note (kitchen display)
     discount: {
         type: { type: String, enum: ['percent', 'value', 'none'], default: 'none' },
         value: { type: Number, default: 0 }
     }
+}, { _id: false });
+
+const customerSchema = new mongoose.Schema({
+    id: String,
+    name: String,
+    mobile: String,
+    address: String
 }, { _id: false });
 
 const saleSchema = new mongoose.Schema({
@@ -19,6 +28,9 @@ const saleSchema = new mongoose.Schema({
         index: true,
         unique: true
     }, // Invoice # (e.g. REC-123)
+
+    receiptNo: { type: String }, // Display receipt number (001, 002...)
+    note: { type: String, default: '' }, // Order-level note
 
     tenantId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -52,8 +64,22 @@ const saleSchema = new mongoose.Schema({
         default: 'finished'
     },
 
+    // Kitchen Display System
+    kitchenStatus: {
+        type: String,
+        enum: ['pending', 'preparing', 'ready', 'served'],
+        default: 'pending'
+    },
+
     method: { type: String, default: 'cash' }, // cash, card, mobile, online
     orderType: { type: String, default: 'take_away' }, // dine_in, delivery, take_away
+
+    // Dine-in / Table
+    tableId: { type: String },
+    tableName: { type: String },
+
+    // Delivery Customer
+    customer: customerSchema,
 
     // Aggregator Hub fields
     source: { type: String, enum: ['pos', 'talabat', 'uber_eats', 'careem_now', 'mrsool'], default: 'pos' },
