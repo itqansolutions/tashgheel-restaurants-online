@@ -171,26 +171,45 @@ router.post('/login', authLimiter, async (req, res) => {
         // 1. Find Tenant
         const tenant = await storage.findOne('tenants', { email: businessEmail });
         if (!tenant) {
-            // Delay response to prevent timing attacks (optional but good for hardening)
             return res.status(400).json({ msg: 'Invalid Credentials' });
         }
 
-        // 2. Check Status
-        if (tenant.status === 'suspended') return res.status(403).json({ msg: 'Account Suspended' });
+        // 2. Check Status (Strict)
+        if (tenant.status !== 'active') {
+            return res.status(403).json({ msg: 'Account is not active. Please contact support.' });
+        }
 
-        // 3. Find User
+        // 3. Check Subscription / Trial Expiry
+        const now = new Date();
+        let expiryDate;
+
+        if (tenant.isSubscribed && tenant.subscriptionEndsAt) {
+            expiryDate = new Date(tenant.subscriptionEndsAt);
+        } else {
+            // Fallback to trial end if not subscribed
+            expiryDate = new Date(tenant.trialEndsAt);
+        }
+
+        if (expiryDate < now) {
+            return res.status(403).json({ msg: 'Subscription or Trial has expired. Please renew to continue.' });
+        }
+
+        // 4. Find User
         const users = await storage.find('users', { tenantId: tenant._id, username: username });
         const user = users[0];
 
         if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-        // 4. Verify Password
+        // 5. Verify Password
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-        // 5. Generate Tokens & Set Cookies
+        // 6. Generate Tokens & Set Cookies
         const { accessToken, refreshToken } = generateTokens(user, tenant._id);
         setCookies(res, accessToken, refreshToken);
+
+        // 7. Update Last Login
+        await storage.update('users', user._id, { lastLogin: new Date() });
 
         // Fetch Branch Names
         let branches = await getBranchDetails(user);

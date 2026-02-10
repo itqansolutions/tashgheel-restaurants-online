@@ -89,22 +89,45 @@ function renderTenantsTable(tenants) {
 
         const statusLabel = tenant.status === 'active' ? (isExpired ? 'Expired' : 'Active') : tenant.status.replace('_', ' ');
 
+        // Format Currency
+        const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'SAR' }); // Assuming SAR
+        const avgSales = tenant.avgDailySales ? formatter.format(tenant.avgDailySales) : 'N/A';
+
+        // Last Login
+        const lastLogin = tenant.lastActive ? new Date(tenant.lastActive).toLocaleString() : 'Never';
+
         tr.innerHTML = `
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 text-base">${tenant.businessName}</div>
                 <div class="text-xs font-mono text-slate-400 mt-0.5">ID: ${tenant._id}</div>
+                <div class="mt-2 flex gap-2 text-xs">
+                    <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100" title="Total Users">
+                        users: <b>${tenant.usersCount || 0}</b>
+                    </span>
+                    <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100" title="Employees">
+                        staff: <b>${tenant.employeesCount || 0}</b>
+                    </span>
+                </div>
             </td>
             <td class="px-6 py-4">
                 <div class="flex flex-col gap-1 text-sm text-slate-600">
                     <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">mail</span> ${tenant.email}</span>
                     <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">call</span> ${tenant.phone}</span>
                 </div>
+                 <div class="mt-2 text-xs text-slate-500 flex items-center gap-1" title="Last Login">
+                    <span class="material-symbols-outlined text-[14px]">schedule</span> ${lastLogin}
+                </div>
             </td>
             <td class="px-6 py-4">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${statusClass} uppercase tracking-wide">
-                    <span class="material-symbols-outlined text-[14px]">${statusIcon}</span>
-                    ${statusLabel}
-                </span>
+                <div class="flex flex-col gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${statusClass} uppercase tracking-wide w-fit">
+                        <span class="material-symbols-outlined text-[14px]">${statusIcon}</span>
+                        ${statusLabel}
+                    </span>
+                    <div class="text-xs text-slate-600 font-medium" title="Average Daily Sales">
+                        Avg Sales: <span class="text-emerald-600 font-bold">${avgSales}</span>
+                    </div>
+                </div>
             </td>
             <td class="px-6 py-4">
                 <div class="text-sm font-medium text-slate-700">${expiryDate.toLocaleDateString()}</div>

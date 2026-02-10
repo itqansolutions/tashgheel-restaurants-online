@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
     // Multi-Branch Support
     branchIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'data_branches' }],
     defaultBranchId: { type: mongoose.Schema.Types.ObjectId, ref: 'data_branches' },
+    lastLogin: { type: Date },
     createdAt: { type: Date, default: Date.now }
 });
 

@@ -52,8 +52,12 @@ const saleSchema = new mongoose.Schema({
         default: 'finished'
     },
 
-    method: { type: String, default: 'cash' }, // cash, card, mobile
+    method: { type: String, default: 'cash' }, // cash, card, mobile, online
     orderType: { type: String, default: 'take_away' }, // dine_in, delivery, take_away
+
+    // Aggregator Hub fields
+    source: { type: String, enum: ['pos', 'talabat', 'uber_eats', 'careem_now', 'mrsool'], default: 'pos' },
+    aggregatorOrderId: String, // Cross-reference to AggregatorOrder
 
     items: [saleItemSchema],
 

@@ -22,6 +22,10 @@ app.options('*', cors({
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'x-branch-id']
 }));
+
+// 🔐 Aggregator Webhook: Raw body for HMAC signature verification (MUST be before JSON parser)
+app.use('/api/aggregator/:provider/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -63,6 +67,10 @@ const branchScope = require('./middleware/branchScope');
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/super-admin', require('./routes/super-admin'));
+
+// Aggregator Hub — webhook uses raw body for HMAC, other routes use auth+branchScope inside router
+app.use('/api/aggregator', require('./aggregators/aggregatorRouter'));
+
 app.use('/api', auth, branchScope, apiRoutes);
 
 // Serve Static Files (Frontend)
