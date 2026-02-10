@@ -27,7 +27,60 @@ router.post('/login', (req, res) => {
         res.status(400).json({ msg: 'Invalid Credentials' });
     }
 });
+// @route   POST /api/super-admin/tenants
+// @desc    Create a new Tenant and Admin User
+router.post('/tenants', checkSuperAdmin, async (req, res) => {
+    try {
+        const { businessName, email, phone, plan, username, password } = req.body;
+        const User = require('../models/User');
 
+        // Check if tenant email exists
+        const existingTenant = (await storage.find('tenants')).find(t => t.email === email);
+        if (existingTenant) {
+            return res.status(400).json({ msg: 'Business email already exists' });
+        }
+
+        // Create Tenant
+        const trialDays = plan === 'monthly' ? 30 : (plan === 'yearly' ? 365 : 14);
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
+
+        const newTenant = {
+            businessName,
+            email,
+            phone,
+            trialEndsAt: trialEndsAt.toISOString(),
+            status: 'active',
+            subscriptionPlan: plan || 'free_trial',
+            isSubscribed: plan !== 'free_trial',
+            createdAt: new Date().toISOString(),
+            settings: { taxRate: 15, taxName: 'VAT' }
+        };
+
+        const createdTenant = await storage.insert('tenants', newTenant);
+
+        // Create Admin User
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        const newAdmin = {
+            tenantId: createdTenant._id,
+            username,
+            passwordHash,
+            role: 'admin',
+            fullName: 'Admin',
+            active: true,
+            createdAt: new Date().toISOString()
+        };
+
+        await storage.insert('users', newAdmin);
+
+        res.json(createdTenant);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+});
 // @route   GET /api/super-admin/tenants
 // @desc    Get all tenants with statistics
 router.get('/tenants', checkSuperAdmin, async (req, res) => {
@@ -89,6 +142,29 @@ router.get('/tenants', checkSuperAdmin, async (req, res) => {
         // Sort by createdAt desc
         enhancedTenants.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         res.json(enhancedTenants);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+});
+
+// @route   PUT /api/super-admin/tenants/:id
+// @desc    Update tenant details
+router.put('/tenants/:id', checkSuperAdmin, async (req, res) => {
+    try {
+        const { businessName, email, phone, plan } = req.body;
+
+        let updates = { businessName, email, phone };
+
+        if (plan) {
+            updates.subscriptionPlan = plan;
+            updates.isSubscribed = plan !== 'free_trial';
+        }
+
+        const tenant = await storage.update('tenants', req.params.id, updates);
+        if (!tenant) return res.status(404).json({ msg: 'Tenant not found' });
+
+        res.json(tenant);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Server Error' });

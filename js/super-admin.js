@@ -60,6 +60,99 @@ async function loadTenants() {
     }
 }
 
+// Check session on load
+if (localStorage.getItem('superAdminSecret')) {
+    showDashboard();
+}
+
+// --- Create Tenant Logic ---
+function openCreateModal() {
+    document.getElementById('createTenantForm').reset();
+    document.getElementById('createModal').style.display = 'flex';
+}
+
+document.getElementById('createTenantForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const secret = localStorage.getItem('superAdminSecret');
+
+    const payload = {
+        businessName: document.getElementById('createName').value,
+        plan: document.getElementById('createPlan').value,
+        email: document.getElementById('createEmail').value,
+        phone: document.getElementById('createPhone').value,
+        username: document.getElementById('createUsername').value,
+        password: document.getElementById('createPassword').value
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/tenants`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-super-admin-secret': secret
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert('Business Created Successfully! ✅');
+            closeModal('createModal');
+            loadTenants();
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.msg || 'Failed to create business'));
+        }
+    } catch (err) { alert('Server Error'); }
+});
+
+// --- Edit Tenant Logic ---
+function openEditModal(tenantStr) {
+    const tenant = JSON.parse(decodeURIComponent(tenantStr));
+
+    document.getElementById('editId').value = tenant._id;
+    document.getElementById('editName').value = tenant.businessName;
+    document.getElementById('editEmail').value = tenant.email;
+    document.getElementById('editPhone').value = tenant.phone;
+    document.getElementById('editPlan').value = tenant.subscriptionPlan || 'free_trial';
+
+    document.getElementById('editModalSubtitle').textContent = `Editing: ${tenant.businessName}`;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+document.getElementById('editTenantForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const secret = localStorage.getItem('superAdminSecret');
+    const id = document.getElementById('editId').value;
+
+    const payload = {
+        businessName: document.getElementById('editName').value,
+        email: document.getElementById('editEmail').value,
+        phone: document.getElementById('editPhone').value,
+        plan: document.getElementById('editPlan').value
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/tenants/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-super-admin-secret': secret
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert('Business Updated Successfully! ✅');
+            closeModal('editModal');
+            loadTenants();
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.msg || 'Failed to update business'));
+        }
+    } catch (err) { alert('Server Error'); }
+});
+
+
 function renderTenantsTable(tenants) {
     const tbody = document.getElementById('tenants-table');
     tbody.innerHTML = '';
@@ -95,6 +188,9 @@ function renderTenantsTable(tenants) {
 
         // Last Login
         const lastLogin = tenant.lastActive ? new Date(tenant.lastActive).toLocaleString() : 'Never';
+
+        // Escape for onclick
+        const tenantSafe = encodeURIComponent(JSON.stringify(tenant));
 
         tr.innerHTML = `
             <td class="px-6 py-4">
@@ -135,6 +231,12 @@ function renderTenantsTable(tenants) {
             </td>
             <td class="px-6 py-4 text-right">
                 <div class="flex justify-end gap-2">
+                    <button onclick="openEditModal('${tenantSafe}')" 
+                            class="w-8 h-8 flex items-center justify-center bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors border border-orange-100" 
+                            title="Edit Details">
+                        <span class="material-symbols-outlined text-[18px]">edit_square</span>
+                    </button>
+
                     <button onclick="updateStatus('${tenant._id}', '${tenant.status === 'active' ? 'on_hold' : 'active'}')" 
                             class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors border ${tenant.status === 'active' ? 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100' : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'}"
                             title="${tenant.status === 'active' ? 'Suspend' : 'Activate'}">
@@ -158,7 +260,6 @@ function renderTenantsTable(tenants) {
         tbody.appendChild(tr);
     });
 }
-
 async function updateStatus(id, status) {
     if (!confirm(`Are you sure you want to set status to ${status}?`)) return;
     const secret = localStorage.getItem('superAdminSecret');
