@@ -67,6 +67,7 @@ const branchScope = require('./middleware/branchScope');
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/super-admin', require('./routes/super-admin'));
+app.use('/api/taxes', require('./routes/taxes')); // 🆕 Tax Management
 
 // Aggregator Hub — webhook uses raw body for HMAC, other routes use auth+branchScope inside router
 app.use('/api/aggregator', require('./aggregators/aggregatorRouter'));

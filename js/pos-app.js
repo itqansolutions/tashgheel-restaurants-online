@@ -1050,6 +1050,71 @@ function updateCartDisplay() {
   updateCartSummary();
 }
 
+// ===================== TAX LOGIC =====================
+let activeTaxes = [];
+let currentOrderTaxes = []; // Subset of activeTaxes applied to current order
+
+async function loadTaxes() {
+  try {
+    if (window.apiFetch) {
+      const taxes = await window.apiFetch('/api/taxes?enabled=true');
+      activeTaxes = taxes || [];
+      // By default, apply all enabled taxes
+      currentOrderTaxes = [...activeTaxes];
+    }
+  } catch (e) {
+    console.warn('Failed to load taxes', e);
+  }
+}
+
+// Update this function to be called on init
+const originalLoadProducts = loadProducts;
+loadProducts = function () {
+  originalLoadProducts();
+  loadTaxes();
+};
+
+function openTaxModal() {
+  const list = document.getElementById('taxToggleList');
+  list.innerHTML = '';
+
+  if (activeTaxes.length === 0) {
+    list.innerHTML = '<p class="text-sm text-slate-500">No taxes configured.</p>';
+  }
+
+  activeTaxes.forEach(tax => {
+    const isApplied = currentOrderTaxes.some(t => t._id === tax._id);
+    const div = document.createElement('div');
+    div.className = "flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-200";
+    div.innerHTML = `
+       <label class="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" class="w-4 h-4 text-blue-600 rounded" 
+             onchange="toggleTax('${tax._id}', this.checked)" ${isApplied ? 'checked' : ''}>
+          <span class="text-sm font-bold text-slate-700">${tax.name} (${tax.percentage}%)</span>
+       </label>
+    `;
+    list.appendChild(div);
+  });
+
+  document.getElementById('taxesModal').style.display = 'flex';
+}
+
+window.toggleTax = function (taxId, checked) {
+  if (checked) {
+    const tax = activeTaxes.find(t => t._id === taxId);
+    if (tax && !currentOrderTaxes.some(t => t._id === taxId)) {
+      currentOrderTaxes.push(tax);
+    }
+  } else {
+    currentOrderTaxes = currentOrderTaxes.filter(t => t._id !== taxId);
+  }
+  updateCartSummary();
+};
+
+window.openTaxModal = openTaxModal;
+
+// ===================== CART SUMMARY UPDATE =====================
+
 function updateCartSummary() {
   let subtotal = 0;
   let discountTotal = 0;
@@ -1070,17 +1135,37 @@ function updateCartSummary() {
     discountTotal += discount;
   });
 
-  const total = subtotal - discountTotal;
+  const totalAfterDiscount = subtotal - discountTotal;
 
-  // Calculate Grand Total including Tax and Delivery
-  const tax = 0; // Tax 0% for now
+  // Calculate Taxes
+  let taxTotal = 0;
+  const taxListEl = document.getElementById("taxList");
+  if (taxListEl) taxListEl.innerHTML = '';
+
+  const appliedTaxesList = [];
+
+  currentOrderTaxes.forEach(tax => {
+    const amount = totalAfterDiscount * (tax.percentage / 100);
+    taxTotal += amount;
+    appliedTaxesList.push({ ...tax, amount });
+
+    if (taxListEl) {
+      const row = document.createElement('div');
+      row.className = "flex justify-between text-[11px] font-medium text-slate-500";
+      row.innerHTML = `<span>${tax.name} (${tax.percentage}%)</span><span>${amount.toFixed(2)}</span>`;
+      taxListEl.appendChild(row);
+    }
+  });
+
   const fee = (typeof currentDeliveryFee !== 'undefined') ? currentDeliveryFee : 0;
-  const grandTotal = total + tax + fee;
+  const grandTotal = totalAfterDiscount + taxTotal + fee;
 
   // Render
   document.getElementById("cartSubtotal").textContent = subtotal.toFixed(2);
   document.getElementById("cartDiscount").textContent = `- ${discountTotal.toFixed(2)}`;
-  document.getElementById("cartTax").textContent = tax.toFixed(2);
+
+  // Update Tax Label to show total tax amount if needed, or just keep individual rows
+  // document.getElementById("cartTax").textContent = taxTotal.toFixed(2); // Removed static id use
 
   const delRow = document.getElementById("deliveryFeeRow");
   if (delRow) {
@@ -1093,34 +1178,7 @@ function updateCartSummary() {
   }
 
   document.getElementById("cartTotal").textContent = `${t('total') || 'Total'}: ${grandTotal.toFixed(2)}`;
-
-  document.getElementById("subtotalLabel").textContent = t('subtotal');
-  document.getElementById("discountLabel").textContent = t('discount');
-  document.getElementById("taxLabel").textContent = t('tax');
   document.getElementById("cartCounter").textContent = cart.length;
-}
-
-function toggleCartButtons(enable) {
-  ["cashBtn", "cardBtn", "mobileBtn", "holdBtn", "clearCartBtn"].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.disabled = !enable;
-  });
-}
-
-function removeFromCart(index) {
-  cart.splice(index, 1);
-  updateCartDisplay();
-}
-window.removeFromCart = removeFromCart;
-
-function clearCart() {
-  if (cart.length > 0 && confirm(t('confirm_clear_cart'))) {
-    cart = [];
-    updateCartDisplay();
-  } else if (cart.length === 0) {
-    cart = []; // Just to be safe or if forceful
-    updateCartDisplay();
-  }
 }
 
 // ===================== SALE =====================
@@ -1134,10 +1192,19 @@ function processSale(method) {
 
   const orderType = document.querySelector('input[name="orderType"]:checked')?.value || 'take_away';
   const salesmanSelect = document.getElementById('salesmanSelect');
-  const salesman = salesmanSelect?.value || ''; // Can be empty if not selected
+  const salesman = salesmanSelect?.value || '';
   const tableSelect = document.getElementById('tableSelect');
   const tableId = tableSelect?.value || null;
   const tableName = tableId ? tableSelect.options[tableSelect.selectedIndex].text : null;
+
+  // Resolve Cashier Name
+  const currentUser = getCurrentUser();
+  let cashierName = currentUser.username || "Unknown";
+  if (window.DB.getEmployees) {
+    const employees = window.DB.getEmployees();
+    const linkedEmp = employees.find(e => e.linkedUser === currentUser.username);
+    if (linkedEmp) cashierName = linkedEmp.name;
+  }
 
   // Validation
   if (orderType === 'dine_in') {
@@ -1159,42 +1226,42 @@ function processSale(method) {
       return;
     }
     if (!selectedAddress) {
-      // Optional: force address? Yes for delivery.
       alert('Please select a Delivery Address.');
       return;
     }
   }
 
-  const currentUser = getCurrentUser();
+  // Recalculate totals
+  let subtotal = 0;
+  let discountTotal = 0;
+  cart.forEach(item => {
+    let itemTotal = item.qty * item.price;
+    let disc = 0;
+    if (item.discount?.type === "percent") disc = itemTotal * (item.discount.value / 100);
+    else if (item.discount?.type === "value") disc = item.discount.value;
+    subtotal += itemTotal;
+    discountTotal += disc;
+  });
 
-  // Resolve Cashier Name from Employee Link
-  let cashierName = currentUser.username || "Unknown";
-  if (window.DB.getEmployees) {
-    const employees = window.DB.getEmployees();
-    const linkedEmp = employees.find(e => e.linkedUser === currentUser.username);
-    if (linkedEmp) {
-      cashierName = linkedEmp.name; // Use Employee Name
-    }
-  }
+  const totalAfterDiscount = subtotal - discountTotal;
 
-  // Recalculate totals one last time to be safe
-  const subtotal = calculateTotal(cart);
-  const discountAmount = cart.reduce((acc, item) => {
-    if (item.discount?.type === 'value') return acc + item.discount.value;
-    if (item.discount?.type === 'percent') return acc + (item.price * item.qty * item.discount.value / 100);
-    return acc;
-  }, 0);
+  // Capture Applied Taxes
+  const appliedTaxes = currentOrderTaxes.map(tax => ({
+    id: tax._id,
+    name: tax.name,
+    percentage: tax.percentage,
+    amount: totalAfterDiscount * (tax.percentage / 100)
+  }));
+  const taxTotal = appliedTaxes.reduce((sum, t) => sum + t.amount, 0);
 
-  const tax = 0;
   const fee = (orderType === 'delivery' && typeof currentDeliveryFee !== 'undefined') ? currentDeliveryFee : 0;
-  const grandTotal = subtotal + tax + fee;
+  const grandTotal = totalAfterDiscount + taxTotal + fee;
 
-  // Shift & Receipt Logic
-  const receiptNo = getNextReceiptNumber();
+  const receiptNo = getNextReceiptNumber(); // Ensure this helper exists or use Date.now() fallback if not
 
   const sale = {
     id: "REC-" + Date.now(),
-    receiptNo: receiptNo, // New Display ID (001, 002...)
+    receiptNo: receiptNo || String(Date.now()).slice(-4),
     date: new Date().toISOString(),
     method: method,
     orderType: orderType,
@@ -1203,11 +1270,13 @@ function processSale(method) {
     cashier: cashierName,
     salesman: salesman,
     status: "finished",
-    note: document.getElementById('orderNoteInput')?.value.trim() || '', // Order Level Note
-    kitchenStatus: 'pending', // KDS Flag
+    note: document.getElementById('orderNoteInput')?.value.trim() || '',
+    kitchenStatus: 'pending',
     total: grandTotal,
     subtotal: subtotal,
-    discount: discountAmount,
+    discount: discountTotal,
+    tax: taxTotal,
+    appliedTaxes: appliedTaxes,
     deliveryFee: fee,
     customer: (orderType === 'delivery' && currentCustomer) ? {
       id: currentCustomer.id,
@@ -1216,14 +1285,17 @@ function processSale(method) {
       address: selectedAddress
     } : null,
     items: cart.map(item => ({
-      id: item.id,
-      code: item.partNumber || item.code,
-      name: item.name,
+      id: item.product_id, // Ensure consistent ID naming
+      code: item.code,
+      name: item.name, // Will include size in name if added by logic
+      sizeName: item.sizeName,
       qty: item.qty,
       price: item.price,
+      basePrice: item.basePrice,
       cost: item.cost,
       discount: item.discount,
-      note: item.note || '' // Item Level Note
+      note: item.note || '',
+      addons: item.addons || []
     }))
   };
 
@@ -1244,28 +1316,24 @@ function processSale(method) {
   // Save Sale
   window.DB.saveSale(sale);
 
-  // 🚀 Fix: Cache receipt for printing
+  // Cache receipt for printing
   localStorage.setItem(sale.id, JSON.stringify(sale));
 
   printReceipt(sale);
 
   cart = [];
   document.getElementById('orderNoteInput').value = '';
+  // Reset taxes for next order? Or keep same? Keeping same is usually better UX.
   updateCartDisplay();
 
-  // Refresh generic views
-  // IMPROVEMENT: Non-blocking feedback
+  // Feedback
   if (window.showToast) {
     window.showToast(t('sale_completed') || 'Sale Completed!', 'success');
-  } else if (window.showLoading) {
-    window.showLoading(t('sale_completed') || 'Sale Completed!');
-    setTimeout(() => window.hideLoading(), 1500);
   } else {
-    // Fallback if no toast system
     console.log('Sale Completed');
   }
 
-  // Optimize: Delay heavy refresh to allow UI to settle
+  // Optimize: Delay heavy refresh
   setTimeout(() => loadProducts(), 100);
 }
 
@@ -1402,34 +1470,64 @@ window.printStoredReceipt = function (receiptId) {
   let subtotal = 0;
 
   const itemsHtml = receipt.items.map(item => {
+    // Try to find product for name fallbacks, but prefer receipt data
     const product = products.find(p => p.code === item.code) || {};
-    const originalTotal = item.price * item.qty;
+    // Use saved values if available to ensure historical accuracy
+    const price = item.price || 0;
+    const qty = item.qty || 0;
+    const originalTotal = price * qty;
+
     let discountStr = "-";
     let discountAmountPerUnit = 0;
 
     if (item.discount?.type === "percent") {
-      discountAmountPerUnit = item.price * (item.discount.value / 100);
+      discountAmountPerUnit = price * (item.discount.value / 100);
       discountStr = `${item.discount.value}%`;
     } else if (item.discount?.type === "value") {
       discountAmountPerUnit = item.discount.value;
       discountStr = `${discountAmountPerUnit.toFixed(2)}`;
     }
 
-    const itemDiscountTotal = discountAmountPerUnit * item.qty;
+    const itemDiscountTotal = discountAmountPerUnit * qty;
     totalDiscount += itemDiscountTotal;
     subtotal += originalTotal;
 
+    const itemName = item.sizeName ? `${item.name} (${item.sizeName})` : (item.name || product.name || '-');
+
+    // Add-ons Text
+    let addonsText = '';
+    if (item.addons && item.addons.length > 0) {
+      addonsText = `<div style="font-size:10px; color:#555;">+ ${item.addons.map(a => a.name).join(', ')}</div>`;
+    }
+
     return `
       <tr>
-        <td>${item.code}</td>
-        <td>${product.name || item.name || '-'}</td>
-        <td>${item.qty}</td>
-        <td>${item.price.toFixed(2)}</td>
+        <td>${item.code || '-'}</td>
+        <td style="text-align:left;">${itemName}${addonsText}</td>
+        <td>${qty}</td>
+        <td>${price.toFixed(2)}</td>
         <td>${originalTotal.toFixed(2)}</td>
         <td>${discountStr}</td>
       </tr>
     `;
   }).join('');
+
+  // Tax Breakdown HTML
+  let taxesHtml = '';
+  if (receipt.appliedTaxes && receipt.appliedTaxes.length > 0) {
+    taxesHtml = receipt.appliedTaxes.map(tax =>
+      `<p>${tax.name} (${tax.percentage}%): ${tax.amount.toFixed(2)}</p>`
+    ).join('');
+  } else if (receipt.tax > 0) {
+    // Fallback if appliedTaxes detail is missing but tax total exists
+    taxesHtml = `<p>${t('tax') || 'Tax'}: ${receipt.tax.toFixed(2)}</p>`;
+  }
+
+  // Delivery Fee HTML
+  let deliveryHtml = '';
+  if (receipt.deliveryFee > 0) {
+    deliveryHtml = `<p>${t('delivery_fee') || 'Delivery'}: ${receipt.deliveryFee.toFixed(2)}</p>`;
+  }
 
   const dateFormatted = new Date(receipt.date).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
     year: 'numeric',
@@ -1449,7 +1547,7 @@ window.printStoredReceipt = function (receiptId) {
     font-family: Arial, sans-serif;
     font-size: 11.5px;
     font-weight: bold;
-    line-height: 1.7;
+    line-height: 1.5;
     direction: ${lang === 'ar' ? 'rtl' : 'ltr'};
     margin: 0;
     padding: 0;
@@ -1502,16 +1600,18 @@ window.printStoredReceipt = function (receiptId) {
   }
 
   th:nth-child(1), td:nth-child(1) { width: 14%; } /* Code */
-  th:nth-child(2), td:nth-child(2) { width: 28%; } /* Name */
+  th:nth-child(2), td:nth-child(2) { width: 30%; } /* Name - Expanded */
   th:nth-child(3), td:nth-child(3) { width: 10%; } /* Qty */
   th:nth-child(4), td:nth-child(4) { width: 14%; } /* Price */
   th:nth-child(5), td:nth-child(5) { width: 16%; } /* Total */
-  th:nth-child(6), td:nth-child(6) { width: 18%; } /* Discount */
+  /* Discount col reduced or hidden if needed, here approx 16% left */
 
   .summary {
     margin: 10px 8px 0;
     font-size: 12px;
     font-weight: bold;
+    border-top: 1px solid #000;
+    padding-top: 5px;
   }
 
   .footer {
@@ -1531,14 +1631,15 @@ window.printStoredReceipt = function (receiptId) {
     <p class="center">${shopAddress}</p>
     <hr/>
     <p>${t('receipt_no') || 'Receipt No'}: #${receipt.receiptNo || receipt.id}</p>
-    <p>${t('cashier') || 'Cashier'}: ${receipt.cashier}</p>
-    <p>${t('cashier') || 'Cashier'}: ${receipt.cashier}</p>
+    <p>${t('cashier') || 'Cashier'}: ${receipt.cashier || '-'}</p>
     <p>${receipt.orderType === 'dine_in' ? (t('waiter') || 'Waiter') :
       receipt.orderType === 'delivery' ? (t('delivery_man') || 'Delivery Man') :
         (t('salesman') || 'Salesman')
     }: ${receipt.salesman || '-'}</p>
-    <p><strong>${t('order_type') || 'Type'}: ${t(receipt.orderType) || receipt.orderType}</strong></p>
+    
     ${receipt.tableId ? `<p><strong>${t('table') || 'Table'}: ${receipt.tableName}</strong></p>` : ''}
+    ${receipt.customer ? `<p><strong>${t('customer') || 'Customer'}: ${receipt.customer.name}</strong></p>` : ''}
+    
     <p>${t('date') || 'Date'}: ${dateFormatted}</p>
     <p>${t('method') || 'Method'}: ${paymentMap[receipt.method] || '-'}</p>
 
@@ -1550,7 +1651,7 @@ window.printStoredReceipt = function (receiptId) {
       <th>${t('qty') || 'Qty'}</th>
       <th>${t('unit_price') || 'Price'}</th>
       <th>${t('total') || 'Total'}</th>
-      <th>${t('discount') || 'Disc'}</th>
+      <th>Disc%</th>
     </tr>
   </thead>
   <tbody>
@@ -1559,15 +1660,25 @@ window.printStoredReceipt = function (receiptId) {
 </table>
 
     <div class="summary">
-      <p>${t('subtotal')}: ${subtotal.toFixed(2)}</p>
-      <p>${t('total_discounts')}: ${totalDiscount.toFixed(2)}</p>
-      <p>${t('total')}: ${receipt.total.toFixed(2)}</p>
+      <p style="display:flex; justify-content:space-between;"><span>${t('subtotal')}:</span> <span>${subtotal.toFixed(2)}</span></p>
+      ${totalDiscount > 0 ? `<p style="display:flex; justify-content:space-between;"><span>${t('total_discounts')}:</span> <span>-${totalDiscount.toFixed(2)}</span></p>` : ''}
+      
+      <!-- Taxes -->
+      ${taxesHtml ? `<div style="border-top:1px dashed #ccc; margin:5px 0; padding:2px 0;">${taxesHtml}</div>` : ''}
+      
+      <!-- Delivery Fee -->
+      ${deliveryHtml ? `<div style="border-top:1px dashed #ccc; margin:5px 0; padding:2px 0;">${deliveryHtml}</div>` : ''}
+      
+      <p style="display:flex; justify-content:space-between; font-size:16px; margin-top:5px; border-top:2px solid #000; padding-top:2px;">
+         <span>${t('total')}:</span> 
+         <span>${receipt.total.toFixed(2)}</span>
+      </p>
     </div>
+    
     <hr/>
     ${receiptFooterMessage ? `<p class="footer" style="font-size:13px; font-weight: bold;">${receiptFooterMessage}</p>` : ''}
     <p class="footer">
       <strong>Tashgheel POS &copy; 2025</strong><br>
-      <span id="footerText">${t('enhanced_security')}</span>
     </p>
   </div>
   <script>window.onload = () => window.print();</script>

@@ -347,4 +347,91 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   loadBranches();
+
+  // === Tax Management ===
+  const taxForm = document.getElementById('tax-form');
+  const taxTableBody = document.getElementById('tax-table-body');
+
+  async function loadTaxes() {
+    try {
+      let taxes = [];
+      if (window.apiFetch) {
+        const result = await window.apiFetch('/api/taxes');
+        taxes = result || [];
+      } else {
+        console.warn('Tax API not available in local mode');
+        return;
+      }
+
+      if (taxTableBody) {
+        taxTableBody.innerHTML = '';
+        if (taxes.length === 0) {
+          taxTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#777;">No taxes configured.</td></tr>';
+          return;
+        }
+
+        taxes.forEach(tax => {
+          const row = document.createElement('tr');
+          row.className = "hover:bg-slate-50 transition-colors group";
+
+          const statusBadge = tax.enabled
+            ? '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Enabled</span>'
+            : '<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-xs font-bold">Disabled</span>';
+
+          row.innerHTML = `
+             <td class="px-4 py-3 font-bold text-slate-800">${tax.name}</td>
+             <td class="px-4 py-3 font-mono text-slate-600">${tax.percentage}%</td>
+             <td class="px-4 py-3">${statusBadge}</td>
+             <td class="px-4 py-3 text-right">
+                <button onclick="handleDeleteTax('${tax._id}')" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete">
+                  <span class="material-symbols-outlined text-[16px]">delete</span>
+                </button>
+             </td>
+           `;
+          taxTableBody.appendChild(row);
+        });
+      }
+    } catch (e) {
+      console.error('Error loading taxes:', e);
+    }
+  }
+
+  if (taxForm) {
+    taxForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('tax-name').value.trim();
+      const percentage = parseFloat(document.getElementById('tax-percentage').value);
+      const enabled = document.getElementById('tax-enabled').checked;
+
+      if (!name || isNaN(percentage)) return alert('Invalid inputs');
+
+      try {
+        await window.apiFetch('/api/taxes', {
+          method: 'POST',
+          body: JSON.stringify({ name, percentage, enabled })
+        });
+        showToast('✅ Tax saved!');
+        taxForm.reset();
+        document.getElementById('tax-enabled').checked = true; // Reset default
+        loadTaxes();
+      } catch (e) {
+        alert('Error saving tax: ' + e.message);
+      }
+    });
+  }
+
+  window.handleDeleteTax = async function (id) {
+    if (!confirm('Delete this tax?')) return;
+    try {
+      await window.apiFetch(`/api/taxes/${id}`, { method: 'DELETE' });
+      showToast('🗑️ Tax deleted');
+      loadTaxes();
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  };
+
+  // Initial Load
+  if (window.apiFetch) loadTaxes();
+
 });

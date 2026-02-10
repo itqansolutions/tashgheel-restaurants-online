@@ -311,10 +311,23 @@
           <span>Delivery</span>
           <span id="cartDeliveryFee">0.00</span>
         </div>
-        <div class="flex justify-between text-[11px] font-medium text-slate-500">
-          <span id="taxLabel" data-i18n-key="tax">Tax (0%)</span>
-          <span id="cartTax">0.00</span>
+
+        <!-- Dynamic Tax List -->
+        <div id="taxList" class="space-y-1">
+          <!-- Populated by JS -->
+          <div class="flex justify-between text-[11px] font-medium text-slate-500">
+            <span data-i18n-key="tax">Tax</span>
+            <span>0.00</span>
+          </div>
         </div>
+
+        <!-- Tax Toggle Button -->
+        <div class="text-right">
+          <button onclick="openTaxModal()" class="text-[10px] text-blue-600 font-bold hover:underline">
+            Manage Taxes
+          </button>
+        </div>
+
         <div class="flex justify-between items-end pt-2 border-t border-slate-200 dark:border-slate-700">
           <span class="text-sm font-bold">Total Amount</span>
           <span id="cartTotal" class="text-2xl font-black text-success tracking-tight">0.00 EGP</span>
@@ -362,6 +375,21 @@
   </aside>
 
   <!-- ==================== MODALS ==================== -->
+
+  <!-- Tax Management Modal -->
+  <div id="taxesModal" class="modal">
+    <div class="modal-content text-left">
+      <h3 class="font-bold text-lg mb-4">Manage Taxes</h3>
+      <p class="text-xs text-slate-500 mb-4">Toggle taxes for this specific order.</p>
+      <div id="taxToggleList" class="space-y-3 mb-6">
+        <!-- Populated by JS -->
+      </div>
+      <div class="flex gap-2">
+        <button onclick="document.getElementById('taxesModal').style.display='none'"
+          class="flex-1 py-2 bg-primary text-white rounded font-bold">Done</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Open Shift Modal -->
   <div id="openShiftModal" class="modal">
