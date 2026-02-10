@@ -310,6 +310,9 @@ async function initializeDataSystem() {
         window.SystemReady = true;
         window.dispatchEvent(new Event('SystemDataReady'));
         console.log('🚀 System Data Ready Event Dispatched');
+
+        // 🚀 Auto-Seed Defaults if missing (Critical for fresh SaaS deployments)
+        await seedDefaultsIfMissing();
     }
 }
 
@@ -710,6 +713,79 @@ function initializeUsers() {
             // In strict file mode, we might want default users if file is empty
             // But usually activation handles this.
         }
+    }
+}
+
+// 🚀 Dedicated Seeding Function for Missing Data
+async function seedDefaultsIfMissing() {
+    console.log('🌱 Checking for missing default data...');
+
+    // 1. Check Products (Menu Items)
+    const products = EnhancedSecurity.getSecureData('spare_parts');
+    if (!products || products.length === 0) {
+        console.log('⚠️ No products found. Seeding defaults...');
+        const defaultProducts = [
+            {
+                id: 1,
+                name: 'Coca Cola 330ml',
+                nameEn: 'Coca Cola 330ml',
+                barcode: '1234567890123',
+                price: 5.00,
+                cost: 2.50,
+                stock: 100,
+                category: 'Beverages',
+                image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=100'
+            },
+            {
+                id: 2,
+                name: 'Chicken Burger',
+                nameEn: 'Chicken Burger',
+                barcode: '2345678901234',
+                price: 15.00,
+                cost: 8.00,
+                stock: 50,
+                category: 'Meals',
+                image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=100'
+            },
+            {
+                id: 3,
+                name: 'French Fries',
+                nameEn: 'French Fries',
+                barcode: '3456789012345',
+                price: 8.00,
+                cost: 3.00,
+                stock: 50,
+                category: 'Appetizers',
+                image: 'https://images.unsplash.com/photo-1630384060421-a43b35d259fb?w=100'
+            },
+            {
+                id: 4,
+                name: 'Espresso',
+                nameEn: 'Espresso',
+                barcode: '4567890123456',
+                price: 12.00,
+                cost: 4.00,
+                stock: 100,
+                category: 'Hot Drinks',
+                image: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=100'
+            }
+        ];
+        await EnhancedSecurity.storeSecureData('spare_parts', defaultProducts);
+    }
+
+    // 2. Check Ingredients (Raw Materials)
+    const ingredients = EnhancedSecurity.getSecureData('ingredients');
+    if (!ingredients || ingredients.length === 0) {
+        console.log('⚠️ No ingredients found. Seeding defaults...');
+        const defaultIngredients = [
+            { id: 101, name: 'Sugar', unit: 'kg', cost: 5.0, stock: 10, vendorId: null, lastRestockDate: new Date().toISOString() },
+            { id: 102, name: 'Coffee Beans', unit: 'kg', cost: 45.0, stock: 5, vendorId: null, lastRestockDate: new Date().toISOString() },
+            { id: 103, name: 'Milk', unit: 'l', cost: 4.0, stock: 20, vendorId: null, lastRestockDate: new Date().toISOString() },
+            { id: 104, name: 'Flour', unit: 'kg', cost: 3.5, stock: 15, vendorId: null, lastRestockDate: new Date().toISOString() },
+            { id: 105, name: 'Chicken Breast', unit: 'kg', cost: 25.0, stock: 20, vendorId: null, lastRestockDate: new Date().toISOString() },
+            { id: 106, name: 'Potato', unit: 'kg', cost: 2.0, stock: 50, vendorId: null, lastRestockDate: new Date().toISOString() }
+        ];
+        await EnhancedSecurity.storeSecureData('ingredients', defaultIngredients);
     }
 }
 
