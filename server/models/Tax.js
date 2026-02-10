@@ -4,6 +4,11 @@ const TaxSchema = new mongoose.Schema({
     name: { type: String, required: true },
     percentage: { type: Number, required: true },
     enabled: { type: Boolean, default: true },
+    orderTypes: {
+        type: [String],
+        default: ['dine_in', 'take_away', 'delivery'],
+        enum: ['dine_in', 'take_away', 'delivery']
+    },
     branchId: { type: String, default: null }, // Optional: Link to specific branch
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }

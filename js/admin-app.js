@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       let taxes = [];
       if (window.apiFetch) {
-        const result = await window.apiFetch('/api/taxes');
+        const result = await window.apiFetch('/taxes');
         taxes = result || [];
       } else {
         console.warn('Tax API not available in local mode');
@@ -381,7 +381,14 @@ document.addEventListener('DOMContentLoaded', () => {
           row.innerHTML = `
              <td class="px-4 py-3 font-bold text-slate-800">${tax.name}</td>
              <td class="px-4 py-3 font-mono text-slate-600">${tax.percentage}%</td>
-             <td class="px-4 py-3">${statusBadge}</td>
+             <td class="px-4 py-3">
+                <div class="flex flex-col gap-1">
+                  ${statusBadge}
+                  <span class="text-[10px] text-slate-400">
+                    ${!tax.orderTypes || tax.orderTypes.length === 3 ? 'All Types' : tax.orderTypes.map(t => t.replace('dine_in', 'Din').replace('take_away', 'TkPv').replace('delivery', 'Del')).join(', ')}
+                  </span>
+                </div>
+             </td>
              <td class="px-4 py-3 text-right">
                 <button onclick="handleDeleteTax('${tax._id}')" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete">
                   <span class="material-symbols-outlined text-[16px]">delete</span>
@@ -403,12 +410,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const percentage = parseFloat(document.getElementById('tax-percentage').value);
       const enabled = document.getElementById('tax-enabled').checked;
 
+      // Gather Order Types
+      const orderTypes = Array.from(document.querySelectorAll('input[name="tax-scope"]:checked')).map(cb => cb.value);
+
       if (!name || isNaN(percentage)) return alert('Invalid inputs');
 
       try {
-        await window.apiFetch('/api/taxes', {
+        await window.apiFetch('/taxes', {
           method: 'POST',
-          body: JSON.stringify({ name, percentage, enabled })
+          body: JSON.stringify({ name, percentage, enabled, orderTypes })
         });
         showToast('✅ Tax saved!');
         taxForm.reset();

@@ -471,6 +471,12 @@ window.toggleOrderType = function () {
   if (deliverySection) {
     deliverySection.style.display = (type === 'delivery') ? 'block' : 'none';
   }
+
+  // Update Taxes based on new Order Type
+  if (typeof applyTaxesForOrderType === 'function') {
+    applyTaxesForOrderType();
+    updateCartSummary();
+  }
 };
 // ===================== DELIVERY CUSTOMER LOGIC =====================
 let currentCustomer = null;
@@ -1057,14 +1063,24 @@ let currentOrderTaxes = []; // Subset of activeTaxes applied to current order
 async function loadTaxes() {
   try {
     if (window.apiFetch) {
-      const taxes = await window.apiFetch('/api/taxes?enabled=true');
+      const taxes = await window.apiFetch('/taxes?enabled=true');
       activeTaxes = taxes || [];
-      // By default, apply all enabled taxes
-      currentOrderTaxes = [...activeTaxes];
+      applyTaxesForOrderType();
+      updateCartSummary();
     }
   } catch (e) {
     console.warn('Failed to load taxes', e);
   }
+}
+
+function applyTaxesForOrderType() {
+  const orderType = document.querySelector('input[name="orderType"]:checked')?.value || 'take_away';
+  // Filter active taxes that match this order type
+  // If orderTypes is undefined (legacy), assume all.
+  currentOrderTaxes = activeTaxes.filter(t => {
+    if (!t.orderTypes || t.orderTypes.length === 0) return true;
+    return t.orderTypes.includes(orderType);
+  });
 }
 
 // Update this function to be called on init

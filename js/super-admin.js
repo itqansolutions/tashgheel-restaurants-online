@@ -45,14 +45,14 @@ async function loadTenants() {
 
         if (response.status === 401) return logout();
 
-        let tenants;
+        let text;
         try {
-            tenants = await response.json();
+            text = await response.text(); // Read once
+            const tenants = JSON.parse(text);
             renderTenantsTable(tenants);
         } catch (e) {
-            const text = await response.text();
             console.error('API Error (Non-JSON):', text);
-            document.getElementById('tenants-table').innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Server Error: ${text || 'Unknown Error'}</td></tr>`;
+            document.getElementById('tenants-table').innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Server Error: ${text ? text.substring(0, 100) : 'Unknown Error'}</td></tr>`;
         }
     } catch (err) {
         console.error('Failed to load tenants', err);

@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
 // POST /api/taxes - Create new tax
 router.post('/', async (req, res) => {
     try {
-        const { name, percentage, enabled, branchId } = req.body;
+        const { name, percentage, enabled, branchId, orderTypes } = req.body;
 
         if (!name || percentage === undefined) {
             return res.status(400).json({ error: 'Name and Percentage are required' });
@@ -38,6 +38,7 @@ router.post('/', async (req, res) => {
             name,
             percentage,
             enabled: enabled !== undefined ? enabled : true,
+            orderTypes: orderTypes || ['dine_in', 'take_away', 'delivery'],
             branchId: branchId || null
         });
 
@@ -51,7 +52,7 @@ router.post('/', async (req, res) => {
 // PUT /api/taxes/:id - Update tax
 router.put('/:id', async (req, res) => {
     try {
-        const { name, percentage, enabled, branchId } = req.body;
+        const { name, percentage, enabled, branchId, orderTypes } = req.body;
 
         const updatedTax = await Tax.findByIdAndUpdate(
             req.params.id,
@@ -59,16 +60,13 @@ router.put('/:id', async (req, res) => {
                 name,
                 percentage,
                 enabled,
+                orderTypes,
                 branchId,
                 updatedAt: new Date()
             },
             { new: true }
         );
 
-        if (!updatedTax) return res.status(404).json({ error: 'Tax not found' });
-        res.json(updatedTax);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
     }
 });
 

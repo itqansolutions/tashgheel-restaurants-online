@@ -347,26 +347,30 @@ async function resolveBranchAndStart() {
         showBranchSelector(branches);
 
     } catch (err) {
-        console.error("❌ Branch resolution failed", err);
-
         // If we get a 401 (no token / auth denied), redirect to login
         // But only if we're not already on the login page
         const isLoginPage = window.location.pathname.endsWith('index.html') ||
             window.location.pathname === '/' ||
             window.location.pathname === '';
 
+        const errMsg = err?.message || String(err);
+        const isAuthError = errMsg.includes('token') || errMsg.includes('authorization') || errMsg.includes('401') || errMsg.includes('denied');
+
         if (!isLoginPage) {
-            // Check if the error is auth-related
-            const errMsg = err?.message || String(err);
-            if (errMsg.includes('token') || errMsg.includes('authorization') || errMsg.includes('401') || errMsg.includes('denied')) {
+            if (isAuthError) {
                 console.log('🔒 Auth required, redirecting to login...');
                 window.location.href = 'index.html';
                 return;
             }
+            console.error("❌ Branch resolution failed", err);
+        } else {
+            // On Login Page: Silence expected auth errors
+            if (isAuthError) {
+                console.log('ℹ️ User not logged in (Clean state)');
+            } else {
+                console.warn('⚠️ Branch resolution issue on login page:', err);
+            }
         }
-
-        // For non-auth errors, just log and continue (let user access page)
-        console.warn('⚠️ Branch resolution issue, continuing with local data');
     }
 }
 
