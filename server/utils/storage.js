@@ -43,6 +43,9 @@ function getFilePath(key, tenantId) {
 // For structured data (Users, Tenants), use the DB Helpers below.
 // Low-level: Write data to file or Mongo (key-value generic)
 async function saveData(key, data, tenantId) {
+    let mongoSuccess = false;
+    let mongoError = null;
+
     if (IS_MONGO) {
         try {
             const tid = tenantId || 'global';
@@ -51,7 +54,9 @@ async function saveData(key, data, tenantId) {
                 { value: data, updatedAt: new Date() },
                 { upsert: true, new: true }
             );
+            mongoSuccess = true;
         } catch (err) {
+            mongoError = err;
             console.error('Mongo SaveData Error:', err);
         }
     }
@@ -64,9 +69,16 @@ async function saveData(key, data, tenantId) {
         await fs.writeFile(filePath, content, 'utf8');
     } catch (fsErr) {
         console.warn(`Local File Write Failed for ${key}:`, fsErr.message);
-        // If Mongo succeeded, we consider this a success for the API
-        if (IS_MONGO) return { success: true };
-        throw fsErr; // If NO Mongo, this is a hard error
+
+        // Critical Logic: Only succeed if Mongo Worked
+        if (mongoSuccess) return { success: true };
+
+        // Both Failed? Report it properly
+        const errorMsg = mongoError
+            ? `Save Failed: Mongo[${mongoError.message}] & File[${fsErr.message}]`
+            : fsErr.message;
+
+        throw new Error(errorMsg);
     }
     return { success: true };
 }

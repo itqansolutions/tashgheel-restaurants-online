@@ -1243,6 +1243,10 @@ function processSale(method) {
 
   // Save Sale
   window.DB.saveSale(sale);
+
+  // 🚀 Fix: Cache receipt for printing
+  localStorage.setItem(sale.id, JSON.stringify(sale));
+
   printReceipt(sale);
 
   cart = [];
