@@ -56,10 +56,18 @@ async function saveData(key, data, tenantId) {
         }
     }
 
-    await ensureDataDir();
-    const filePath = getFilePath(key, tenantId);
-    const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-    await fs.writeFile(filePath, content, 'utf8');
+    // File System Fallback (Hybrid)
+    try {
+        await ensureDataDir();
+        const filePath = getFilePath(key, tenantId);
+        const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        await fs.writeFile(filePath, content, 'utf8');
+    } catch (fsErr) {
+        console.warn(`Local File Write Failed for ${key}:`, fsErr.message);
+        // If Mongo succeeded, we consider this a success for the API
+        if (IS_MONGO) return { success: true };
+        throw fsErr; // If NO Mongo, this is a hard error
+    }
     return { success: true };
 }
 
