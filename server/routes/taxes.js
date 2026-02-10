@@ -67,6 +67,10 @@ router.put('/:id', async (req, res) => {
             { new: true }
         );
 
+        if (!updatedTax) return res.status(404).json({ error: 'Tax not found' });
+        res.json(updatedTax);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
