@@ -273,7 +273,30 @@ async function buildReportContext() {
     });
 
     // Inventory Aggregation
-    rawProducts.forEach(p => {
+    // Inventory Aggregation (Unified Products + Ingredients)
+    const combinedInventory = [...rawProducts];
+
+    // Normalize Ingredients
+    if (rawIngredients && Array.isArray(rawIngredients)) {
+        rawIngredients.forEach(ing => {
+            const qty = parseFloat(ing.stock) || parseFloat(ing.qty) || 0;
+            // Only include if positive stock or valid item
+            if (qty > 0 || ing.minStock > 0) {
+                combinedInventory.push({
+                    name: ing.name,
+                    category: ing.category || 'Raw Materials',
+                    qty: qty,
+                    cost: parseFloat(ing.cost) || parseFloat(ing.unitCost) || 0,
+                    price: 0, // Ingredients have no retail price
+                    minStock: parseFloat(ing.minStock) || 0,
+                    lastSoldAt: ing.updatedAt, // Use update time as proxy for activity
+                    _isIngredient: true
+                });
+            }
+        });
+    }
+
+    combinedInventory.forEach(p => {
         const qty = parseFloat(p.qty) || 0;
         const cost = getProductCost(p); // Use Dynamic Cost Logic
         const price = parseFloat(p.price) || 0;
@@ -281,7 +304,11 @@ async function buildReportContext() {
 
         if (qty > 0) {
             totalStockCost += (qty * cost);
-            totalRetailValue += (qty * price);
+            // Only count Retail Value and Expected Profit for sellable items
+            if (price > 0) {
+                totalRetailValue += (qty * price);
+            }
+
             const cat = p.category || 'Uncategorized';
             stockCatMap[cat] = (stockCatMap[cat] || 0) + (qty * cost);
         }
@@ -293,6 +320,8 @@ async function buildReportContext() {
             const diff = new Date() - new Date(p.lastSoldAt);
             daysIdle = Math.floor(diff / (1000 * 60 * 60 * 24));
         }
+
+        // Aging Logic
         if (daysIdle <= 7) agingBuckets['0-7']++;
         else if (daysIdle <= 30) agingBuckets['8-30']++;
         else if (daysIdle <= 90) agingBuckets['31-90']++;
@@ -306,22 +335,9 @@ async function buildReportContext() {
         };
     });
 
-    // Process Ingredients (Raw Materials)
-    if (rawIngredients && Array.isArray(rawIngredients)) {
-        rawIngredients.forEach(ing => {
-            const qty = parseFloat(ing.stock) || parseFloat(ing.qty) || 0;
-            const cost = parseFloat(ing.cost) || parseFloat(ing.unitCost) || 0;
-
-            if (qty > 0) {
-                const totalVal = qty * cost;
-                totalStockCost += totalVal;
-                // Ingredients have no retail value usually, or equals cost if sold raw
-
-                const cat = ing.category || 'Raw Materials';
-                stockCatMap[cat] = (stockCatMap[cat] || 0) + totalVal;
-            }
-        });
-    }
+    // Replace the rawProducts list with combined for the renderer
+    rawProducts.length = 0;
+    rawProducts.push(...combinedInventory);
 
     // 8. Final Bundle
     return {

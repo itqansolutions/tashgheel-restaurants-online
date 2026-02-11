@@ -534,17 +534,22 @@ router.get('/reports/history', async (req, res) => {
 
         const filter = { tenantId, branchId };
 
+        console.log('📜 History Request:', { branchId, query: req.query });
+
         if (from || to) {
             filter.date = {};
             if (from) {
                 const f = !isNaN(from) ? parseInt(from) : from;
-                filter.date.$gte = new Date(f);
+                const d = new Date(f);
+                if (!isNaN(d.getTime())) filter.date.$gte = d;
             }
             if (to) {
                 const t = !isNaN(to) ? parseInt(to) : to;
-                const toDate = new Date(t);
-                toDate.setHours(23, 59, 59, 999);
-                filter.date.$lte = toDate;
+                const d = new Date(t);
+                if (!isNaN(d.getTime())) {
+                    d.setHours(23, 59, 59, 999);
+                    filter.date.$lte = d;
+                }
             }
         }
 
