@@ -429,7 +429,7 @@ router.post('/kitchen/complete/:id', async (req, res) => {
 
         if (!sale) return res.status(404).json({ error: 'Order not found' });
 
-        sale.kitchenStatus = 'completed';
+        sale.kitchenStatus = 'ready';
         sale.kitchenCompletedAt = new Date();
         await sale.save();
 
