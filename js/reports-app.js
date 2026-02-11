@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // === 3. INITIALIZATION ===
   const branchFilter = document.getElementById('branchFilter');
-  const fromDateInput = document.getElementById('from-date');
+  const fromDateInput = document.getElementById('startDate');
 
   // Set Default Date Range
   setDateRange('today');
@@ -85,25 +85,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!window.ReportDateUtils) return;
     const range = window.ReportDateUtils.getRange(preset);
 
-    // Update Hidden Inputs or Global State? 
-    // The implementation plan says buildReportContext reads inputs.
-    // So we must update the specific inputs found in reports.html
-    const sInput = document.getElementById('startDate');
-    const eInput = document.getElementById('endDate'); // Assuming these exist or we use the ones from HTML
-
-    // Wait, the HTML has hidden custom inputs or just uses date preset logic internally?
-    // Let's check reports.html inputs. Ah, previously we wrote setDateRange to update fromDateInput and toDateInput
-
     const fmt = d => d.toISOString().split('T')[0];
-    if (document.getElementById('from-date')) document.getElementById('from-date').value = fmt(range.start);
-    if (document.getElementById('to-date')) document.getElementById('to-date').value = fmt(range.end);
 
-    // Also update custom range picker inputs if they exist, to stay in sync
-    if (document.getElementById('startDate')) document.getElementById('startDate').value = fmt(range.start);
-    if (document.getElementById('endDate')) document.getElementById('endDate').value = fmt(range.end);
+    // Update Inputs
+    const sInput = document.getElementById('startDate');
+    const eInput = document.getElementById('endDate');
+    if (sInput) sInput.value = fmt(range.start);
+    if (eInput) eInput.value = fmt(range.end);
+
+    // Update Preset Value for Engine
+    const presetInput = document.getElementById('datePreset');
+    if (presetInput) presetInput.value = preset;
 
     refreshReports();
   }
+
+  // Handle Manual Date Changes
+  window.handleCustomDateChange = () => {
+    const presetInput = document.getElementById('datePreset');
+    if (presetInput) presetInput.value = 'custom';
+    refreshReports();
+  };
 
   // === 6. MAIN CONTROLLER ===
   async function refreshReports() {

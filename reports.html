@@ -171,17 +171,18 @@
               </div>
 
               <!-- 2. Date Pickers -->
+              <input type="hidden" id="datePreset" value="today">
               <div
                 class="flex items-center gap-3 w-full md:w-auto flex-shrink-0 bg-slate-50 p-3 rounded-xl border border-slate-200">
                 <div class="flex-1 md:w-36">
                   <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">From Date</label>
-                  <input type="date" id="from-date"
+                  <input type="date" id="startDate" onchange="handleCustomDateChange()"
                     class="w-full text-xs font-semibold border-slate-200 rounded-lg focus:ring-blue-500">
                 </div>
                 <span class="text-slate-300 mt-4">➜</span>
                 <div class="flex-1 md:w-36">
                   <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">To Date</label>
-                  <input type="date" id="to-date"
+                  <input type="date" id="endDate" onchange="handleCustomDateChange()"
                     class="w-full text-xs font-semibold border-slate-200 rounded-lg focus:ring-blue-500">
                 </div>
               </div>
