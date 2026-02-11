@@ -536,9 +536,13 @@ router.get('/reports/history', async (req, res) => {
 
         if (from || to) {
             filter.date = {};
-            if (from) filter.date.$gte = new Date(from);
+            if (from) {
+                const f = !isNaN(from) ? parseInt(from) : from;
+                filter.date.$gte = new Date(f);
+            }
             if (to) {
-                const toDate = new Date(to);
+                const t = !isNaN(to) ? parseInt(to) : to;
+                const toDate = new Date(t);
                 toDate.setHours(23, 59, 59, 999);
                 filter.date.$lte = toDate;
             }

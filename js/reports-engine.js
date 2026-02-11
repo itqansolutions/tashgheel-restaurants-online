@@ -103,7 +103,7 @@ async function buildReportContext() {
 
     // 2. Data Fetching (Current Period)
     const [receipts, rawProducts, rawExpenses, shifts, rawIngredients] = await Promise.all([
-        window.electronAPI.getSalesHistory ? window.electronAPI.getSalesHistory({ branchId, from: fromDate.getTime(), to: toDate.getTime() }) : [],
+        window.electronAPI.getSalesHistory ? window.electronAPI.getSalesHistory({ branchId, from: fromDate.toISOString(), to: toDate.toISOString() }) : [],
         window.electronAPI.getParts ? window.electronAPI.getParts() : [],
         window.DataCache && window.DataCache.expenses ? window.DataCache.expenses.filter(e => {
             const d = new Date(e.date);
@@ -131,7 +131,7 @@ async function buildReportContext() {
     // Let's try to do it right.
     const prevRange = window.ReportDateUtils.getPreviousPeriod(fromDate, toDate);
     // Only basic sales history needed for trends
-    const prevReceipts = window.electronAPI.getSalesHistory ? await window.electronAPI.getSalesHistory({ branchId, from: prevRange.start.getTime(), to: prevRange.end.getTime() }) : [];
+    const prevReceipts = window.electronAPI.getSalesHistory ? await window.electronAPI.getSalesHistory({ branchId, from: prevRange.start.toISOString(), to: prevRange.end.toISOString() }) : [];
     const prevExpenses = window.DataCache && window.DataCache.expenses ? window.DataCache.expenses.filter(e => {
         const d = new Date(e.date);
         return (!branchId || branchId === 'all' || e.branchId == branchId) && d >= prevRange.start && d <= prevRange.end;
