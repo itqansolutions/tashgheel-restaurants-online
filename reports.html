@@ -617,17 +617,86 @@
             </div>
 
             <!-- 6. STOCK VALUE (Admin) -->
-            <div id="card-stock-value" class="report-card admin-only hidden space-y-6">
-              <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                  <h3 class="font-bold text-slate-800">Stock Value by Category</h3>
-                  <div class="export-buttons flex gap-2">
-                    <button onclick="exportTableToExcel('table-stock-value')"
-                      class="text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">Excel</button>
+            <!-- 6. STOCK VALUE (Admin) -->
+            <div id="card-inventory-report" class="report-card admin-only hidden space-y-6">
+              <!-- KPI Row -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <p class="text-xs text-slate-500 font-bold uppercase">Total Stock Cost</p>
+                  <h3 class="text-2xl font-bold text-slate-800" id="inv-stock-cost">0.00</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <p class="text-xs text-slate-500 font-bold uppercase">Retail Value</p>
+                  <h3 class="text-2xl font-bold text-blue-600" id="inv-retail-value">0.00</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <p class="text-xs text-slate-500 font-bold uppercase">Expected Profit</p>
+                  <h3 class="text-2xl font-bold text-green-600" id="inv-expected-profit">0.00</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <p class="text-xs text-slate-500 font-bold uppercase">Low Stock Items</p>
+                  <h3 class="text-2xl font-bold text-red-600" id="inv-low-stock">0</h3>
+                </div>
+              </div>
+
+              <!-- Charts & Aging -->
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Stock Composition -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                  <h3 class="font-bold text-slate-800 mb-4">Stock by Category</h3>
+                  <div class="h-64 relative flex items-center justify-center">
+                    <canvas id="chart-inv-category"></canvas>
                   </div>
                 </div>
-                <div class="overflow-x-auto">
-                  <table id="table-stock-value" class="w-full text-left text-sm text-slate-600"></table>
+
+                <!-- Top Assets -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                  <h3 class="font-bold text-slate-800 mb-4">Top 10 High Value Assets</h3>
+                  <div class="h-64">
+                    <canvas id="chart-inv-top-assets"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Aging Analysis -->
+              <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="font-bold text-lg text-slate-800 mb-4">Inventory Aging Analysis</h3>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div class="p-4 bg-green-50 rounded-lg text-center">
+                    <div class="text-2xl font-bold text-green-700" id="aging-0-7">0</div>
+                    <div class="text-xs font-bold text-green-600 uppercase">Healthy (0-7 Days)</div>
+                  </div>
+                  <div class="p-4 bg-blue-50 rounded-lg text-center">
+                    <div class="text-2xl font-bold text-blue-700" id="aging-8-30">0</div>
+                    <div class="text-xs font-bold text-blue-600 uppercase">Warning (8-30 Days)</div>
+                  </div>
+                  <div class="p-4 bg-amber-50 rounded-lg text-center">
+                    <div class="text-2xl font-bold text-amber-700" id="aging-31-90">0</div>
+                    <div class="text-xs font-bold text-amber-600 uppercase">Slow (31-90 Days)</div>
+                  </div>
+                  <div class="p-4 bg-red-50 rounded-lg text-center">
+                    <div class="text-2xl font-bold text-red-700" id="aging-90">0</div>
+                    <div class="text-xs font-bold text-red-600 uppercase">Dead Stock (90+ Days)</div>
+                  </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-96">
+                  <table class="w-full text-left border-collapse">
+                    <thead
+                      class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200 sticky top-0">
+                      <tr>
+                        <th class="px-6 py-3">Product</th>
+                        <th class="px-6 py-3">Category</th>
+                        <th class="px-6 py-3">Qty</th>
+                        <th class="px-6 py-3">Unit Cost</th>
+                        <th class="px-6 py-3">Total Value</th>
+                        <th class="px-6 py-3">Last Sold</th>
+                        <th class="px-6 py-3">Days Idle</th>
+                        <th class="px-6 py-3">Health</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-inventory-health" class="divide-y divide-slate-100 text-sm text-slate-600"></tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -643,22 +712,22 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="js/web-adapter.js?v=2.3"></script>
-  <script src="js/auth.js?v=2.3"></script>
-  <script src="js/db.js?v=2.3"></script>
+  <script src="js/web-adapter.js?v=2.4"></script>
+  <script src="js/auth.js?v=2.4"></script>
+  <script src="js/db.js?v=2.4"></script>
   <script>window.currentPage = 'reports';</script>
-  <script src="js/shared-nav.js?v=2.3"></script>
-  <script src="js/translations.js?v=2.3"></script>
+  <script src="js/shared-nav.js?v=2.4"></script>
+  <script src="js/translations.js?v=2.4"></script>
   <!-- EXTERNAL LIBS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- MODULES -->
-  <script src="js/reports-engine.js?v=2.3"></script>
-  <script src="js/reports-charts.js?v=2.3"></script>
-  <script src="js/reports-export.js?v=2.3"></script>
-  <script src="js/reports-app.js?v=2.3"></script>
+  <script src="js/reports-engine.js?v=2.4"></script>
+  <script src="js/reports-charts.js?v=2.4"></script>
+  <script src="js/reports-export.js?v=2.4"></script>
+  <script src="js/reports-app.js?v=2.4"></script>
 
 </body>
 

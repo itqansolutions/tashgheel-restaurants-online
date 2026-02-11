@@ -125,19 +125,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const activeTab = getCurrentTab();
 
-      // Permission Check for Add Button
-      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      const canEdit = user.role === 'admin' || user.role === 'manager' || user.isAdmin;
+      // 3. User Permission Check
+      let user = {};
+      if (window.getCurrentUser) {
+        user = window.getCurrentUser() || {};
+      } else {
+        user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      }
+
+      console.log('👤 Current User Context:', user);
+
+      const canEdit = user.role === 'admin' || user.role === 'manager' || user.isAdmin === true;
       const addBtn = document.getElementById('btn-add-expense');
       if (addBtn) addBtn.classList.toggle('hidden', !canEdit);
 
-      // 2. Render View
+      // 4. Render View
       switch (activeTab) {
         case 'live': renderLiveMonitor(ctx); break;
         case 'sales': renderSalesStats(ctx); break;
         case 'cogs':
-          if (user.role === 'admin' || user.role === 'manager' || user.isAdmin) renderCOGSReport(ctx);
-          else { alert("Access Denied"); document.querySelector('[data-tab="live"]').click(); }
+          if (canEdit) renderCOGSReport(ctx);
+          else {
+            console.warn('⛔ Access Denied to COGS. User Role:', user.role);
+            alert("Access Denied: You need Admin or Manager privileges.");
+            document.querySelector('[data-tab="live"]').click();
+          }
           break;
         case 'expenses': renderExpensesReport(ctx); break;
         case 'inventory-report': renderInventoryReport(ctx); break;
