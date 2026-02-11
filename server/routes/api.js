@@ -297,6 +297,50 @@ router.post('/sales', async (req, res) => {
     }
 });
 
+
+// === KITCHEN DISPLAY SYSTEM ===
+
+// 1. Get Pending Kitchen Orders
+router.get('/kitchen/orders', async (req, res) => {
+    try {
+        const { branchId, tenantId } = req;
+
+        // Find orders where kitchenStatus is 'pending' AND status is NOT void/refunded
+        const orders = await Sale.find({
+            tenantId,
+            branchId,
+            kitchenStatus: 'pending',
+            status: { $nin: ['void', 'refunded'] }
+        }).sort({ date: 1 }); // Oldest first (FIFO)
+
+        res.json(orders);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. Mark Order as Complete
+router.post('/kitchen/complete/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const sale = await Sale.findOne({
+            _id: id,
+            tenantId: req.tenantId,
+            branchId: req.branchId
+        });
+
+        if (!sale) return res.status(404).json({ error: 'Order not found' });
+
+        sale.kitchenStatus = 'completed';
+        sale.kitchenCompletedAt = new Date();
+        await sale.save();
+
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 async function deductStock(tenantId, branchId, productId, qty) {
     try {
         let stock = await ProductStock.findOne({ tenantId, branchId, productId });

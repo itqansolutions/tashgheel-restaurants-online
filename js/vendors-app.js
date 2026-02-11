@@ -32,10 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function initVendorsApp() {
+async function initVendorsApp() {
     console.log('Session valid, rendering vendors...');
     try {
-        renderVendors();
+        await renderVendors();
     } catch (error) {
         console.error('Error rendering vendors:', error);
         alert(t('vendor_load_error') + error.message);
@@ -47,7 +47,7 @@ function initVendorsApp() {
     });
 }
 
-function renderVendors() {
+async function renderVendors() {
     console.log('renderVendors called');
     const container = document.getElementById('vendorsContainer');
 
@@ -56,7 +56,8 @@ function renderVendors() {
         return;
     }
 
-    const vendors = window.DB.getVendors();
+    // Async Fetch
+    const vendors = await window.electronAPI.getVendors() || [];
     console.log('Vendors loaded:', vendors.length);
 
     container.innerHTML = '';
@@ -100,18 +101,18 @@ function renderVendors() {
             </div>
 
             <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex gap-2">
-                <button class="flex-1 flex items-center justify-center gap-2 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm ${v.credit <= 0 ? 'opacity-50 cursor-not-allowed' : ''}" onclick="openPaymentModal(${v.id})" ${v.credit <= 0 ? 'disabled' : ''}>
+                <button class="flex-1 flex items-center justify-center gap-2 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm ${v.credit <= 0 ? 'opacity-50 cursor-not-allowed' : ''}" onclick="openPaymentModal('${v._id || v.id}')" ${v.credit <= 0 ? 'disabled' : ''}>
                     <span class="material-symbols-outlined text-[18px]">payments</span>
                     <span>${t('Pay', 'دفع')}</span>
                 </button>
                 <div class="flex gap-1">
-                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors" onclick="printVendorReport('${v.id}')" title="Report">
+                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors" onclick="printVendorReport('${v._id || v.id}')" title="Report">
                         <span class="material-symbols-outlined text-[18px]">description</span>
                     </button>
-                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors" onclick="editVendor(${v.id})" title="Edit">
+                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors" onclick="editVendor('${v._id || v.id}')" title="Edit">
                         <span class="material-symbols-outlined text-[18px]">edit</span>
                     </button>
-                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" onclick="deleteVendor(${v.id})" title="Delete">
+                    <button class="w-9 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" onclick="deleteVendor('${v._id || v.id}')" title="Delete">
                         <span class="material-symbols-outlined text-[18px]">delete</span>
                     </button>
                 </div>
@@ -122,17 +123,19 @@ function renderVendors() {
 }
 
 function openAddVendorModal() {
-    document.getElementById('vendorForm').reset();
+    const form = document.getElementById('vendorForm');
+    if (form) form.reset();
     document.getElementById('vendorId').value = '';
     document.getElementById('vendorModalTitle').textContent = t('Add Vendor', 'إضافة مورد');
     document.getElementById('vendorModal').style.display = 'flex';
 }
 
-function editVendor(id) {
-    const vendor = window.DB.getVendors().find(v => v.id === id);
+async function editVendor(id) {
+    const vendors = await window.electronAPI.getVendors();
+    const vendor = vendors.find(v => (v._id || v.id) == id);
     if (!vendor) return;
 
-    document.getElementById('vendorId').value = vendor.id;
+    document.getElementById('vendorId').value = vendor._id || vendor.id;
     document.getElementById('vendorName').value = vendor.name;
     document.getElementById('vendorMobile').value = vendor.mobile || '';
     document.getElementById('vendorAddress').value = vendor.address || '';
@@ -140,34 +143,38 @@ function editVendor(id) {
     document.getElementById('vendorModal').style.display = 'flex';
 }
 
-function handleVendorSubmit(e) {
+async function handleVendorSubmit(e) {
     e.preventDefault();
 
     const id = document.getElementById('vendorId').value;
     const vendor = {
-        id: id ? parseInt(id) : Date.now(),
+        id: id || undefined, // Send as undefined if new
+        _id: id || undefined,
         name: document.getElementById('vendorName').value.trim(),
         mobile: document.getElementById('vendorMobile').value.trim(),
         address: document.getElementById('vendorAddress').value.trim()
     };
 
     console.log('Saving vendor:', vendor);
-    const success = window.DB.saveVendor(vendor);
-    console.log('Save result:', success);
+    const result = await window.electronAPI.saveVendor(vendor);
+    console.log('Save result:', result);
 
-    closeModal('vendorModal');
-    renderVendors();
-
-    if (!id) {
-        alert(t('vendor_added'));
+    if (result && (result.success !== false)) {
+        closeModal('vendorModal');
+        renderVendors();
+        if (!id) {
+            alert(t('vendor_added'));
+        } else {
+            alert(t('vendor_updated'));
+        }
     } else {
-        alert(t('vendor_updated'));
+        alert("Failed to save vendor");
     }
 }
 
-function deleteVendor(id) {
-    if (confirm(t('delete_vendor_confirm'))) {
-        window.DB.deleteVendor(id);
+async function deleteVendor(id) {
+    if (await window.confirm(t('delete_vendor_confirm'))) {
+        await window.electronAPI.deleteVendor(id);
         renderVendors();
     }
 }

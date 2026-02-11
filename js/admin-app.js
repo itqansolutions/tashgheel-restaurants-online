@@ -231,9 +231,10 @@ document.addEventListener('DOMContentLoaded', () => {
       let branches = [];
       if (window.apiFetch) {
         try {
-          const result = await window.apiFetch('/data/load?collection=branches');
-          branches = result.data || [];
+          // Use new dedicated API
+          branches = await window.apiFetch('/branches');
         } catch (e) {
+          console.warn('Fallback to legacy/local branches');
           branches = JSON.parse(localStorage.getItem('branches') || '[]');
         }
       } else {
@@ -294,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       if (window.apiFetch) {
-        await window.apiFetch(`/data/delete?collection=branches&id=${branchId}`, { method: 'DELETE' });
+        await window.apiFetch(`/branches/${branchId}`, { method: 'DELETE' });
       } else {
         let branches = JSON.parse(localStorage.getItem('branches') || '[]');
         branches = branches.filter(b => (b._id || b.id) !== branchId);
@@ -320,19 +321,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!name || !code) return alert('Name and code required');
 
       const newBranch = {
-        id: 'branch_' + Date.now(),
         name, code, phone, address, isActive: true,
-        settings: { taxRate, currency: 'EGP' }
+        settings: { taxRate, currency: 'EGP' } // Backend handles creation date/id
       };
 
       try {
         if (window.apiFetch) {
-          await window.apiFetch('/data/save', {
+          await window.apiFetch('/branches', {
             method: 'POST',
-            body: JSON.stringify({ collection: 'branches', data: newBranch })
+            body: JSON.stringify(newBranch)
           });
         } else {
+          // Local Fallback
           const branches = JSON.parse(localStorage.getItem('branches') || '[]');
+          newBranch.id = 'branch_' + Date.now();
           branches.push(newBranch);
           localStorage.setItem('branches', JSON.stringify(branches));
         }
@@ -341,7 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
         branchForm.reset();
         loadBranches();
       } catch (e) {
-        alert('Error: ' + e.message);
+        console.error(e);
+        alert('Error: ' + (e.message || 'Failed to create branch'));
       }
     });
   }

@@ -480,122 +480,137 @@ async function calculatePayrollPreview() {
 
   // Prepare Calculation
   const reportDate = new Date().toLocaleDateString();
-  document.getElementById('print-date').textContent = `Period: ${m}/${y} - Generated: ${reportDate}`;
+  const printDateEl = document.getElementById('print-date');
+  if (printDateEl) printDateEl.textContent = `Period: ${m}/${y} - Generated: ${reportDate}`;
 
   const tbody = document.getElementById('payroll-preview-body');
-  tbody.innerHTML = '<tr><td colspan="8">Calculating...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div> Calculating...</td></tr>';
 
-  // Fetch necessary data
-  // 1. Sales (Restaurants: Sales Orders)
-  const allSales = window.DB.getSales() || [];
-  const monthSales = allSales.filter(s => {
-    if (!s.date) return false;
-    const d = new Date(s.date);
-    return d.getMonth() + 1 === m && d.getFullYear() === y;
-  });
+  try {
+    // Fetch necessary data
+    // 1. Sales (Restaurants: Sales Orders) - FETCH FROM SERVER
+    const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+    const endDate = new Date(y, m, 0).toISOString().split('T')[0]; // Last day of month
 
-  // 2. Financials
-  const monthFinancials = financialData.filter(t => {
-    const d = new Date(t.date);
-    return d.getMonth() + 1 === m && d.getFullYear() === y;
-  });
-
-  // 3. Attendance
-  // Filter attendance keys that match YYYY-MM
-  // attendanceData keys are YYYY-MM-DD
-  const monthAttendance = {};
-  Object.keys(attendanceData).forEach(dateStr => {
-    const d = new Date(dateStr);
-    if (d.getMonth() + 1 === m && d.getFullYear() === y) {
-      // Merge inner data
-      const dayData = attendanceData[dateStr];
-      Object.keys(dayData).forEach(empId => {
-        if (!monthAttendance[empId]) monthAttendance[empId] = { totalHours: 0, presentDays: 0, absentDays: 0 };
-        const record = dayData[empId];
-        if (record.status === 'present' || record.status === 'leave') {
-          monthAttendance[empId].totalHours += parseFloat(record.actualHours || 0);
-          monthAttendance[empId].presentDays++;
-        } else if (record.status === 'absent') {
-          monthAttendance[empId].absentDays++;
-        }
-      });
-    }
-  });
-
-  currentPayrollCalculation = [];
-
-  // Calculate per Employee
-  allEmployees.forEach(emp => {
-    // A. Basic Info
-    const baseSalary = parseFloat(emp.baseSalary) || 0;
-    const expectedDays = parseFloat(emp.workingDays) || 26;
-    const shiftHours = parseFloat(emp.shiftHours) || 9;
-
-    // Hourly Rate (Simplistic: Base / (Days * Hours))
-    // Or Base / 30 / Hours?
-    // Let's use Base / (ExpectedDays * ShiftHours)
-    let hourlyRate = 0;
-    if (expectedDays > 0 && shiftHours > 0) {
-      hourlyRate = baseSalary / (expectedDays * shiftHours);
+    let monthSales = [];
+    try {
+      const salesData = await window.apiFetch(`/reports/history?from=${startDate}&to=${endDate}`);
+      monthSales = salesData.sales || [];
+    } catch (err) {
+      console.error("Failed to fetch sales for payroll:", err);
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-500">Error fetching sales data. Please check connection.</td></tr>`;
+      return;
     }
 
-    // B. Attendance Calc
-    const att = monthAttendance[emp.id] || { totalHours: 0, presentDays: 0 };
-    const expectedMonthHours = expectedDays * shiftHours;
-    const diffHours = att.totalHours - expectedMonthHours;
-
-    // Value of Diff
-    // Overtime = Rate * 1.5? (Configurable?) Let's assume 1.0 for simplicity or 1.5 for positive
-    let diffValue = diffHours * hourlyRate;
-    // If negative (shortage), usually 1.0 rate deduction.
-    // If positive (overtime), maybe 1.5 rate?
-    if (diffHours > 0) diffValue = diffHours * (hourlyRate); // * 1.5 for OT?
-
-    // C. Financials
-    const empTrans = monthFinancials.filter(t => t.empId == emp.id);
-    const deductions = empTrans.filter(t => t.type === 'deduction').reduce((sum, t) => sum + t.amount, 0);
-    const bonuses = empTrans.filter(t => t.type === 'bonus').reduce((sum, t) => sum + t.amount, 0);
-
-    // D. Sales Commission
-    // Filter Sales where salesman OR cashier is this employee
-    const empSales = monthSales.filter(s =>
-      (s.salesman && s.salesman === emp.name) ||
-      (s.cashier && s.cashier === emp.name)
-    );
-    const achievedSales = empSales.reduce((sum, s) => sum + (parseFloat(s.total) || 0), 0);
-
-    // Target Logic
-    let commission = 0;
-    const targetObj = employeeTargets[payrollKey] ? employeeTargets[payrollKey][emp.id] : null;
-    if (targetObj && targetObj.target > 0) {
-      if (achievedSales >= targetObj.target) {
-        // Reached Target!
-        // 1% Commission? 0.5%?
-        commission = achievedSales * 0.01; // Example 1%
-      }
-    }
-
-    // Final Salary
-    // Formula: Base + DiffValue(OT/Shortage) - Deductions + Bonuses + Commission
-    const finalSalary = baseSalary + diffValue - deductions + bonuses + commission;
-
-    currentPayrollCalculation.push({
-      empId: emp.id,
-      name: emp.name,
-      baseSalary: baseSalary.toFixed(2),
-      actualHours: att.totalHours,
-      diffHours: diffHours.toFixed(1),
-      diffValue: diffValue.toFixed(2),
-      deductions: deductions.toFixed(2),
-      bonuses: bonuses.toFixed(2),
-      achievedSales: achievedSales.toFixed(2),
-      commission: commission.toFixed(2),
-      finalSalary: Math.max(0, finalSalary).toFixed(2) // No negative salary
+    // 2. Financials
+    const monthFinancials = financialData.filter(t => {
+      const d = new Date(t.date);
+      return d.getMonth() + 1 === m && d.getFullYear() === y;
     });
-  });
 
-  renderPayrollTable(currentPayrollCalculation, false);
+    // 3. Attendance
+    // Filter attendance keys that match YYYY-MM
+    // attendanceData keys are YYYY-MM-DD
+    const monthAttendance = {};
+    Object.keys(attendanceData).forEach(dateStr => {
+      const d = new Date(dateStr);
+      if (d.getMonth() + 1 === m && d.getFullYear() === y) {
+        // Merge inner data
+        const dayData = attendanceData[dateStr];
+        Object.keys(dayData).forEach(empId => {
+          if (!monthAttendance[empId]) monthAttendance[empId] = { totalHours: 0, presentDays: 0, absentDays: 0 };
+          const record = dayData[empId];
+          if (record.status === 'present' || record.status === 'leave') {
+            monthAttendance[empId].totalHours += parseFloat(record.actualHours || 0);
+            monthAttendance[empId].presentDays++;
+          } else if (record.status === 'absent') {
+            monthAttendance[empId].absentDays++;
+          }
+        });
+      }
+    });
+
+    currentPayrollCalculation = [];
+
+    // Calculate per Employee
+    allEmployees.forEach(emp => {
+      // A. Basic Info
+      const baseSalary = parseFloat(emp.baseSalary) || 0;
+      const expectedDays = parseFloat(emp.workingDays) || 26;
+      const shiftHours = parseFloat(emp.shiftHours) || 9;
+
+      // Hourly Rate (Simplistic: Base / (Days * Hours))
+      // Or Base / 30 / Hours?
+      // Let's use Base / (ExpectedDays * ShiftHours)
+      let hourlyRate = 0;
+      if (expectedDays > 0 && shiftHours > 0) {
+        hourlyRate = baseSalary / (expectedDays * shiftHours);
+      }
+
+      // B. Attendance Calc
+      const att = monthAttendance[emp.id] || { totalHours: 0, presentDays: 0 };
+      const expectedMonthHours = expectedDays * shiftHours;
+      const diffHours = att.totalHours - expectedMonthHours;
+
+      // Value of Diff
+      // Overtime = Rate * 1.5? (Configurable?) Let's assume 1.0 for simplicity or 1.5 for positive
+      let diffValue = diffHours * hourlyRate;
+      // If negative (shortage), usually 1.0 rate deduction.
+      // If positive (overtime), maybe 1.5 rate?
+      if (diffHours > 0) diffValue = diffHours * (hourlyRate); // * 1.5 for OT?
+
+      // C. Financials
+      const empTrans = monthFinancials.filter(t => t.empId == emp.id);
+      const deductions = empTrans.filter(t => t.type === 'deduction').reduce((sum, t) => sum + t.amount, 0);
+      const bonuses = empTrans.filter(t => t.type === 'bonus').reduce((sum, t) => sum + t.amount, 0);
+
+      // D. Sales Commission
+      // Filter Sales where salesman OR cashier is this employee
+      const empSales = monthSales.filter(s =>
+        (s.salesman && s.salesman === emp.name) ||
+        (s.cashier && s.cashier === emp.name) ||
+        (s.createdBy && s.createdBy === emp.username) // Also check createdBy username
+      );
+      const achievedSales = empSales.reduce((sum, s) => sum + (parseFloat(s.total) || 0), 0);
+
+      // Target Logic
+      let commission = 0;
+      const targetObj = employeeTargets[payrollKey] ? employeeTargets[payrollKey][emp.id] : null;
+      if (targetObj && targetObj.target > 0) {
+        if (achievedSales >= targetObj.target) {
+          // Reached Target!
+          // 1% Commission? 0.5%?
+          commission = achievedSales * 0.01; // Example 1%
+        }
+      }
+
+      // Final Salary
+      // Formula: Base + DiffValue(OT/Shortage) - Deductions + Bonuses + Commission
+      const finalSalary = baseSalary + diffValue - deductions + bonuses + commission;
+
+      currentPayrollCalculation.push({
+        empId: emp.id,
+        name: emp.name,
+        baseSalary: baseSalary.toFixed(2),
+        actualHours: att.totalHours,
+        diffHours: diffHours.toFixed(1),
+        diffValue: diffValue.toFixed(2),
+        deductions: deductions.toFixed(2),
+        bonuses: bonuses.toFixed(2),
+        achievedSales: achievedSales.toFixed(2),
+        commission: commission.toFixed(2),
+        finalSalary: Math.max(0, finalSalary).toFixed(2) // No negative salary
+      });
+    });
+
+    renderPayrollTable(currentPayrollCalculation, false);
+
+  } catch (err) {
+    console.error("Payroll Calculation Error:", err);
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-500">Error calculating payroll: ${err.message}</td></tr>`;
+  }
 }
+
 
 function renderPayrollTable(data, isClosed) {
   const tbody = document.getElementById('payroll-preview-body');

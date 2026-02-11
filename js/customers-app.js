@@ -43,13 +43,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // === RENDER ===
-function renderApp() {
+async function renderApp() {
     const container = document.getElementById('customersContainer');
     const searchTerm = document.getElementById('searchBox').value.toLowerCase();
 
     container.innerHTML = '';
 
-    let customers = window.DB.getCustomers();
+    // Async Fetch
+    let customers = await window.electronAPI.getCustomers() || [];
 
     // Filter
     if (searchTerm) {
@@ -75,6 +76,8 @@ function renderApp() {
         if (addressCount > 0) {
             mainAddr = c.addresses[0];
         }
+
+        const id = c._id || c.id;
 
         const card = document.createElement('div');
         card.className = 'bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col group';
@@ -119,11 +122,11 @@ function renderApp() {
             </div>
 
             <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex gap-2">
-                <button class="flex-1 flex items-center justify-center gap-2 py-2 bg-white border border-slate-200 hover:bg-blue-50 hover:border-blue-200 text-slate-600 hover:text-blue-700 rounded-lg text-sm font-medium transition-colors shadow-sm" onclick="openDetails(${c.id})">
+                <button class="flex-1 flex items-center justify-center gap-2 py-2 bg-white border border-slate-200 hover:bg-blue-50 hover:border-blue-200 text-slate-600 hover:text-blue-700 rounded-lg text-sm font-medium transition-colors shadow-sm" onclick="openDetails('${id}')">
                   <span class="material-symbols-outlined text-[18px]">visibility</span> 
                   <span>${t('Details', 'التفاصيل')}</span>
                 </button>
-                <button class="w-10 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 text-slate-400 hover:text-red-600 rounded-lg transition-colors shadow-sm" onclick="deleteCustomer(${c.id})">
+                <button class="w-10 h-auto flex items-center justify-center bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 text-slate-400 hover:text-red-600 rounded-lg transition-colors shadow-sm" onclick="deleteCustomer('${id}')">
                   <span class="material-symbols-outlined text-[18px]">delete</span>
                 </button>
             </div>
@@ -235,7 +238,7 @@ function openAddCustomerModal() {
     document.getElementById('customerModal').style.display = 'flex';
 }
 
-function handleCustomerSubmit(e) {
+async function handleCustomerSubmit(e) {
     e.preventDefault();
 
     const id = document.getElementById('customerId').value; // if empty, new
@@ -245,15 +248,16 @@ function handleCustomerSubmit(e) {
 
     let customer = {};
     if (id) {
-        // Update existing
-        const existing = window.DB.getCustomers().find(c => c.id == id);
+        // Fetch fresh to update OR use partial
+        const customers = await window.electronAPI.getCustomers();
+        const existing = customers.find(c => (c._id || c.id) == id);
         if (existing) {
             customer = { ...existing, name, mobile, notes };
         }
     } else {
         // New
         customer = {
-            id: Date.now(),
+            id: undefined, // New
             name,
             mobile,
             notes,
@@ -277,19 +281,19 @@ function handleCustomerSubmit(e) {
         }
     }
 
-    window.DB.saveCustomer(customer);
+    await window.electronAPI.saveCustomer(customer);
     renderApp();
     closeModal('customerModal');
 
     // If it was an update, might need to refresh details view if open
     if (id && currentCustomerIdForDetails == id) {
-        openDetails(parseInt(id));
+        openDetails(id);
     }
 }
 
-function deleteCustomer(id) {
-    if (confirm(t('delete_customer_confirm'))) {
-        window.DB.deleteCustomer(id);
+async function deleteCustomer(id) {
+    if (await window.confirm(t('delete_customer_confirm'))) {
+        await window.electronAPI.deleteCustomer(id);
         renderApp();
     }
 }
@@ -297,10 +301,11 @@ function deleteCustomer(id) {
 // === DETAILS & ADDRESSES ===
 let currentCustomerIdForDetails = null;
 
-function openDetails(customerId) {
+async function openDetails(customerId) {
     currentCustomerIdForDetails = customerId;
-    const customers = window.DB.getCustomers();
-    const c = customers.find(x => x.id === customerId);
+    // Async get
+    const customers = await window.electronAPI.getCustomers();
+    const c = customers.find(x => (x._id || x.id) == customerId);
     if (!c) return;
 
     // Show Customer Info
@@ -355,9 +360,9 @@ function openAddAddressModal() {
     document.getElementById('addressModal').style.display = 'flex';
 }
 
-function handleAddressSubmit(e) {
+async function handleAddressSubmit(e) {
     e.preventDefault();
-    const customerId = parseInt(document.getElementById('addrCustomerId').value);
+    const customerId = document.getElementById('addrCustomerId').value;
 
     const addr = {
         area: document.getElementById('vArea').value.trim(),
@@ -369,12 +374,14 @@ function handleAddressSubmit(e) {
         id: Date.now()
     };
 
-    const customers = window.DB.getCustomers();
-    const customer = customers.find(c => c.id === customerId);
+    const customers = await window.electronAPI.getCustomers();
+    const customer = customers.find(c => (c._id || c.id) == customerId);
+
     if (customer) {
         if (!customer.addresses) customer.addresses = [];
         customer.addresses.push(addr);
-        window.DB.saveCustomer(customer);
+
+        await window.electronAPI.saveCustomer(customer);
 
         renderAddressesList(customer);
         renderApp(); // Update main grid count
@@ -383,14 +390,17 @@ function handleAddressSubmit(e) {
     closeModal('addressModal');
 }
 
-function deleteAddress(index) {
+async function deleteAddress(index) {
     if (!confirm(t('confirm_delete', 'Are you sure?'))) return;
 
-    const customers = window.DB.getCustomers();
-    const customer = customers.find(c => c.id === currentCustomerIdForDetails);
+    const customers = await window.electronAPI.getCustomers();
+    const customer = customers.find(c => (c._id || c.id) == currentCustomerIdForDetails);
+
     if (customer && customer.addresses) {
         customer.addresses.splice(index, 1);
-        window.DB.saveCustomer(customer);
+
+        await window.electronAPI.saveCustomer(customer);
+
         renderAddressesList(customer);
         renderApp();
     }

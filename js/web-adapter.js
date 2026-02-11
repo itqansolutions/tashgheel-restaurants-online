@@ -153,10 +153,44 @@
         },
 
         // Reporting
+        // Reporting
         getLiveReport: async () => {
             try {
                 return await apiFetch(`/reports/live`);
             } catch (err) { return null; }
+        },
+
+        // --- Parties (Vendors & Customers) ---
+        getVendors: async () => {
+            try {
+                return await apiFetch(`/parties/vendors`);
+            } catch (err) { return []; }
+        },
+        saveVendor: async (vendor) => {
+            try {
+                return await apiFetch(`/parties/vendors`, { method: 'POST', body: JSON.stringify(vendor) });
+            } catch (err) { return { success: false, error: err }; }
+        },
+        deleteVendor: async (id) => {
+            try {
+                return await apiFetch(`/parties/vendors/${id}`, { method: 'DELETE' });
+            } catch (err) { return { success: false, error: err }; }
+        },
+
+        getCustomers: async () => {
+            try {
+                return await apiFetch(`/parties/customers`);
+            } catch (err) { return []; }
+        },
+        saveCustomer: async (customer) => {
+            try {
+                return await apiFetch(`/parties/customers`, { method: 'POST', body: JSON.stringify(customer) });
+            } catch (err) { return { success: false, error: err }; }
+        },
+        deleteCustomer: async (id) => {
+            try {
+                return await apiFetch(`/parties/customers/${id}`, { method: 'DELETE' });
+            } catch (err) { return { success: false, error: err }; }
         },
 
         getSalesHistory: async (filters = {}) => {
