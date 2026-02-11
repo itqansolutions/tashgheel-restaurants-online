@@ -104,13 +104,13 @@ async function buildReportContext() {
     // 2. Data Fetching (Current Period)
     const [receipts, rawProducts, rawExpenses, shifts, rawIngredients] = await Promise.all([
         window.electronAPI.getSalesHistory ? window.electronAPI.getSalesHistory({ branchId, from: fromDate.toISOString(), to: toDate.toISOString() }) : [],
-        window.electronAPI.getParts ? window.electronAPI.getParts() : [],
+        window.electronAPI.readData ? window.electronAPI.readData('products') : [],
         window.DataCache && window.DataCache.expenses ? window.DataCache.expenses.filter(e => {
             const d = new Date(e.date);
             return (!branchId || branchId === 'all' || e.branchId == branchId) && d >= fromDate && d <= toDate;
         }) : [],
         window.electronAPI.getShifts ? window.electronAPI.getShifts({ branchId }) : [],
-        window.DB ? window.DB.getIngredients() : [] // Fetch Ingredients for Costing
+        window.electronAPI.readData ? window.electronAPI.readData('ingredients') : (window.DB ? window.DB.getIngredients() : [])
     ]);
 
     // Helper: Dynamic Cost Engine
@@ -305,6 +305,23 @@ async function buildReportContext() {
             health: daysIdle <= 7 ? 'Healthy' : (daysIdle <= 30 ? 'Slow' : 'Dead')
         };
     });
+
+    // Process Ingredients (Raw Materials)
+    if (rawIngredients && Array.isArray(rawIngredients)) {
+        rawIngredients.forEach(ing => {
+            const qty = parseFloat(ing.stock) || parseFloat(ing.qty) || 0;
+            const cost = parseFloat(ing.cost) || parseFloat(ing.unitCost) || 0;
+
+            if (qty > 0) {
+                const totalVal = qty * cost;
+                totalStockCost += totalVal;
+                // Ingredients have no retail value usually, or equals cost if sold raw
+
+                const cat = ing.category || 'Raw Materials';
+                stockCatMap[cat] = (stockCatMap[cat] || 0) + totalVal;
+            }
+        });
+    }
 
     // 8. Final Bundle
     return {
