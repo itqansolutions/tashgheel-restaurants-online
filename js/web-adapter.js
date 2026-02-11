@@ -222,9 +222,20 @@
 
         getSalesHistory: async (filters = {}) => {
             try {
+                // Engine expects ALL data for aggregation. We set a high limit.
+                if (!filters.limit) filters.limit = 5000;
                 const params = new URLSearchParams(filters).toString();
-                return await apiFetch(`/reports/history?${params}`);
-            } catch (err) { return { sales: [], total: 0 }; }
+
+                const result = await apiFetch(`/reports/history?${params}`);
+
+                // Backend returns { sales: [], total: ..., summary: ... }
+                // Engine expects Array [ ...sales ]
+                if (result && result.sales && Array.isArray(result.sales)) {
+                    return result.sales;
+                }
+
+                return Array.isArray(result) ? result : [];
+            } catch (err) { return []; }
         },
 
         getCurrentShift: async () => {
