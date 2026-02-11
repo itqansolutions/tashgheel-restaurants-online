@@ -38,6 +38,33 @@
             const response = await fetch(API_BASE + safePath, fetchOptions);
 
             if (!response.ok) {
+                // 🟢 401 Interceptor: Attempt Silent Refresh
+                if (response.status === 401 && !path.includes('/auth/refresh') && !path.includes('/auth/login')) {
+                    console.log('🔄 401 Unauthorized detected. Attempting token refresh...');
+                    try {
+                        const refreshResponse = await fetch(API_BASE + '/auth/refresh', {
+                            method: 'GET',
+                            credentials: 'include'
+                        });
+
+                        if (refreshResponse.ok) {
+                            console.log('✅ Token Refreshed Successfully. Retrying original request...');
+                            // Retry Original Request
+                            const retryResponse = await fetch(API_BASE + safePath, fetchOptions);
+                            if (retryResponse.ok) {
+                                const text = await retryResponse.text();
+                                if (!text) return null;
+                                return JSON.parse(text);
+                            }
+                            // If retry fails, fall through to throw error
+                        } else {
+                            console.warn('❌ Token Refresh Failed. Session expired.');
+                        }
+                    } catch (refreshErr) {
+                        console.error('⚠️ Error during token refresh attempt:', refreshErr);
+                    }
+                }
+
                 const text = await response.text();
                 throw new Error(text || response.status);
             }

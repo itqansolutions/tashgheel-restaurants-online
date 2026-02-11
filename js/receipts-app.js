@@ -29,8 +29,25 @@ async function loadServiceReceipts() {
     const tbody = document.getElementById('receiptsTableBody');
     if (!tbody) return;
 
-    // Get all sales
-    const sales = window.DB ? window.DB.getSales() : [];
+    // Show loading state
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 20px;">Loading receipts...</td></tr>`;
+
+    // Get all sales from API
+    let sales = [];
+    try {
+        if (window.electronAPI && window.electronAPI.getSalesHistory) {
+            // Fetch last 100 sales (or implement pagination later)
+            const result = await window.electronAPI.getSalesHistory({ limit: 100 });
+            sales = result.sales || [];
+        } else {
+            // Fallback to local DB (Legacy/Offline)
+            sales = window.DB ? window.DB.getSales() : [];
+        }
+    } catch (e) {
+        console.error("Failed to load receipts:", e);
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">Error loading receipts.</td></tr>`;
+        return;
+    }
 
     // Filters
     const statusFilter = document.getElementById('statusFilter')?.value;
@@ -39,7 +56,9 @@ async function loadServiceReceipts() {
     // Filter
     const filtered = sales.filter(s => {
         if (statusFilter && s.status !== statusFilter) return false;
-        const searchText = `${s.id} ${s.cashier} ${s.salesman || ''}`.toLowerCase();
+        // Search by ID (last 8 chars), cashier (if name exists), or salesman
+        // Note: s.id is a full MongoID now, slice(-8) is still good for display
+        const searchText = `${s.id} ${s.cashier || ''} ${s.salesman || ''} ${s.customer?.name || ''}`.toLowerCase();
         return searchText.includes(searchTerm);
     });
 
@@ -65,26 +84,68 @@ async function loadServiceReceipts() {
         };
         const statusClass = statusColors[sale.status] || 'bg-slate-100 text-slate-600 border-slate-200';
 
+        // Handle potentially missing fields safely
+        const displayId = (sale._id || sale.id || '').toString().slice(-6).toUpperCase();
+        const displayDate = sale.date ? new Date(sale.date).toLocaleString([], { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+
         row.innerHTML = `
-            <td class="px-6 py-4 text-sm font-mono text-slate-500">${sale.id.slice(-8)}</td>
+            <td class="px-6 py-4 text-sm font-mono text-slate-500">#${displayId}</td>
             <td class="px-6 py-4 text-sm text-slate-700">
-                ${new Date(sale.date).toLocaleString([], { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                ${displayDate}
             </td>
             <td class="px-6 py-4 text-sm font-medium text-slate-800">${sale.cashier || '-'}</td>
-            <td class="px-6 py-4 text-sm text-slate-600 capitalize">${t(sale.method)}</td>
-            <td class="px-6 py-4 text-right text-sm font-bold text-slate-900">${sale.total.toFixed(2)}</td>
+            <td class="px-6 py-4 text-sm text-slate-600 capitalize">${t(sale.method || 'cash')}</td>
+            <td class="px-6 py-4 text-right text-sm font-bold text-slate-900">${(sale.total || 0).toFixed(2)}</td>
             <td class="px-6 py-4 text-center">
-                <span class="px-2 py-1 rounded text-xs font-bold border ${statusClass}">${t(sale.status)}</span>
+                <span class="px-2 py-1 rounded text-xs font-bold border ${statusClass}">${t(sale.status || 'finished')}</span>
             </td>
-            <td class="px-6 py-4 text-center">
-                <button class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors mx-auto" onclick="window.printStoredReceipt('${sale.id}')" title="View Receipt">
-                    <span class="material-symbols-outlined text-[18px]">receipt</span>
+            <td class="px-6 py-4 text-center flex items-center justify-center gap-2">
+                <button onclick="printStoredReceipt('${sale._id || sale.id}')" 
+                    class="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="${t('Print', 'طباعة')}">
+                    <span class="material-symbols-outlined text-[20px]">print</span>
                 </button>
+                ${(sale.status === 'finished') ? `
+                <button onclick="handleRefund('${sale._id || sale.id}')" 
+                    class="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="${t('Refund', 'استرجاع')}">
+                    <span class="material-symbols-outlined text-[20px]">undo</span>
+                </button>
+                ` : ''}
             </td>
         `;
         tbody.appendChild(row);
     });
 }
+
+// 🟢 NEW: Enterprise Refund Logic
+window.handleRefund = async function (saleId) {
+    // Permission Check (Optional: Backend enforces it, but UI hide is good)
+    // const user = JSON.parse(localStorage.getItem('user') || '{}');
+    // if (user.role !== 'admin' && user.role !== 'manager') { ... }
+
+    const reason = prompt(t('Enter refund reason:', 'أدخل سبب الاسترجاع:'));
+    if (!reason) return; // Cancelled
+
+    if (!confirm(t('Are you sure you want to refund this order? Stock will be restored.', 'هل أنت متأكد من استرجاع هذا الطلب؟ سيتم إعادة المخزون.'))) {
+        return;
+    }
+
+    try {
+        const response = await window.apiFetch(`/sales/refund/${saleId}`, {
+            method: 'POST',
+            body: JSON.stringify({ reason })
+        });
+
+        if (response.success) {
+            alert(t('Refund Successful', 'تم الاسترجاع بنجاح'));
+            loadServiceReceipts(); // Refresh table
+        } else {
+            alert(t('Refund Failed', 'فشل الاسترجاع') + ': ' + (response.error || 'Unknown'));
+        }
+    } catch (e) {
+        console.error('Refund Request Error:', e);
+        alert(t('Refund Failed', 'فشل الاسترجاع'));
+    }
+};
 
 function viewServiceInvoice(visitId) {
     const visit = window.DB.getVisit(visitId);
@@ -267,9 +328,43 @@ window.logout = function () {
 };
 
 // ===================== PRINT RECEIPT MODULE =====================
-window.printStoredReceipt = function (receiptId) {
-    const sales = window.DB ? window.DB.getSales() : [];
-    const receipt = sales.find(s => s.id === receiptId);
+window.printStoredReceipt = async function (receiptId) { // Added async
+    let receipt = null;
+
+    // 1. Try fetching from server (Robust method)
+    if (window.electronAPI && window.electronAPI.getSalesHistory) {
+        try {
+            // We can use history API filters to find specific ID if needed, or if we passed the full object
+            // But for now, let's assume getSalesHistory returns last 50, and if it's there we use it.
+            // Ideally we need `getSale(id)`.
+            // But let's check if the ID is valid.
+            // Actually, `window.electronAPI.readData` can read specific file? No, sales are in DB.
+            // Workaround: Call getSalesHistory with high limit or specific filter?
+            // Valid filter: history?from=...&to=... 
+            // We don't have getSaleById.
+            // Let's iterate sales from the list we (hopefully) just loaded?
+            // But wait, this function can be called standalone.
+
+            // NEW: Fetch specific sale via history filter? 
+            // api.js history endpoint doesn't filter by ID.
+            // Let's implement a quick client-side find via history.
+
+            // Optimistic Check: If it was just loaded in the table, maybe passed in?
+            // No, we passed ID only.
+
+            // Fetch recent history
+            const res = await window.electronAPI.getSalesHistory({ limit: 100 });
+            if (res && res.sales) {
+                receipt = res.sales.find(s => (s._id || s.id) == receiptId);
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    // 2. Fallback to Local
+    if (!receipt && window.DB) {
+        const sales = window.DB.getSales();
+        receipt = sales.find(s => s.id === receiptId);
+    }
 
     if (!receipt) {
         alert(t('receipt_not_found') + ": " + receiptId);

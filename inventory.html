@@ -249,12 +249,12 @@
 
     <!-- Stock Audit Modal -->
     <div id="auditModal" class="modal">
+        <!-- ... existing audit modal content ... -->
         <div class="modal-content w-full max-w-3xl p-6">
             <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                 <span class="material-symbols-outlined text-amber-500">checklist</span>
                 Stock Audit
             </h3>
-
             <div class="max-h-[60vh] overflow-y-auto border border-slate-200 rounded-lg mb-4">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-50 sticky top-0">
@@ -269,13 +269,104 @@
                     <tbody id="auditTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
                 </table>
             </div>
-
             <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
                 <button onclick="saveStockAudit()"
                     class="px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold shadow-sm">Save
                     Changes</button>
                 <button onclick="closeStockAudit()"
                     class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🟢 NEW: Adjustment / Waste Modal -->
+    <div id="adjustmentModal" class="modal">
+        <div class="modal-content w-full max-w-md p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-600">tune</span>
+                Adjust / Waste Stock
+            </h3>
+
+            <div class="bg-amber-50 p-3 rounded-lg border border-amber-100 mb-4 text-sm text-amber-900">
+                <input type="hidden" id="adj-id">
+                <div class="flex justify-between">
+                    <span>Current Stock: <strong id="adj-current-stock"></strong></span>
+                    <span>Cost: <strong id="adj-current-cost"></strong></span>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Adjustment Type</label>
+                    <select id="adj-type" class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+                        <option value="WASTE">Waste (Thrown away)</option>
+                        <option value="DAMAGE">Damage (Broken/Spoiled)</option>
+                        <option value="EXPIRED">Expired</option>
+                        <option value="AUDIT">Audit Correction</option>
+                        <option value="TRANSFER_IN">Transfer IN (+)</option>
+                        <option value="TRANSFER_OUT">Transfer OUT (-)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Quantity</label>
+                    <input type="number" id="adj-qty"
+                        class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500"
+                        placeholder="0.000" step="0.001">
+                    <p class="text-[10px] text-slate-500 mt-1">For Waste/Damage, enter positive number (system will
+                        subtract).</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Reason</label>
+                    <textarea id="adj-reason" rows="2"
+                        class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500"
+                        placeholder="Why is this matching happening?"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                <button onclick="confirmAdjustment()"
+                    class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold">Confirm</button>
+                <button onclick="document.getElementById('adjustmentModal').style.display='none'"
+                    class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🟢 NEW: Transfer Modal -->
+    <div id="transferModal" class="modal">
+        <div class="modal-content w-full max-w-md p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-600">move_up</span>
+                Transfer Stock
+            </h3>
+
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 mb-4 text-sm text-blue-900">
+                <input type="hidden" id="trf-id">
+                <div class="flex justify-between">
+                    <span>Available Stock: <strong id="trf-current-stock"></strong></span>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Target Branch</label>
+                    <select id="trf-target-branch" class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+                        <option value="">Loading branches...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Quantity</label>
+                    <input type="number" id="trf-qty"
+                        class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="0.000" step="0.001">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                <button onclick="confirmTransfer()"
+                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">Transfer</button>
+                <button onclick="document.getElementById('transferModal').style.display='none'"
+                    class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg">Cancel</button>
             </div>
         </div>
     </div>
