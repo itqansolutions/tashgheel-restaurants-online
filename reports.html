@@ -106,7 +106,7 @@
                 </button>
                 <button
                   class="report-tab pb-3 px-1 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2 admin-only"
-                  data-tab="stock-value">
+                  data-tab="inventory-report">
                   <span class="material-symbols-outlined text-[18px]">attach_money</span> Stock Value
                 </button>
               </div>
@@ -422,21 +422,74 @@
 
 
             <!-- 4. EXPENSES REPORT -->
+            <!-- 4. EXPENSES REPORT -->
             <div id="card-expenses" class="report-card hidden space-y-6">
-              <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <div class="flex justify-between items-center mb-4">
-                  <h3 class="font-bold text-lg text-slate-800">Total Expenses</h3>
-                  <div class="export-buttons flex gap-2">
-                    <button onclick="exportTableToExcel('table-expenses')"
-                      class="text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">Excel</button>
-                    <button onclick="exportTableToPDF('table-expenses')"
-                      class="text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">PDF</button>
+              <!-- KPI Grid -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Total Expenses -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <p class="text-sm text-slate-500 mb-1">Total Expenses</p>
+                  <h3 class="text-2xl font-bold text-red-600" id="expenses-total">0.00</h3>
+                </div>
+                <!-- Daily Average -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <p class="text-sm text-slate-500 mb-1">Daily Average</p>
+                  <h3 class="text-2xl font-bold text-slate-800" id="expenses-daily-avg">0.00</h3>
+                </div>
+                <!-- Largest Expense -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <p class="text-sm text-slate-500 mb-1">Largest Expense</p>
+                  <h3 class="text-2xl font-bold text-slate-800" id="expenses-largest">0.00</h3>
+                  <p class="text-xs text-slate-400 mt-1 truncate" id="expenses-largest-name">-</p>
+                </div>
+                <!-- Net Profit (After Expenses) -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <p class="text-sm text-slate-500 mb-1">Net Profit</p>
+                  <h3 class="text-2xl font-bold text-green-600" id="expenses-net-profit">0.00</h3>
+                </div>
+              </div>
+
+              <!-- Charts Row -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Expense Category Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h3 class="font-bold text-lg text-slate-800 mb-4">Expenses by Category</h3>
+                  <div class="h-64">
+                    <canvas id="chart-expenses-category"></canvas>
                   </div>
                 </div>
-                <div class="text-3xl font-bold text-slate-800 mb-6" id="total-expenses-amount">0.00 EGP</div>
+                <!-- Expense Trend Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h3 class="font-bold text-lg text-slate-800 mb-4">Daily Expense Trend</h3>
+                  <div class="h-64">
+                    <canvas id="chart-expenses-trend"></canvas>
+                  </div>
+                </div>
+              </div>
 
+              <!-- Detailed Table -->
+              <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="font-bold text-lg text-slate-800">Expense Details</h3>
+                  <button onclick="window.exportReportToExcel('expenses')"
+                    class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Export to Excel
+                  </button>
+                </div>
                 <div class="overflow-x-auto">
-                  <table id="table-expenses" class="w-full text-left text-sm text-slate-600"></table>
+                  <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                      <tr>
+                        <th class="px-4 py-3">Date</th>
+                        <th class="px-4 py-3">Category</th>
+                        <th class="px-4 py-3">Description</th>
+                        <th class="px-4 py-3 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-expenses" class="divide-y divide-slate-100">
+                      <!-- Populated by JS -->
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -590,22 +643,22 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="js/web-adapter.js?v=2.2"></script>
-  <script src="js/auth.js?v=2.2"></script>
-  <script src="js/db.js?v=2.2"></script>
+  <script src="js/web-adapter.js?v=2.3"></script>
+  <script src="js/auth.js?v=2.3"></script>
+  <script src="js/db.js?v=2.3"></script>
   <script>window.currentPage = 'reports';</script>
-  <script src="js/shared-nav.js?v=2.2"></script>
-  <script src="js/translations.js?v=2.2"></script>
+  <script src="js/shared-nav.js?v=2.3"></script>
+  <script src="js/translations.js?v=2.3"></script>
   <!-- EXTERNAL LIBS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- MODULES -->
-  <script src="js/reports-engine.js?v=2.2"></script>
-  <script src="js/reports-charts.js?v=2.2"></script>
-  <script src="js/reports-export.js?v=2.2"></script>
-  <script src="js/reports-app.js?v=2.2"></script>
+  <script src="js/reports-engine.js?v=2.3"></script>
+  <script src="js/reports-charts.js?v=2.3"></script>
+  <script src="js/reports-export.js?v=2.3"></script>
+  <script src="js/reports-app.js?v=2.3"></script>
 
 </body>
 

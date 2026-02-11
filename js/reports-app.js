@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         case 'live': renderLiveMonitor(ctx); break;
         case 'sales': renderSalesStats(ctx); break;
         case 'cogs':
-          if (user.role === 'admin' || user.isAdmin) renderCOGSReport(ctx);
+          if (user.role === 'admin' || user.role === 'manager' || user.isAdmin) renderCOGSReport(ctx);
           else { alert("Access Denied"); document.querySelector('[data-tab="live"]').click(); }
           break;
         case 'expenses': renderExpensesReport(ctx); break;
