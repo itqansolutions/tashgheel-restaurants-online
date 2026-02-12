@@ -552,6 +552,18 @@ var EnhancedSecurity = {
                 // We return true because LocalStorage presumably worked
                 return true;
             }
+        } else {
+            // 🚀 WEB MODE: Save to Server via API
+            try {
+                if (window.apiFetch) {
+                    await window.apiFetch('/data/save', {
+                        method: 'POST',
+                        body: JSON.stringify({ key, value: data })
+                    });
+                }
+            } catch (e) {
+                console.warn('Web Save Error (Offline?):', e);
+            }
         }
 
         return true;
