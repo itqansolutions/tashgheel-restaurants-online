@@ -1285,6 +1285,7 @@ function processSale(method) {
   const sale = {
     id: "REC-" + Date.now(),
     receiptNo: receiptNo || String(Date.now()).slice(-4),
+    shiftId: currentShift ? currentShift._id : null, // 🟢 Fix: Link Sale to Shift
     date: new Date().toISOString(),
     method: method,
     orderType: orderType,
@@ -1295,12 +1296,12 @@ function processSale(method) {
     status: "finished",
     note: document.getElementById('orderNoteInput')?.value.trim() || '',
     kitchenStatus: 'pending',
-    total: grandTotal,
-    subtotal: subtotal,
-    discount: discountTotal,
-    tax: taxTotal,
+    total: parseFloat(grandTotal) || 0,
+    subtotal: parseFloat(subtotal) || 0,
+    discount: parseFloat(discountTotal) || 0,
+    tax: parseFloat(taxTotal) || 0,
     appliedTaxes: appliedTaxes,
-    deliveryFee: fee,
+    deliveryFee: parseFloat(fee) || 0,
     customer: (orderType === 'delivery' && currentCustomer) ? {
       id: currentCustomer.id,
       name: currentCustomer.name,
