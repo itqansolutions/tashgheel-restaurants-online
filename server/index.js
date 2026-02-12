@@ -67,11 +67,11 @@ const branchScope = require('./middleware/branchScope');
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/super-admin', require('./routes/super-admin'));
-app.use('/api/taxes', require('./routes/taxes')); // 🆕 Tax Management
-app.use('/api/expenses', require('./routes/expenses')); // 🆕 Expenses Management
-app.use('/api/parties', require('./routes/parties')); // 🆕 Vendors & Customers
-app.use('/api/branches', require('./routes/branches')); // 🆕 Branch Management
-app.use('/api/delivery-zones', require('./routes/delivery-zones')); // 🆕 Delivery Zones Management
+app.use('/api/taxes', auth, require('./routes/taxes')); // 🆕 Tax Management
+app.use('/api/expenses', auth, require('./routes/expenses')); // 🆕 Expenses Management
+app.use('/api/parties', auth, require('./routes/parties')); // 🆕 Vendors & Customers
+app.use('/api/branches', auth, require('./routes/branches')); // 🆕 Branch Management
+app.use('/api/delivery-zones', auth, require('./routes/delivery-zones')); // 🆕 Delivery Zones Management
 
 // 🌍 Public Store API (Rate Limited, No Auth Required for Read)
 app.use('/api/public', require('./routes/public-api'));
