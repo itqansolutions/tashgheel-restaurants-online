@@ -38,7 +38,11 @@ async function loadServiceReceipts() {
         if (window.electronAPI && window.electronAPI.getSalesHistory) {
             // Fetch last 100 sales (or implement pagination later)
             const result = await window.electronAPI.getSalesHistory({ limit: 100 });
-            sales = result.sales || [];
+            sales = result.sales || result || [];
+        } else if (window.apiFetch) {
+            // 🚀 Web Mode Support
+            const result = await window.apiFetch('/reports/history?limit=100');
+            sales = result.sales || result || [];
         } else {
             // Fallback to local DB (Legacy/Offline)
             sales = window.DB ? window.DB.getSales() : [];
