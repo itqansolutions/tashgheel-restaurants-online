@@ -209,7 +209,10 @@ router.post('/order', async (req, res) => {
         const finalTotal = subtotal + taxAmount + deliveryFee;
 
         // Create Sale
+        const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const newSale = new Sale({
+            id: orderId, // REQUIRED by Schema
+            receiptNo: orderId.slice(-6), // Short reference
             tenantId: tenantId, // Important for scoping
             branchId: branchId, // Changed from 'branch' to 'branchId' to match schema
             items: validItems,
