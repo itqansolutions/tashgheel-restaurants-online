@@ -217,6 +217,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 3000);
   }
 
+  // === Store Link Logic ===
+  const storeLinkInput = document.getElementById('store-link-display');
+  const storeLinkBtn = document.getElementById('store-link-btn');
+
+  function updateStoreLink() {
+    if (!storeLinkInput) return;
+
+    // Get current Tenant ID from user context (injected by auth.js usually)
+    const user = window.getCurrentUser();
+    const tenantId = user ? user.tenantId : 'global';
+
+    // Construct Link
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/online_ordering.html?oid=${tenantId}`;
+
+    storeLinkInput.value = link;
+    storeLinkBtn.href = link;
+  }
+
+  window.copyStoreLink = function () {
+    if (!storeLinkInput) return;
+    storeLinkInput.select();
+    navigator.clipboard.writeText(storeLinkInput.value).then(() => {
+      showToast('✅ Link copied to clipboard');
+    }).catch(err => {
+      console.error('Copy failed', err);
+      showToast('❌ Copy failed');
+    });
+  };
+
+  // call on load
+  updateStoreLink();
+
   // Re-render when language changes
   window.addEventListener('languageChanged', () => {
     // loadUsers(); 

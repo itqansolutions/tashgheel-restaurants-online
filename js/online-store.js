@@ -17,16 +17,52 @@ const API_BASE = '/api/public';
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. Capture Tenant ID from URL (oid = Obfuscated ID / Organization ID)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tenantId = urlParams.get('oid');
+
+    if (tenantId) {
+        sessionStorage.setItem('online_tenant_id', tenantId);
+        // clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // 2. Load App
     loadCart();
     checkBranchSelection();
 });
 
+// Helper to get current Tenant ID
+function getTenantId() {
+    return sessionStorage.getItem('online_tenant_id');
+}
+
 // --- BRANCH MANAGEMENT ---
 
 async function checkBranchSelection() {
+    const tenantId = getTenantId();
+    if (!tenantId) {
+        document.body.innerHTML = `
+            <div class="fixed inset-0 flex items-center justify-center bg-slate-50 p-4 text-center">
+                <div class="max-w-md">
+                    <span class="material-symbols-rounded text-6xl text-slate-300 mb-4">link_off</span>
+                    <h1 class="text-xl font-bold text-slate-800 mb-2">Invalid Store Link</h1>
+                    <p class="text-slate-500">Please use the valid link provided by the restaurant.</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
     const savedBranch = sessionStorage.getItem('online_branch');
     if (savedBranch) {
         state.branch = JSON.parse(savedBranch);
+        // Verify branch belongs to current tenant (basic check)
+        if (state.branch.tenantId && state.branch.tenantId !== tenantId) {
+            sessionStorage.removeItem('online_branch');
+            window.location.reload();
+            return;
+        }
         updateUIForBranch();
         loadMenu(state.branch._id);
     } else {
@@ -40,12 +76,18 @@ async function fetchBranches() {
     container.innerHTML = '<div class="p-4 text-center text-slate-400">Loading branches...</div>';
 
     try {
-        const res = await fetch(`${API_BASE}/branches`);
+        const tenantId = getTenantId();
+        const res = await fetch(`${API_BASE}/branches`, {
+            headers: { 'x-tenant-id': tenantId }
+        });
+
+        if (!res.ok) throw new Error('Failed to load');
+
         const branches = await res.json();
 
         container.innerHTML = '';
         if (branches.length === 0) {
-            container.innerHTML = '<div class="p-4 text-center text-slate-500">No branches available currently.</div>';
+            container.innerHTML = '<div class="p-4 text-center text-slate-500">No active branches found.</div>';
             return;
         }
 

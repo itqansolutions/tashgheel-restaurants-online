@@ -228,6 +228,28 @@
                 </button>
               </div>
             </form>
+
+            <div class="mt-8 border-t border-slate-100 pt-6">
+              <h3 class="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <span class="material-symbols-outlined text-orange-500">storefront</span>
+                Online Store Link
+              </h3>
+              <p class="text-xs text-slate-500 mb-3">Share this link with your customers to accept online orders.</p>
+
+              <div class="flex items-center gap-2">
+                <input type="text" id="store-link-display" readonly
+                  class="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 select-all font-mono"
+                  value="Loading...">
+                <button onclick="copyStoreLink()"
+                  class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-bold transition-all active:scale-95 flex items-center gap-2">
+                  <span class="material-symbols-outlined text-sm">content_copy</span> Copy
+                </button>
+                <a id="store-link-btn" href="#" target="_blank"
+                  class="px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg text-sm font-bold transition-all active:scale-95 flex items-center gap-2">
+                  <span class="material-symbols-outlined text-sm">open_in_new</span> Open
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 

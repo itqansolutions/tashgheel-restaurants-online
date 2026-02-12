@@ -19,9 +19,17 @@ router.use(publicLimiter);
 // GET /api/public/branches
 router.get('/branches', async (req, res) => {
     try {
-        const branches = await Branch.find({ isActive: true })
+        // Strict Tenant Resolution
+        const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+
+        if (!tenantId) {
+            return res.status(400).json({ error: 'Store ID (Tenant) is required' });
+        }
+
+        const branches = await Branch.find({ isActive: true, tenantId: tenantId })
             .select('name code phone address settings.openingHours settings.taxRate isActive')
             .lean();
+
         res.json(branches);
     } catch (err) {
         console.error('Public Branches Error:', err);
