@@ -78,8 +78,19 @@ router.get('/menu/:branchId', async (req, res) => {
         categories = categories.filter(c => c.isActive !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
 
         // 3. Fetch Products (JSON)
-        let productsRaw = await storage.readData('products', tenantId);
+        // PRIORITIZE 'spare_parts' (Admin Panel Standard)
+        let productsRaw = await storage.readData('spare_parts', tenantId);
+
+        // Fallback to 'products' (Legacy/Migration)
+        if (!productsRaw || productsRaw === '[]') {
+            productsRaw = await storage.readData('products', tenantId);
+        }
+
         // Fallback to global
+        if (!productsRaw || productsRaw === '[]') {
+            // Pass null to read 'spare_parts.json' (legacy global)
+            productsRaw = await storage.readData('spare_parts', null);
+        }
         if (!productsRaw || productsRaw === '[]') {
             // Pass null to read 'products.json' (legacy global)
             productsRaw = await storage.readData('products', null);
@@ -134,7 +145,13 @@ router.post('/order', async (req, res) => {
         const validItems = [];
 
         // Fetch all product IDs to verify prices
-        let productsRaw = await storage.readData('products', tenantId);
+        let productsRaw = await storage.readData('spare_parts', tenantId);
+        if (!productsRaw || productsRaw === '[]') {
+            productsRaw = await storage.readData('products', tenantId);
+        }
+        if (!productsRaw || productsRaw === '[]') {
+            productsRaw = await storage.readData('spare_parts', null);
+        }
         if (!productsRaw || productsRaw === '[]') {
             productsRaw = await storage.readData('products', null);
         }

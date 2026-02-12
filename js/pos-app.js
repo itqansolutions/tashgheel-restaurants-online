@@ -1063,6 +1063,14 @@ function updateCartDisplay() {
   updateCartSummary();
 }
 
+function toggleCartButtons(enabled) {
+  const btns = ['cashBtn', 'cardBtn', 'mobileBtn', 'holdBtn', 'clearCartBtn'];
+  btns.forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = !enabled;
+  });
+}
+
 // ===================== TAX LOGIC =====================
 let activeTaxes = [];
 let currentOrderTaxes = []; // Subset of activeTaxes applied to current order
