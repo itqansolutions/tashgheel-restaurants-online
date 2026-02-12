@@ -795,7 +795,6 @@ let selectedAddons = [];
 let selectedSize = null; // {id, name, price}
 
 function addToCart(product) {
-  console.log('🛒 addToCart called for:', product.name, product);
   // Logic: 
   // 1. If hasSizes -> Open Modal (Force size selection).
   // 2. If allowAllAddons or specific addons -> Open Modal.
@@ -806,10 +805,8 @@ function addToCart(product) {
   const hasSizes = !!product.hasSizes;
 
   if (hasSizes || hasSpecificAddons || allowsAll) {
-    console.log('👉 Opening Addons/Sizes Modal');
     prodWithAddons(product);
   } else {
-    console.log('👉 Adding directly (Simple Item)');
     addItemToCartFinal(product, [], null);
   }
 }
@@ -931,7 +928,6 @@ window.closeAddonsModal = closeAddonsModal;
 window.toggleAddonSelection = toggleAddonSelection;
 
 function addItemToCartFinal(product, addons = [], sizeObj = null, note = '') {
-  console.log('➕ addItemToCartFinal:', product.name, 'Addons:', addons.length, 'Size:', sizeObj);
   addons.sort((a, b) => a.id - b.id);
   const addonSignature = addons.map(a => a.id).join(',');
   const sizeSignature = sizeObj ? sizeObj.id : 'single';
@@ -968,8 +964,6 @@ function addItemToCartFinal(product, addons = [], sizeObj = null, note = '') {
     let unitPrice = basePrice;
     addons.forEach(a => unitPrice += a.price);
 
-    console.log('💰 Price Calc:', { basePrice, unitPrice, addonsPrice: unitPrice - basePrice });
-
     cart.push({
       product_id: product.id,
       code: product.partNumber,
@@ -992,7 +986,6 @@ function addItemToCartFinal(product, addons = [], sizeObj = null, note = '') {
 }
 
 function updateCartDisplay() {
-  console.log('🔄 updateCartDisplay. Cart Length:', cart.length);
   const container = document.getElementById("cartItems");
   container.innerHTML = "";
   if (cart.length === 0) {
@@ -1150,13 +1143,10 @@ function updateCartSummary() {
   let subtotal = 0;
   let discountTotal = 0;
 
-  console.log('📊 Updating Cart Summary. Items:', cart.length);
   cart.forEach((item, idx) => {
     const rawPrice = item.price;
     const qty = item.qty;
     const itemTotal = qty * parseFloat(rawPrice);
-
-    console.log(`   Item ${idx}: ${item.name} | Price: ${rawPrice} | Qty: ${qty} | Total: ${itemTotal}`);
 
     let discount = 0;
 
