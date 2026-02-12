@@ -2,20 +2,9 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const Branch = require('../models/Branch');
-const Product = require('../models/Product');
-const Category = require('../models/Category');
-const Ingredient = require('../models/Ingredient'); // For modifiers/options if needed
 const DeliveryZone = require('../models/DeliveryZone');
 const Sale = require('../models/Sale');
-const Data = require('../models/Data'); // For legacy menu structure if needed
-const { getTenantId } = require('../middleware/auth'); // We might need a way to resolve tenant for public requests
-
-// Helper to get Tenant ID from header or default
-const resolveTenant = (req) => {
-    // For now, assuming single tenant or passed via header 'x-tenant-id' for public
-    // In a real multi-tenant SaaS, this would come from the domain/subdomain
-    return req.headers['x-tenant-id'] || 'default'; // strict tenant resolution needed for production
-};
+const storage = require('../utils/storage');
 
 // Rate Limiting (Basic in-memory for now, use Redis in production)
 const rateLimit = require('express-rate-limit');
@@ -60,16 +49,38 @@ router.get('/menu/:branchId', async (req, res) => {
     try {
         const { branchId } = req.params;
 
-        // 1. Fetch Categories
-        const categories = await Category.find({ isActive: true }).sort('order').lean();
+        // 1. Resolve Tenant from Branch
+        const branch = await Branch.findById(branchId);
+        if (!branch) return res.status(404).json({ error: 'Branch not found' });
 
-        // 2. Fetch Products
-        const products = await Product.find({ isActive: true })
-            .select('name nameAr description price category parts image taxRate') // Exclude cost
-            .lean();
+        const tenantId = branch.tenantId;
 
-        // 3. (Optional) Filter by Branch availability if implemented
-        // For now, return all global active products
+        // 2. Fetch Categories (JSON)
+        const categoriesRaw = await storage.readData('categories', tenantId);
+        let categories = [];
+        try { categories = JSON.parse(categoriesRaw || '[]'); } catch (e) { }
+
+        // Filter active categories and sort
+        categories = categories.filter(c => c.isActive !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        // 3. Fetch Products (JSON)
+        const productsRaw = await storage.readData('products', tenantId);
+        let products = [];
+        try { products = JSON.parse(productsRaw || '[]'); } catch (e) { }
+
+        // Filter active products
+        products = products.filter(p => p.isActive !== false)
+            .map(p => ({
+                _id: p.id, // Map 'id' to '_id' for frontend consistency if needed, or keep 'id'
+                id: p.id,
+                name: p.name,
+                nameAr: p.nameAr,
+                description: p.description,
+                price: p.price,
+                category: p.category,
+                image: p.image,
+                taxRate: p.taxRate
+            }));
 
         res.json({ categories, products });
     } catch (err) {
@@ -96,27 +107,32 @@ router.post('/order', async (req, res) => {
         const branch = await Branch.findById(branchId);
         if (!branch) return res.status(404).json({ error: 'Branch not found' });
 
+        const tenantId = branch.tenantId;
+
         // --- SERVER-SIDE CALCULATION ---
         let subtotal = 0;
         const validItems = [];
 
         // Fetch all product IDs to verify prices
-        const productIds = cart.map(item => item.id);
-        const productsParams = await Product.find({ _id: { $in: productIds } }).lean();
-        const productMap = new Map(productsParams.map(p => [p._id.toString(), p]));
+        const productsRaw = await storage.readData('products', tenantId);
+        let allProducts = [];
+        try { allProducts = JSON.parse(productsRaw || '[]'); } catch (e) { }
+
+        const productMap = new Map(allProducts.map(p => [String(p.id), p]));
 
         for (const item of cart) {
-            const product = productMap.get(item.id);
+            // item.id might be int or string in JSON
+            const product = productMap.get(String(item.id));
             if (!product) continue; // Skip invalid items
 
-            const price = product.price; // Trust DB price, ignore client price
-            const qty = item.qty || 1;
+            const price = parseFloat(product.price || 0);
+            const qty = parseFloat(item.qty || 1);
             const lineTotal = price * qty;
 
             subtotal += lineTotal;
 
             validItems.push({
-                product: product._id,
+                product: product.id, // Store original ID (likely integer or uuid string)
                 name: product.name,
                 qty: qty,
                 price: price,
@@ -141,7 +157,6 @@ router.post('/order', async (req, res) => {
                 }
             } else if (customer.address && customer.address.area) {
                 // Fallback: try find by name if passed from legacy
-                // This handles the "Migrated Areas" scenario perfectly
                 const zone = await DeliveryZone.findOne({ name: customer.address.area });
                 if (zone) {
                     deliveryFee = zone.fee;
@@ -154,7 +169,8 @@ router.post('/order', async (req, res) => {
 
         // Create Sale
         const newSale = new Sale({
-            branch: branchId,
+            tenantId: tenantId, // Important for scoping
+            branchId: branchId, // Changed from 'branch' to 'branchId' to match schema
             items: validItems,
             subtotal: subtotal,
             tax: taxAmount,
