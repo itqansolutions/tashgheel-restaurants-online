@@ -64,7 +64,13 @@ router.get('/menu/:branchId', async (req, res) => {
         const tenantId = branch.tenantId;
 
         // 2. Fetch Categories (JSON)
-        const categoriesRaw = await storage.readData('categories', tenantId);
+        let categoriesRaw = await storage.readData('categories', tenantId);
+        // Fallback to global if tenant data is missing (Migration/Compatibility)
+        if (!categoriesRaw || categoriesRaw === '[]') {
+            // Pass null to read 'categories.json' (legacy global)
+            categoriesRaw = await storage.readData('categories', null);
+        }
+
         let categories = [];
         try { categories = JSON.parse(categoriesRaw || '[]'); } catch (e) { }
 
@@ -72,7 +78,13 @@ router.get('/menu/:branchId', async (req, res) => {
         categories = categories.filter(c => c.isActive !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
 
         // 3. Fetch Products (JSON)
-        const productsRaw = await storage.readData('products', tenantId);
+        let productsRaw = await storage.readData('products', tenantId);
+        // Fallback to global
+        if (!productsRaw || productsRaw === '[]') {
+            // Pass null to read 'products.json' (legacy global)
+            productsRaw = await storage.readData('products', null);
+        }
+
         let products = [];
         try { products = JSON.parse(productsRaw || '[]'); } catch (e) { }
 
@@ -122,7 +134,11 @@ router.post('/order', async (req, res) => {
         const validItems = [];
 
         // Fetch all product IDs to verify prices
-        const productsRaw = await storage.readData('products', tenantId);
+        let productsRaw = await storage.readData('products', tenantId);
+        if (!productsRaw || productsRaw === '[]') {
+            productsRaw = await storage.readData('products', null);
+        }
+
         let allProducts = [];
         try { allProducts = JSON.parse(productsRaw || '[]'); } catch (e) { }
 

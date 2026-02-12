@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Branch = require('../models/Branch');
+const auth = require('../middleware/auth');
+
+// Apply Auth Middleware to ALL routes in this file
+router.use(auth);
 
 // @route   GET /api/branches
 // @desc    Get all branches for the current tenant
