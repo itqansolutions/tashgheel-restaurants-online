@@ -338,28 +338,17 @@ window.printStoredReceipt = async function (receiptId) { // Added async
     // 1. Try fetching from server (Robust method)
     if (window.electronAPI && window.electronAPI.getSalesHistory) {
         try {
-            // We can use history API filters to find specific ID if needed, or if we passed the full object
-            // But for now, let's assume getSalesHistory returns last 50, and if it's there we use it.
-            // Ideally we need `getSale(id)`.
-            // But let's check if the ID is valid.
-            // Actually, `window.electronAPI.readData` can read specific file? No, sales are in DB.
-            // Workaround: Call getSalesHistory with high limit or specific filter?
-            // Valid filter: history?from=...&to=... 
-            // We don't have getSaleById.
-            // Let's iterate sales from the list we (hopefully) just loaded?
-            // But wait, this function can be called standalone.
-
-            // NEW: Fetch specific sale via history filter? 
-            // api.js history endpoint doesn't filter by ID.
-            // Let's implement a quick client-side find via history.
-
-            // Optimistic Check: If it was just loaded in the table, maybe passed in?
-            // No, we passed ID only.
-
-            // Fetch recent history
             const res = await window.electronAPI.getSalesHistory({ limit: 100 });
             if (res && res.sales) {
-                receipt = res.sales.find(s => (s._id || s.id) == receiptId);
+                receipt = res.sales.find(s => (s._id == receiptId || s.id == receiptId));
+            }
+        } catch (e) { console.error(e); }
+    } else if (window.apiFetch) {
+        // 🚀 WEB MODE SUPPORT
+        try {
+            const res = await window.apiFetch('/reports/history?limit=100');
+            if (res && res.sales) {
+                receipt = res.sales.find(s => (s._id == receiptId || s.id == receiptId));
             }
         } catch (e) { console.error(e); }
     }
