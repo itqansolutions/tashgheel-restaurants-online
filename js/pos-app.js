@@ -1142,15 +1142,21 @@ function updateCartSummary() {
   let subtotal = 0;
   let discountTotal = 0;
 
-  cart.forEach(item => {
-    let itemTotal = item.qty * item.price;
+  console.log('📊 Updating Cart Summary. Items:', cart.length);
+  cart.forEach((item, idx) => {
+    const rawPrice = item.price;
+    const qty = item.qty;
+    const itemTotal = qty * parseFloat(rawPrice);
+
+    console.log(`   Item ${idx}: ${item.name} | Price: ${rawPrice} | Qty: ${qty} | Total: ${itemTotal}`);
+
     let discount = 0;
 
     if (item.discount) {
       if (item.discount.type === "percent") {
-        discount = itemTotal * (item.discount.value / 100);
+        discount = itemTotal * (parseFloat(item.discount.value) / 100);
       } else if (item.discount.type === "value") {
-        discount = item.discount.value;
+        discount = parseFloat(item.discount.value);
       }
     }
 
