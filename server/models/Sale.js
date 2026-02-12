@@ -82,7 +82,7 @@ const saleSchema = new mongoose.Schema({
     customer: customerSchema,
 
     // Aggregator Hub fields
-    source: { type: String, enum: ['pos', 'talabat', 'uber_eats', 'careem_now', 'mrsool'], default: 'pos' },
+    source: { type: String, enum: ['pos', 'online_store', 'talabat', 'uber_eats', 'careem_now', 'mrsool'], default: 'pos' },
     aggregatorOrderId: String, // Cross-reference to AggregatorOrder
 
     items: [saleItemSchema],

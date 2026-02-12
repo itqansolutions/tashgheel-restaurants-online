@@ -143,10 +143,18 @@ function openAreasModal() {
     document.getElementById('areasModal').style.display = 'flex';
 }
 
-function renderAreasList() {
+async function renderAreasList() {
     const list = document.getElementById('areasList');
-    list.innerHTML = '';
-    const areas = window.DB.getDeliveryAreas();
+    list.innerHTML = '<div class="p-2 text-center text-xs text-slate-400">Loading...</div>';
+
+    let areas = [];
+    try {
+        areas = await window.apiFetch('/delivery-zones') || [];
+    } catch (e) {
+        console.error('Failed to load zones', e);
+        list.innerHTML = '<div class="text-red-500 text-xs">Error loading zones</div>';
+        return;
+    }
 
     if (areas.length === 0) {
         list.innerHTML = '<div class="p-4 text-center text-slate-400 text-sm border border-dashed border-slate-300 rounded-lg">No areas defined.</div>';
@@ -167,7 +175,7 @@ function renderAreasList() {
                     <div class="text-xs text-slate-500 font-medium">Fee: ${parseFloat(a.fee).toFixed(2)}</div>
                 </div>
             </div>
-            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" onclick="deleteArea(${a.id})">
+            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" onclick="deleteArea('${a._id}')">
                 <span class="material-symbols-outlined text-[18px]">close</span>
             </button>
         `;
@@ -175,7 +183,7 @@ function renderAreasList() {
     });
 }
 
-function saveNewArea() {
+async function saveNewArea() {
     const name = document.getElementById('newAreaName').value.trim();
     const fee = parseFloat(document.getElementById('newAreaFee').value);
 
@@ -184,21 +192,35 @@ function saveNewArea() {
         return;
     }
 
-    window.DB.saveDeliveryArea({ id: Date.now(), name, fee });
-    document.getElementById('newAreaName').value = '';
-    document.getElementById('newAreaFee').value = '';
-    renderAreasList();
-}
-
-function deleteArea(id) {
-    if (confirm('Delete this area?')) {
-        window.DB.deleteDeliveryArea(id);
+    try {
+        await window.apiFetch('/delivery-zones', {
+            method: 'POST',
+            body: JSON.stringify({ name, fee })
+        });
+        document.getElementById('newAreaName').value = '';
+        document.getElementById('newAreaFee').value = '';
         renderAreasList();
+    } catch (e) {
+        alert('Error saving area: ' + e.message);
     }
 }
 
-function populateAreaSelects() {
-    const areas = window.DB.getDeliveryAreas();
+async function deleteArea(id) {
+    if (confirm('Delete this area?')) {
+        try {
+            await window.apiFetch(`/delivery-zones/${id}`, { method: 'DELETE' });
+            renderAreasList();
+        } catch (e) {
+            alert('Error deleting: ' + e.message);
+        }
+    }
+}
+
+async function populateAreaSelects() {
+    let areas = [];
+    try {
+        areas = await window.apiFetch('/delivery-zones') || [];
+    } catch (e) { console.warn('Failed to fetch areas for select', e); }
     const selects = ['initArea', 'vArea'];
 
     selects.forEach(id => {
