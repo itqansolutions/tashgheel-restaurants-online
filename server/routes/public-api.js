@@ -167,17 +167,20 @@ router.post('/order', async (req, res) => {
             if (!product) continue; // Skip invalid items
 
             const price = parseFloat(product.price || 0);
+            const cost = parseFloat(product.cost || 0); // Include Cost
             const qty = parseFloat(item.qty || 1);
             const lineTotal = price * qty;
 
             subtotal += lineTotal;
 
             validItems.push({
-                product: product.id, // Store original ID (likely integer or uuid string)
+                id: product.id, // Match Schema 'id'
+                code: product.partNumber || product.code, // Match Schema 'code'
                 name: product.name,
                 qty: qty,
                 price: price,
-                total: lineTotal,
+                cost: cost,
+                // total: lineTotal, // Not in item schema
                 note: item.note || ''
             });
         }
@@ -227,9 +230,9 @@ router.post('/order', async (req, res) => {
             paymentMethod: 'cash', // Default to Pay on Delivery/Pickup for now
             customer: {
                 name: customer.name,
-                phone: customer.mobile,
+                mobile: customer.mobile, // Match Schema 'mobile'
                 address: customer.address ? `${customer.address.area || ''} ${customer.address.street || ''} ${customer.address.building || ''}` : '',
-                area: deliveryZoneName || customer.address?.area
+                // area: deliveryZoneName // Not in strict customer schema usually, but okay
             },
             date: new Date()
         });
@@ -245,7 +248,8 @@ router.post('/order', async (req, res) => {
 
     } catch (err) {
         console.error('Order Submit Error:', err);
-        res.status(500).json({ error: 'Failed to place order' });
+        // Expose error message for debugging
+        res.status(500).json({ error: 'Failed to place order: ' + err.message });
     }
 });
 
