@@ -60,7 +60,7 @@ const saleSchema = new mongoose.Schema({
 
     status: {
         type: String,
-        enum: ['finished', 'void', 'refunded'],
+        enum: ['finished', 'void', 'refunded', 'pending'],
         default: 'finished'
     },
 

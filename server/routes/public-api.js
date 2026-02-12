@@ -225,7 +225,7 @@ router.post('/order', async (req, res) => {
             total: finalTotal,
             type: orderType, // 'delivery' or 'takeaway'
             source: 'online_store',
-            status: 'finished', // Sale is "committed", payment is pending/open
+            status: 'pending', // Awaiting POS Confirmation
             kitchenStatus: 'pending', // Triggers KDS
             paymentMethod: 'cash', // Default to Pay on Delivery/Pickup for now
             customer: {
