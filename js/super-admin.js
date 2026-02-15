@@ -226,8 +226,15 @@ function renderTenantsTable(tenants) {
                 </div>
             </td>
             <td class="px-6 py-4">
-                <div class="text-sm font-medium text-slate-700">${expiryDate.toLocaleDateString()}</div>
-                <div class="text-xs text-slate-400">${expiryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                <div class="text-sm font-medium text-slate-700">
+                    ${tenant.isSubscribed && tenant.subscriptionStartedAt
+                ? `<span class="text-xs text-slate-400">From:</span> ${new Date(tenant.subscriptionStartedAt).toLocaleDateString()}<br>`
+                : ''}
+                    <span class="text-xs text-slate-400">To:</span> ${expiryDate.toLocaleDateString()}
+                </div>
+                <div class="text-xs text-slate-400">
+                    ${expiryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
             </td>
             <td class="px-6 py-4 text-right">
                 <div class="flex justify-end gap-2">

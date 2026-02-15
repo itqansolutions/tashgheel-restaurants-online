@@ -53,6 +53,7 @@ router.post('/tenants', checkSuperAdmin, async (req, res) => {
             status: 'active',
             subscriptionPlan: plan || 'free_trial',
             isSubscribed: plan !== 'free_trial',
+            subscriptionStartedAt: plan !== 'free_trial' ? new Date().toISOString() : undefined,
             createdAt: new Date().toISOString(),
             settings: { taxRate: 15, taxName: 'VAT' }
         };
@@ -190,21 +191,32 @@ router.put('/tenants/:id/status', checkSuperAdmin, async (req, res) => {
 router.put('/tenants/:id/subscription', checkSuperAdmin, async (req, res) => {
     try {
         const { months } = req.body;
-        let tenant = (await storage.find('tenants')).find(t => t._id === req.params.id);
+        // Fix: Use storage.findOne to handle ObjectId/String comparison correctly
+        const tenant = await storage.findOne('tenants', { _id: req.params.id });
 
         if (!tenant) return res.status(404).json({ msg: 'Tenant not found' });
 
         let currentEnd = tenant.subscriptionEndsAt ? new Date(tenant.subscriptionEndsAt) : new Date();
-        if (currentEnd < new Date()) currentEnd = new Date();
+        const now = new Date();
+        let isExpired = currentEnd < now;
+
+        if (isExpired) {
+            currentEnd = now;
+        }
 
         const newEnd = new Date(currentEnd);
-        newEnd.setMonth(newEnd.getMonth() + parseInt(months));
+        newEnd.setDate(newEnd.getDate() + (parseInt(months) * 30)); // Approximate month as 30 days
 
         const updates = {
             subscriptionEndsAt: newEnd.toISOString(),
             isSubscribed: true,
             status: 'active'
         };
+
+        // If it was expired or never subscribed, set the start date to now
+        if (isExpired || !tenant.subscriptionStartedAt) {
+            updates.subscriptionStartedAt = now.toISOString();
+        }
 
         const updatedTenant = await storage.update('tenants', req.params.id, updates);
         res.json(updatedTenant);
