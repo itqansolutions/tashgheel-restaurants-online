@@ -123,8 +123,16 @@
           <span class="material-symbols-outlined">menu</span>
         </button>
         <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary dark:text-slate-200">shopping_cart</span>
-          <h1 class="text-lg font-bold tracking-tight" id="pageTitle" data-i18n-key="nav_pos">Point of Sale</h1>
+          <button onclick="toggleCart()" class="flex items-center gap-2 md:cursor-default group">
+            <div class="relative">
+              <span
+                class="material-symbols-outlined text-primary dark:text-slate-200 group-hover:text-blue-600 transition-colors">shopping_cart</span>
+              <span id="mobileCartBadge"
+                class="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full md:hidden"
+                style="display:none">0</span>
+            </div>
+            <h1 class="text-lg font-bold tracking-tight" id="pageTitle" data-i18n-key="nav_pos">Point of Sale</h1>
+          </button>
         </div>
       </div>
       <div class="flex items-center gap-6">
@@ -205,87 +213,90 @@
   </main>
 
   <!-- Right Sidebar (Cart) -->
-  <aside class="w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
+  <aside id="cartSidebar"
+    class="hidden md:flex w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex-col shrink-0 transition-all duration-300 z-50">
     <div class="p-4 border-b border-slate-200 dark:border-slate-800">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-black flex items-center gap-2">
-          <span class="material-symbols-outlined text-xl">shopping_basket</span>
-          <span id="cartTitle" data-i18n-key="cart_title">Current Order</span>
-        </h2>
-        <button class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded"
-          onclick="openPendingOrders()">
-          ⏳ <span id="pendingOrdersBtn">0</span>
+      <h2 class="text-base font-black flex items-center gap-2">
+        <button onclick="toggleCart()" class="md:hidden mr-2 text-slate-500 hover:text-slate-800">
+          <span class="material-symbols-outlined">arrow_back</span>
         </button>
-      </div>
+        <span class="material-symbols-outlined text-xl">shopping_basket</span>
+        <span id="cartTitle" data-i18n-key="cart_title">Current Order</span>
+      </h2>
+      <button class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded"
+        onclick="openPendingOrders()">
+        ⏳ <span id="pendingOrdersBtn">0</span>
+      </button>
+    </div>
 
-      <!-- Order Type -->
-      <div class="flex gap-2">
-        <label class="flex-1 cursor-pointer">
-          <input checked="" class="hidden peer" name="orderType" value="dine_in" type="radio"
-            onchange="toggleOrderType()" />
-          <div
-            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
-            <span class="material-symbols-outlined text-base">restaurant</span>
-            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="dine_in">Dine In</span>
-          </div>
-        </label>
-        <label class="flex-1 cursor-pointer">
-          <input class="hidden peer" name="orderType" value="take_away" type="radio" onchange="toggleOrderType()" />
-          <div
-            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
-            <span class="material-symbols-outlined text-base">takeout_dining</span>
-            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="take_away">Take Away</span>
-          </div>
-        </label>
-        <label class="flex-1 cursor-pointer">
-          <input class="hidden peer" name="orderType" value="delivery" type="radio" onchange="toggleOrderType()" />
-          <div
-            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
-            <span class="material-symbols-outlined text-base">delivery_dining</span>
-            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="delivery">Delivery</span>
-          </div>
-        </label>
-      </div>
-
-      <!-- Conditional Inputs -->
-      <div id="tableSelection" style="margin-top:10px; display:none;">
-        <select id="tableSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs"></select>
-      </div>
-
-      <div id="salesmanSection" style="margin-top:10px;">
-        <select id="salesmanSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs"></select>
-      </div>
-
-      <!-- Delivery Customer Section -->
-      <div id="deliverySection" class="mt-2 p-2 bg-slate-50 border border-slate-200 rounded text-xs"
-        style="display:none;">
-        <div class="flex gap-1 mb-2">
-          <input type="text" id="custSearchPos" placeholder="Phone/Name..." class="flex-1 p-1 border rounded text-xs">
-          <button onclick="searchCustomerPos()" class="bg-primary text-white p-1 rounded">🔍</button>
+    <!-- Order Type -->
+    <div class="flex gap-2">
+      <label class="flex-1 cursor-pointer">
+        <input checked="" class="hidden peer" name="orderType" value="dine_in" type="radio"
+          onchange="toggleOrderType()" />
+        <div
+          class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+          <span class="material-symbols-outlined text-base">restaurant</span>
+          <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="dine_in">Dine In</span>
         </div>
-        <div id="selectedCustomerDisplay" style="display:none;"
-          class="mb-2 p-1 bg-blue-50 border border-blue-100 rounded">
-          <div class="flex justify-between font-bold"><span id="selCustName"></span> <button
-              onclick="clearSelectedCustomer()" class="text-red-500">x</button></div>
-          <div id="selCustMobile" class="text-[10px] text-gray-500"></div>
+      </label>
+      <label class="flex-1 cursor-pointer">
+        <input class="hidden peer" name="orderType" value="take_away" type="radio" onchange="toggleOrderType()" />
+        <div
+          class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+          <span class="material-symbols-outlined text-base">takeout_dining</span>
+          <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="take_away">Take Away</span>
         </div>
-        <div id="addressSection" style="display:none;">
-          <select id="custAddressSelect" class="w-full p-1 mb-1 border rounded text-xs"></select>
-          <button onclick="openAddAddressModal()" class="w-full text-[10px] text-blue-600 font-bold">+ New
-            Address</button>
+      </label>
+      <label class="flex-1 cursor-pointer">
+        <input class="hidden peer" name="orderType" value="delivery" type="radio" onchange="toggleOrderType()" />
+        <div
+          class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+          <span class="material-symbols-outlined text-base">delivery_dining</span>
+          <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="delivery">Delivery</span>
         </div>
-        <div id="newCustomerBtnArea" style="display:none; text-align:center;">
-          <button onclick="openQuickAddCustomer()"
-            class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">+ New Customer</button>
-        </div>
-      </div>
+      </label>
+    </div>
 
-      <!-- Order Note -->
-      <div class="px-4 pt-2">
-        <textarea id="orderNoteInput" rows="1"
-          class="w-full p-2 text-xs border border-slate-200 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50"
-          placeholder="Order Note (Kitchen)..."></textarea>
+    <!-- Conditional Inputs -->
+    <div id="tableSelection" style="margin-top:10px; display:none;">
+      <select id="tableSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs"></select>
+    </div>
+
+    <div id="salesmanSection" style="margin-top:10px;">
+      <select id="salesmanSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs"></select>
+    </div>
+
+    <!-- Delivery Customer Section -->
+    <div id="deliverySection" class="mt-2 p-2 bg-slate-50 border border-slate-200 rounded text-xs"
+      style="display:none;">
+      <div class="flex gap-1 mb-2">
+        <input type="text" id="custSearchPos" placeholder="Phone/Name..." class="flex-1 p-1 border rounded text-xs">
+        <button onclick="searchCustomerPos()" class="bg-primary text-white p-1 rounded">🔍</button>
       </div>
+      <div id="selectedCustomerDisplay" style="display:none;"
+        class="mb-2 p-1 bg-blue-50 border border-blue-100 rounded">
+        <div class="flex justify-between font-bold"><span id="selCustName"></span> <button
+            onclick="clearSelectedCustomer()" class="text-red-500">x</button></div>
+        <div id="selCustMobile" class="text-[10px] text-gray-500"></div>
+      </div>
+      <div id="addressSection" style="display:none;">
+        <select id="custAddressSelect" class="w-full p-1 mb-1 border rounded text-xs"></select>
+        <button onclick="openAddAddressModal()" class="w-full text-[10px] text-blue-600 font-bold">+ New
+          Address</button>
+      </div>
+      <div id="newCustomerBtnArea" style="display:none; text-align:center;">
+        <button onclick="openQuickAddCustomer()"
+          class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">+ New Customer</button>
+      </div>
+    </div>
+
+    <!-- Order Note -->
+    <div class="px-4 pt-2">
+      <textarea id="orderNoteInput" rows="1"
+        class="w-full p-2 text-xs border border-slate-200 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50"
+        placeholder="Order Note (Kitchen)..."></textarea>
+    </div>
 
     </div>
 

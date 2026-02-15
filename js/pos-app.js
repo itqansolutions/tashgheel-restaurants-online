@@ -1,4 +1,20 @@
 // POS JS with salesman support and fixed receipt printing (final version)
+// ===================== MOBILE UI LOGIC =====================
+window.toggleCart = function () {
+  const cart = document.getElementById('cartSidebar');
+  if (!cart) return;
+
+  if (cart.classList.contains('hidden')) {
+    // Open on Mobile
+    cart.classList.remove('hidden');
+    cart.classList.add('fixed', 'inset-0', 'w-full', 'h-full');
+    // Ensure it doesn't conflict with desktop styles if resized
+  } else {
+    // Close on Mobile
+    cart.classList.add('hidden');
+    cart.classList.remove('fixed', 'inset-0', 'w-full', 'h-full');
+  }
+};
 let allProducts = [];
 let filteredProducts = [];
 let cart = [];
@@ -1206,6 +1222,12 @@ function updateCartSummary() {
 
   document.getElementById("cartTotal").textContent = `${t('total') || 'Total'}: ${grandTotal.toFixed(2)}`;
   document.getElementById("cartCounter").textContent = cart.length;
+
+  const mbBadge = document.getElementById("mobileCartBadge");
+  if (mbBadge) {
+    mbBadge.textContent = cart.length;
+    mbBadge.style.display = cart.length > 0 ? 'block' : 'none';
+  }
 }
 
 // ===================== SALE =====================
