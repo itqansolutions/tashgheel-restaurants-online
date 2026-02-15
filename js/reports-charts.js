@@ -222,5 +222,66 @@ window.ReportCharts = {
             },
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false } } }
         });
+    },
+
+    // --- DELIVERY ---
+    renderDeliveryFeeTrend(dailyFeesMap) {
+        const ctx = document.getElementById('chart-delivery-trend');
+        if (!ctx) return;
+        if (window.deliveryTrendChart) window.deliveryTrendChart.destroy();
+
+        const dates = Object.keys(dailyFeesMap).sort((a, b) => new Date(a) - new Date(b));
+
+        window.deliveryTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Delivery Fees',
+                    data: dates.map(d => dailyFeesMap[d]),
+                    borderColor: '#8b5cf6', // Violet
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } } } }
+        });
+    },
+
+    renderDeliverySources(sourceMap) {
+        const ctx = document.getElementById('chart-delivery-sources');
+        if (!ctx) return;
+        if (window.deliverySourceChart) window.deliverySourceChart.destroy();
+
+        const sources = Object.keys(sourceMap);
+        const data = Object.values(sourceMap).map(s => s.count); // Charting Count
+
+        // Color Mapping
+        const bgColors = sources.map(s => {
+            const low = s.toLowerCase();
+            if (low.includes('talabat')) return '#f97316'; // Orange
+            if (low.includes('uber')) return '#10b981'; // Green
+            if (low.includes('pos')) return '#3b82f6'; // Blue
+            return '#64748b'; // Slate
+        });
+
+        window.deliverySourceChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: sources,
+                datasets: [{
+                    data: data,
+                    backgroundColor: bgColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: { legend: { position: 'right' } }
+            }
+        });
     }
 };

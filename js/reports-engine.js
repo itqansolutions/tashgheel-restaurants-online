@@ -103,7 +103,8 @@ async function buildReportContext() {
 
     // 2. Data Fetching (Current Period)
     const [receipts, rawProducts, rawExpenses, shifts, rawIngredients] = await Promise.all([
-        window.electronAPI.getSalesHistory ? window.electronAPI.getSalesHistory({ branchId, from: fromDate.toISOString(), to: toDate.toISOString() }) : [],
+    const [receipts, rawProducts, rawExpenses, shifts, rawIngredients] = await Promise.all([
+        window.electronAPI.getSalesHistory ? window.electronAPI.getSalesHistory({ branchId, from: fromDate.toISOString(), to: toDate.toISOString(), limit: 99999 }) : [],
         window.electronAPI.readData ? window.electronAPI.readData('products') : [],
         window.DataCache && window.DataCache.expenses ? window.DataCache.expenses.filter(e => {
             const d = new Date(e.date);
@@ -340,6 +341,63 @@ async function buildReportContext() {
     rawProducts.push(...combinedInventory);
 
     // 8. Final Bundle
+    // DELIVERY AGGREGATION
+    const deliveryReceipts = receipts.filter(r => r.orderType === 'delivery' && r.status !== 'void' && r.status !== 'refund');
+
+    // 1. Delivery KPIs
+    let totalDeliveryFees = 0;
+    let totalDeliveryRevenue = 0;
+    let totalDeliveryOrders = deliveryReceipts.length;
+
+    // 2. Maps
+    const deliveryDailyFees = {};
+    const deliveryBySource = {};
+    const deliveryByDriver = {};
+
+    deliveryReceipts.forEach(r => {
+        // Fee & Revenue
+        const fee = parseFloat(r.deliveryFee || 0);
+        totalDeliveryFees += fee;
+        totalDeliveryRevenue += (r.total || 0);
+
+        // Daily Fees Trend
+        const dateKey = new Date(r.date).toLocaleDateString();
+        deliveryDailyFees[dateKey] = (deliveryDailyFees[dateKey] || 0) + fee;
+
+        // Source Distribution
+        // Source defaults to 'Pos' if not set (legacy or internal)
+        let source = r.source || 'POS';
+        // Normalization: 'pos' -> 'POS', 'talabat' -> 'Talabat'
+        if (source.toLowerCase() === 'pos') source = 'POS';
+        else source = source.charAt(0).toUpperCase() + source.slice(1);
+
+        if (!deliveryBySource[source]) deliveryBySource[source] = { count: 0, sales: 0 };
+        deliveryBySource[source].count++;
+        deliveryBySource[source].sales += (r.total || 0);
+
+        // Driver Performance (Only for Internal POS orders)
+        // If source is POS, 'salesman' is the driver name.
+        // If source is Aggregator, 'salesman' is the provider name (which is redundant with source).
+        if (source === 'POS') {
+            const driver = r.salesman || 'Unassigned';
+            if (!deliveryByDriver[driver]) deliveryByDriver[driver] = { count: 0, fees: 0, total: 0 };
+            deliveryByDriver[driver].count++;
+            deliveryByDriver[driver].fees += fee;
+            deliveryByDriver[driver].total += (r.total || 0);
+        }
+    });
+
+    // 3. Attach to Aggrs
+    const deliveryStats = {
+        totalFees: totalDeliveryFees,
+        totalRevenue: totalDeliveryRevenue,
+        count: totalDeliveryOrders,
+        avgFee: totalDeliveryOrders > 0 ? (totalDeliveryFees / totalDeliveryOrders) : 0,
+        dailyFees: deliveryDailyFees,
+        bySource: deliveryBySource,
+        byDriver: deliveryByDriver
+    };
+
     return {
         meta: { branchId, fromDate, toDate, prevFromDate: prevRange.start, prevToDate: prevRange.end },
         receipts: finishedSales,
@@ -369,6 +427,8 @@ async function buildReportContext() {
             expectedStockProfit: totalRetailValue - totalStockCost,
             lowStockCount
         },
+
+        delivery: deliveryStats, // Attached New Section
 
         trends, // The new Trend Engine Result
 

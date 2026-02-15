@@ -153,6 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           break;
         case 'expenses': renderExpensesReport(ctx); break;
         case 'inventory-report': renderInventoryReport(ctx); break;
+        case 'delivery': renderDeliveryReport(ctx); break;
       }
 
     } catch (error) {
@@ -351,7 +352,56 @@ document.addEventListener('DOMContentLoaded', async () => {
                       <span class="material-symbols-outlined text-[16px]">${icon}</span> ${c.health}
                   </td>
               `;
-        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  // --- DELIVERY TAB ---
+  function renderDeliveryReport(ctx) {
+    const { delivery } = ctx;
+
+    // 1. KPIs
+    document.getElementById('del-total-revenue').textContent = delivery.totalRevenue.toFixed(2);
+    document.getElementById('del-total-fees').textContent = delivery.totalFees.toFixed(2);
+    document.getElementById('del-total-orders').textContent = delivery.count;
+    document.getElementById('del-avg-fee').textContent = delivery.avgFee.toFixed(2);
+
+    // 2. Charts
+    window.ReportCharts.renderDeliveryFeeTrend(delivery.dailyFees);
+    window.ReportCharts.renderDeliverySources(delivery.bySource);
+
+    // 3. Tables
+
+    // Drivers Table
+    const driverBody = document.getElementById('table-delivery-drivers');
+    if (driverBody) {
+      driverBody.innerHTML = '';
+      Object.entries(delivery.byDriver).sort((a, b) => b[1].count - a[1].count).forEach(([driver, stats]) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-50";
+        tr.innerHTML = `
+                <td class="px-4 py-2 font-medium">${driver}</td>
+                <td class="px-4 py-2">${stats.count}</td>
+                <td class="px-4 py-2 font-bold text-purple-600">${stats.fees.toFixed(2)}</td>
+                <td class="px-4 py-2 text-slate-500">${stats.total.toFixed(2)}</td>
+            `;
+        driverBody.appendChild(tr);
+      });
+    }
+
+    // Source Table
+    const sourceBody = document.getElementById('table-delivery-sources');
+    if (sourceBody) {
+      sourceBody.innerHTML = '';
+      Object.entries(delivery.bySource).sort((a, b) => b[1].count - a[1].count).forEach(([source, stats]) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-50";
+        tr.innerHTML = `
+                <td class="px-4 py-2 font-bold text-slate-700">${source}</td>
+                <td class="px-4 py-2">${stats.count}</td>
+                <td class="px-4 py-2 text-green-600 font-bold">${stats.sales.toFixed(2)}</td>
+            `;
+        sourceBody.appendChild(tr);
       });
     }
   }

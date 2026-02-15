@@ -21,6 +21,7 @@ window.ReportExport = {
             case 'cogs': tableId = 'table-cogs-products'; title = 'COGS_Analysis'; break;
             case 'expenses': tableId = 'table-expenses'; title = 'Expense_Report'; break;
             case 'inventory-report': tableId = 'table-inventory-health'; title = 'Inventory_Health'; break;
+            case 'delivery': tableId = 'table-delivery-drivers'; title = 'Delivery_Driver_Performance'; break;
             default: alert("No exportable table in this view"); return;
         }
 
@@ -50,6 +51,7 @@ window.ReportExport = {
             case 'cogs': elementId = 'card-cogs'; title = 'COGS_Report'; break;
             case 'expenses': elementId = 'card-expenses'; title = 'Expenses_Report'; break;
             case 'inventory-report': elementId = 'card-inventory-report'; title = 'Inventory_Report'; break;
+            case 'delivery': elementId = 'card-delivery'; title = 'Delivery_Report'; break;
         }
 
         const element = document.getElementById(elementId);
@@ -75,6 +77,7 @@ window.ReportExport = {
             case 'cogs': elementId = 'card-cogs'; break;
             case 'expenses': elementId = 'card-expenses'; break;
             case 'inventory-report': elementId = 'card-inventory-report'; break;
+            case 'delivery': elementId = 'card-delivery'; break;
         }
 
         const element = document.getElementById(elementId);
