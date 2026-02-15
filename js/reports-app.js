@@ -112,6 +112,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = document.querySelector('button[onclick="refreshReports()"] .material-symbols-outlined');
     if (btn) btn.classList.add('animate-spin');
 
+    const activeTab = getCurrentTab();
+    const activeCard = document.getElementById('card-' + activeTab);
+    if (activeCard) activeCard.classList.add('opacity-50', 'pointer-events-none');
+
     try {
       // 1. Build Context using Engine
       // Check if Engine is loaded
@@ -136,8 +140,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('👤 Current User Context:', user);
 
       const canEdit = user.role === 'admin' || user.role === 'manager' || user.isAdmin === true;
+      const canViewDelivery = canEdit || (user.permissions && user.permissions.includes('view_reports_delivery'));
+
       const addBtn = document.getElementById('btn-add-expense');
       if (addBtn) addBtn.classList.toggle('hidden', !canEdit);
+
+      const delTab = document.querySelector('[data-tab="delivery"]');
+      if (delTab) delTab.classList.toggle('hidden', !canViewDelivery);
 
       // 4. Render View
       switch (activeTab) {
@@ -153,13 +162,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           break;
         case 'expenses': renderExpensesReport(ctx); break;
         case 'inventory-report': renderInventoryReport(ctx); break;
-        case 'delivery': renderDeliveryReport(ctx); break;
+        case 'delivery':
+          if (canViewDelivery) renderDeliveryReport(ctx);
+          else {
+            alert("Access Denied: You need permissions to view Delivery Reports.");
+            document.querySelector('[data-tab="live"]').click();
+          }
+          break;
       }
 
     } catch (error) {
       console.error("❌ Refresh Failed:", error);
     } finally {
       if (btn) btn.classList.remove('animate-spin');
+      if (activeCard) activeCard.classList.remove('opacity-50', 'pointer-events-none');
     }
   }
 

@@ -95,5 +95,6 @@ const saleSchema = new mongoose.Schema({
 saleSchema.index({ tenantId: 1, branchId: 1, date: -1 }); // Most common report query
 saleSchema.index({ tenantId: 1, branchId: 1, status: 1, date: -1 }); // Filtered by status (Voids/Refunds)
 saleSchema.index({ tenantId: 1, date: -1 }); // Global reports
+saleSchema.index({ tenantId: 1, branchId: 1, orderType: 1, date: -1 }); // Delivery Report Optimization
 
 module.exports = mongoose.model('Sale', saleSchema);
