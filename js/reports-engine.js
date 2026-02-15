@@ -103,7 +103,6 @@ async function buildReportContext() {
 
     // 2. Data Fetching (Current Period)
     const [receipts, rawProducts, rawExpenses, shifts, rawIngredients] = await Promise.all([
-    const [receipts, rawProducts, rawExpenses, shifts, rawIngredients] = await Promise.all([
         window.electronAPI.getSalesHistory ? window.electronAPI.getSalesHistory({ branchId, from: fromDate.toISOString(), to: toDate.toISOString(), limit: 99999 }) : [],
         window.electronAPI.readData ? window.electronAPI.readData('products') : [],
         window.DataCache && window.DataCache.expenses ? window.DataCache.expenses.filter(e => {
@@ -444,3 +443,6 @@ async function buildReportContext() {
         }
     };
 }
+
+// Expose globally
+window.buildReportContext = buildReportContext;

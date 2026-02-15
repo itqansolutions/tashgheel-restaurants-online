@@ -222,7 +222,72 @@ function loadInventory() {
     document.getElementById('alert-healthy-count').textContent = healthyCount;
 }
 
-// ... existing handleSaveMaterial, editMaterial, deleteMaterial, resetForm ...
+// === FORM HANDLING ===
+function handleSaveMaterial(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('material-id').value;
+    const name = document.getElementById('material-name').value.trim();
+    const unit = document.getElementById('material-unit').value.trim();
+    const cost = parseFloat(document.getElementById('material-cost').value);
+    const vendorId = document.getElementById('material-vendor').value;
+    const minStock = parseFloat(document.getElementById('material-min').value);
+    const expDate = document.getElementById('material-exp').value;
+
+    if (!name || isNaN(cost)) {
+        alert('Please fill required fields (Name, Cost)');
+        return;
+    }
+
+    const material = {
+        id: id ? parseInt(id) : Date.now(),
+        name,
+        unit,
+        cost,
+        stock: id ? window.DB.getIngredient(id).stock : 0, // Preserve stock on edit
+        vendorId,
+        minStock: isNaN(minStock) ? 5 : minStock,
+        expirationDate: expDate || null
+    };
+
+    window.DB.saveIngredient(material);
+    resetForm();
+    loadInventory();
+    alert(id ? 'Material Updated' : 'Material Added');
+}
+
+function editMaterial(id) {
+    const mat = window.DB.getIngredient(id);
+    if (!mat) return;
+
+    document.getElementById('material-id').value = mat.id;
+    document.getElementById('material-name').value = mat.name;
+    document.getElementById('material-unit').value = mat.unit;
+    document.getElementById('material-cost').value = mat.cost;
+    document.getElementById('material-vendor').value = mat.vendorId || "";
+    document.getElementById('material-min').value = mat.minStock || 5;
+    document.getElementById('material-exp').value = mat.expirationDate ? mat.expirationDate.split('T')[0] : "";
+
+    document.getElementById('form-title').textContent = "Edit Raw Material";
+    document.getElementById('btn-cancel').classList.remove('hidden');
+
+    // Scroll to form
+    document.getElementById('inventory-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function deleteMaterial(id) {
+    if (confirm('Delete this material? Stock history will remain but definition will be removed.')) {
+        window.DB.deleteIngredient(id);
+        loadInventory();
+    }
+}
+
+function resetForm() {
+    document.getElementById('inventory-form').reset();
+    document.getElementById('material-id').value = "";
+    document.getElementById('form-title').textContent = "Add New Raw Material";
+    document.getElementById('btn-cancel').classList.add('hidden');
+}
 
 // Expose globally
 window.editMaterial = editMaterial;
