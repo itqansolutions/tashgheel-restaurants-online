@@ -65,11 +65,11 @@ router.get('/menu/:branchId', async (req, res) => {
 
         // 2. Fetch Categories (JSON)
         let categoriesRaw = await storage.readData('categories', tenantId);
-        // Fallback to global if tenant data is missing (Migration/Compatibility)
-        if (!categoriesRaw || categoriesRaw === '[]') {
-            // Pass null to read 'categories.json' (legacy global)
-            categoriesRaw = await storage.readData('categories', null);
-        }
+
+        // REMOVED: Global Fallback for Categories
+        // if (!categoriesRaw || categoriesRaw === '[]') {
+        //     categoriesRaw = await storage.readData('categories', null);
+        // }
 
         let categories = [];
         try { categories = JSON.parse(categoriesRaw || '[]'); } catch (e) { }
@@ -81,20 +81,13 @@ router.get('/menu/:branchId', async (req, res) => {
         // PRIORITIZE 'spare_parts' (Admin Panel Standard)
         let productsRaw = await storage.readData('spare_parts', tenantId);
 
-        // Fallback to 'products' (Legacy/Migration)
+        // Fallback to 'products' (Legacy/Migration) but still Tenant-Scoped
         if (!productsRaw || productsRaw === '[]') {
             productsRaw = await storage.readData('products', tenantId);
         }
 
-        // Fallback to global
-        if (!productsRaw || productsRaw === '[]') {
-            // Pass null to read 'spare_parts.json' (legacy global)
-            productsRaw = await storage.readData('spare_parts', null);
-        }
-        if (!productsRaw || productsRaw === '[]') {
-            // Pass null to read 'products.json' (legacy global)
-            productsRaw = await storage.readData('products', null);
-        }
+        // REMOVED: Global Fallback for Products
+        // if (!productsRaw || productsRaw === '[]') { ... }
 
         let products = [];
         try { products = JSON.parse(productsRaw || '[]'); } catch (e) { }
@@ -149,12 +142,9 @@ router.post('/order', async (req, res) => {
         if (!productsRaw || productsRaw === '[]') {
             productsRaw = await storage.readData('products', tenantId);
         }
-        if (!productsRaw || productsRaw === '[]') {
-            productsRaw = await storage.readData('spare_parts', null);
-        }
-        if (!productsRaw || productsRaw === '[]') {
-            productsRaw = await storage.readData('products', null);
-        }
+
+        // REMOVED: Global Fallback for Order Validation
+        // if (!productsRaw || productsRaw === '[]') { ... }
 
         let allProducts = [];
         try { allProducts = JSON.parse(productsRaw || '[]'); } catch (e) { }

@@ -312,7 +312,8 @@ async function initializeDataSystem() {
         console.log('🚀 System Data Ready Event Dispatched');
 
         // 🚀 Auto-Seed Defaults if missing (Critical for fresh SaaS deployments)
-        await seedDefaultsIfMissing();
+        // DISABLED: Checking or Seeding defaults caused unexpected items for new users (2026-02-13)
+        // await seedDefaultsIfMissing();
     }
 }
 
@@ -899,7 +900,8 @@ async function initializeDefaultData() {
         }
     ];
 
-    await EnhancedSecurity.storeSecureData('spare_parts', defaultProducts);
+    // DISABLED: Unwanted default data (2026-02-13)
+    // await EnhancedSecurity.storeSecureData('spare_parts', defaultProducts);
     await EnhancedSecurity.storeSecureData('sales', []);
     await EnhancedSecurity.storeSecureData('returns', []);
 }

@@ -413,11 +413,12 @@ window.DB = window.DB || {
         let tables = window.EnhancedSecurity.getSecureData('tables');
         if (!tables || tables.length === 0) {
             // Seed default tables
-            tables = [];
-            for (let i = 1; i <= 20; i++) {
-                tables.push({ id: i, name: `Table ${i}` });
-            }
-            window.EnhancedSecurity.storeSecureData('tables', tables);
+            // tables = [];
+            // for (let i = 1; i <= 20; i++) {
+            //     tables.push({ id: i, name: `Table ${i}` });
+            // }
+            // window.EnhancedSecurity.storeSecureData('tables', tables);
+            return [];
         }
         return tables;
     },
