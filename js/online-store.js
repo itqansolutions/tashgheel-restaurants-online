@@ -23,8 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (tenantId) {
         sessionStorage.setItem('online_tenant_id', tenantId);
-        // clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
+        // clean URL - REMOVED to keep the link valid for sharing/bookmarking
+        // window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     // 2. Load App
