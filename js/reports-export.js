@@ -18,10 +18,10 @@ window.ReportExport = {
         switch (activeTab) {
             case 'live': tableId = 'table-recent-orders'; title = 'Live_Monitor_Report'; break;
             case 'sales': tableId = 'table-category-perf'; title = 'Sales_Performance'; break;
-            case 'cogs': tableId = 'table-cogs-products'; title = 'COGS_Analysis'; break;
-            case 'expenses': tableId = 'table-expenses'; title = 'Expense_Report'; break;
-            case 'inventory-report': tableId = 'table-inventory-health'; title = 'Inventory_Health'; break;
-            case 'delivery': tableId = 'table-delivery-drivers'; title = 'Delivery_Driver_Performance'; break;
+            case 'cogs': tableId = 'table-cogs-products-export'; title = 'COGS_Analysis'; break;
+            case 'expenses': tableId = 'table-expenses-export'; title = 'Expense_Report'; break;
+            case 'inventory-report': tableId = 'table-inventory-export'; title = 'Inventory_Health'; break;
+            case 'delivery': tableId = 'table-delivery-export'; title = 'Delivery_Driver_Performance'; break;
             default: alert("No exportable table in this view"); return;
         }
 

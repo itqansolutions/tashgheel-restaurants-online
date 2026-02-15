@@ -243,4 +243,36 @@ router.post('/order', async (req, res) => {
     }
 });
 
+// GET /api/public/orders?mobile=...&tenantId=...
+router.get('/orders', async (req, res) => {
+    try {
+        const { mobile, tenantId } = req.query;
+
+        if (!mobile || !tenantId) {
+            return res.status(400).json({ error: 'Mobile and Tenant ID required' });
+        }
+
+        // Find last 20 orders for this mobile
+        // Note: Sale model availability check
+        const Sale = require('../models/Sale');
+
+        const orders = await Sale.find({
+            tenantId: tenantId,
+            'customer.mobile': mobile
+        })
+            .sort({ date: -1 })
+            .limit(20)
+            .lean();
+
+        // Map status for frontend if needed, or send raw
+        // We will send raw and map on frontend
+
+        res.json(orders);
+
+    } catch (err) {
+        console.error('Public Orders Error:', err);
+        res.status(500).json({ error: 'Failed to fetch orders' });
+    }
+});
+
 module.exports = router;

@@ -85,30 +85,36 @@
             <div class="flex items-center gap-4">
                 <div class="flex items-center gap-2">
                     <div
-                        class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-500/30">
+                        class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-600/30">
                         T</div>
                     <span class="font-bold text-lg tracking-tight hidden sm:block">Tashgheel<span
-                            class="text-orange-500">Eats</span></span>
+                            class="text-blue-600">Eats</span></span>
                 </div>
 
                 <div class="h-6 w-px bg-slate-300 mx-1 hidden sm:block"></div>
 
                 <button onclick="toggleBranchModal()"
                     class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full text-sm font-medium transition-colors">
-                    <span class="material-symbols-rounded text-lg text-orange-500">store</span>
+                    <span class="material-symbols-rounded text-lg text-blue-600">store</span>
                     <span id="currentBranchName">Select Branch</span>
                     <span class="material-symbols-rounded text-lg">expand_more</span>
                 </button>
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+                <button onclick="openOrdersModal()"
+                    class="p-2 text-slate-600 hover:text-blue-600 transition-colors group" title="My Orders">
+                    <span
+                        class="material-symbols-rounded text-2xl group-hover:scale-110 transition-transform">receipt_long</span>
+                </button>
+                <div class="h-6 w-px bg-slate-200"></div>
                 <button onclick="openCart()"
-                    class="relative p-2 text-slate-600 hover:text-orange-600 transition-colors group">
+                    class="relative p-2 text-slate-600 hover:text-blue-600 transition-colors group">
                     <span
                         class="material-symbols-rounded text-2xl group-hover:scale-110 transition-transform">shopping_bag</span>
                     <span id="cartCountBadge"
-                        class="absolute top-1 right-0 w-5 h-5 bg-orange-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white scale-0 transition-transform">0</span>
+                        class="absolute top-1 right-0 w-5 h-5 bg-blue-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white scale-0 transition-transform">0</span>
                 </button>
             </div>
         </div>
@@ -175,14 +181,14 @@
                 <div class="flex justify-between items-start mb-2">
                     <h3 id="modalTitle" class="text-xl font-bold text-slate-900"></h3>
                     <span id="modalPrice"
-                        class="text-lg font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-lg"></span>
+                        class="text-lg font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg"></span>
                 </div>
                 <p id="modalDesc" class="text-slate-500 text-sm leading-relaxed mb-6"></p>
 
                 <div class="space-y-4">
                     <label class="block text-sm font-bold text-slate-700">Special Instructions</label>
                     <textarea id="modalNote" rows="2"
-                        class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all resize-none"
+                        class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
                         placeholder="e.g., No onions, extra sauce..."></textarea>
                 </div>
             </div>
@@ -197,7 +203,7 @@
                             class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg transition-all font-bold text-lg">+</button>
                     </div>
                     <button onclick="addToCart()"
-                        class="flex-1 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-all flex justify-between px-6">
+                        class="flex-1 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-800 hover:to-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-all flex justify-between px-6">
                         <span>Add to Order</span>
                         <span id="modalBtnTotal"></span>
                     </button>
@@ -212,8 +218,7 @@
         <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-white z-10">
             <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
                 Your Order
-                <span id="cartCountHeader"
-                    class="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">0</span>
+                <span id="cartCountHeader" class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">0</span>
             </h2>
             <button onclick="closeCart()" class="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
                 <span class="material-symbols-rounded">close</span>
@@ -227,7 +232,7 @@
                 <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-cart-2130356-1800917.png"
                     alt="Empty Cart" class="w-40 mx-auto opacity-50 mb-4 grayscale">
                 <p class="text-slate-400 font-medium">Your cart is empty</p>
-                <button onclick="closeCart()" class="mt-4 text-orange-600 font-bold text-sm hover:underline">Browse
+                <button onclick="closeCart()" class="mt-4 text-blue-600 font-bold text-sm hover:underline">Browse
                     Menu</button>
             </div>
         </div>
@@ -287,7 +292,7 @@
                                 <input type="radio" name="orderType" value="delivery" class="peer hidden"
                                     onchange="toggleDeliveryFields()">
                                 <div
-                                    class="text-center py-2.5 rounded-lg text-sm font-bold text-slate-500 peer-checked:bg-white peer-checked:text-orange-600 peer-checked:shadow-sm transition-all">
+                                    class="text-center py-2.5 rounded-lg text-sm font-bold text-slate-500 peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm transition-all">
                                     Delivery
                                 </div>
                             </label>
@@ -299,39 +304,38 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Name *</label>
                             <input type="text" id="custName" required
-                                class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all"
+                                class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all"
                                 placeholder="Your Name">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Mobile Number *</label>
                             <input type="tel" id="custPhone" required
-                                class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all"
+                                class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all"
                                 placeholder="01xxxxxxxxx">
                         </div>
                     </div>
 
                     <!-- Delivery Fields -->
                     <div id="deliveryFields"
-                        class="hidden space-y-4 mb-6 p-4 bg-orange-50/50 rounded-xl border border-orange-100">
+                        class="hidden space-y-4 mb-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
                         <div>
-                            <label class="block text-xs font-bold text-orange-800 uppercase mb-1">Delivery Area
+                            <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Delivery Area
                                 *</label>
                             <select id="deliveryZone"
-                                class="w-full p-3 bg-white border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all shadow-sm">
+                                class="w-full p-3 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all shadow-sm">
                                 <option value="">Select Area...</option>
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs font-bold text-orange-800 uppercase mb-1">Street</label>
+                                <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Street</label>
                                 <input type="text" id="addrStreet"
-                                    class="w-full p-3 bg-white border border-orange-200 rounded-xl leading-none text-sm">
+                                    class="w-full p-3 bg-white border border-blue-200 rounded-xl leading-none text-sm">
                             </div>
                             <div>
-                                <label
-                                    class="block text-xs font-bold text-orange-800 uppercase mb-1">Building/Apt</label>
+                                <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Building/Apt</label>
                                 <input type="text" id="addrBuilding"
-                                    class="w-full p-3 bg-white border border-orange-200 rounded-xl leading-none text-sm">
+                                    class="w-full p-3 bg-white border border-blue-200 rounded-xl leading-none text-sm">
                             </div>
                         </div>
                     </div>
@@ -353,12 +357,51 @@
                     </div>
 
                     <button type="submit" id="placeOrderBtn"
-                        class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 transition-all flex items-center justify-center gap-2">
+                        class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
                         <span>Place Order</span>
                         <span class="material-symbols-rounded">check_circle</span>
                     </button>
 
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders Modal -->
+    <div id="ordersModal"
+        class="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in flex flex-col max-h-[80vh]">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <span class="material-symbols-rounded text-blue-600">history</span>
+                    Track Order
+                </h2>
+                <button onclick="closeOrdersModal()"
+                    class="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+
+            <div class="p-5 border-b border-slate-100">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Enter Mobile Number</label>
+                <div class="flex gap-2">
+                    <input type="tel" id="trackMobile"
+                        class="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold tracking-wider"
+                        placeholder="01xxxxxxxxx">
+                    <button onclick="fetchOrders()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl transition-colors">
+                        Check
+                    </button>
+                </div>
+            </div>
+
+            <div id="ordersList" class="flex-1 overflow-y-auto p-4 bg-slate-50 space-y-3">
+                <!-- Populated by JS -->
+                <div class="text-center py-10 opacity-50">
+                    <span class="material-symbols-rounded text-4xl mb-2 text-slate-300">search</span>
+                    <p class="text-slate-400 text-sm">Enter number to see history</p>
+                </div>
             </div>
         </div>
     </div>

@@ -93,18 +93,18 @@ async function fetchBranches() {
 
         branches.forEach(b => {
             const div = document.createElement('div');
-            div.className = 'p-4 border border-slate-100 rounded-xl mb-3 hover:border-orange-200 hover:bg-orange-50 cursor-pointer transition-all group flex justify-between items-center';
+            div.className = 'p-4 border border-slate-100 rounded-xl mb-3 hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition-all group flex justify-between items-center';
             div.onclick = () => selectBranch(b);
 
             div.innerHTML = `
                 <div>
-                    <div class="font-bold text-slate-800 group-hover:text-orange-700">${b.name}</div>
+                    <div class="font-bold text-slate-800 group-hover:text-blue-700">${b.name}</div>
                     <div class="text-xs text-slate-500 mt-1 flex items-center gap-1">
                         <span class="material-symbols-rounded text-[14px]">location_on</span>
                         ${b.address || 'Address not available'}
                     </div>
                 </div>
-                <span class="material-symbols-rounded text-slate-300 group-hover:text-orange-500">arrow_forward_ios</span>
+                <span class="material-symbols-rounded text-slate-300 group-hover:text-blue-500">arrow_forward_ios</span>
             `;
             container.appendChild(div);
         });
@@ -135,7 +135,7 @@ function selectBranch(branch) {
 
 function updateUIForBranch() {
     document.getElementById('currentBranchName').textContent = state.branch.name;
-    document.getElementById('productsGrid').innerHTML = '<div class="col-span-full py-20 text-center"><div class="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-slate-400">Loading Menu...</p></div>';
+    document.getElementById('productsGrid').innerHTML = '<div class="col-span-full py-20 text-center"><div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-slate-400">Loading Menu...</p></div>';
 }
 
 function openBranchModal() { toggleBranchModal(true); fetchBranches(); }
@@ -220,10 +220,10 @@ function renderProducts(products = state.menu.products) {
                 </div>
             </div>
             <div class="p-5">
-                <h3 class="font-bold text-slate-900 text-lg mb-1 group-hover:text-orange-600 transition-colors">${p.name}</h3>
+                <h3 class="font-bold text-slate-900 text-lg mb-1 group-hover:text-blue-600 transition-colors">${p.name}</h3>
                 <p class="text-slate-500 text-sm line-clamp-2 leading-relaxed">${p.description || 'Delicious meal prepared fresh.'}</p>
                 
-                <button class="mt-4 w-full py-2 bg-slate-50 hover:bg-orange-50 text-slate-600 hover:text-orange-600 font-bold rounded-lg text-sm transition-colors border border-slate-100 hover:border-orange-100">
+                <button class="mt-4 w-full py-2 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-bold rounded-lg text-sm transition-colors border border-slate-100 hover:border-blue-100">
                     Add to Cart
                 </button>
             </div>
@@ -333,7 +333,7 @@ function updateCartUI() {
             <div class="text-center py-20">
                 <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-cart-2130356-1800917.png" alt="Empty Cart" class="w-40 mx-auto opacity-50 mb-4 grayscale">
                 <p class="text-slate-400 font-medium">Your cart is empty</p>
-                <button onclick="closeCart()" class="mt-4 text-orange-600 font-bold text-sm hover:underline">Browse Menu</button>
+                <button onclick="closeCart()" class="mt-4 text-blue-600 font-bold text-sm hover:underline">Browse Menu</button>
             </div>
         `;
         document.getElementById('cartFooter').classList.add('hidden');
@@ -350,13 +350,13 @@ function updateCartUI() {
                         <span class="font-bold text-slate-800 text-sm line-clamp-1">${item.name}</span>
                         <span class="font-bold text-slate-900 text-sm">${itemTotal.toFixed(2)}</span>
                     </div>
-                    ${item.note ? `<div class="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded mb-2 inline-block">${item.note}</div>` : ''}
+                    ${item.note ? `<div class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded mb-2 inline-block">${item.note}</div>` : ''}
                     
                     <div class="flex items-center gap-3">
                         <div class="flex items-center bg-white border border-slate-200 rounded-lg px-1 h-7">
-                            <button onclick="updateCartItem(${index}, -1)" class="w-6 h-full text-slate-500 hover:text-orange-600 font-bold">-</button>
+                            <button onclick="updateCartItem(${index}, -1)" class="w-6 h-full text-slate-500 hover:text-blue-600 font-bold">-</button>
                             <span class="w-6 text-center text-xs font-bold">${item.qty}</span>
-                            <button onclick="updateCartItem(${index}, 1)" class="w-6 h-full text-slate-500 hover:text-orange-600 font-bold">+</button>
+                            <button onclick="updateCartItem(${index}, 1)" class="w-6 h-full text-slate-500 hover:text-blue-600 font-bold">+</button>
                         </div>
                         <button onclick="removeFromCart(${index})" class="text-xs text-slate-400 hover:text-red-500 underline decoration-dotted">Remove</button>
                     </div>
@@ -538,4 +538,112 @@ async function submitOrder(e) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Place Order';
     }
+}
+
+
+// --- ORDER TRACKING ---
+
+function openOrdersModal() {
+    // Auto-fill mobile if available
+    const savedMobile = localStorage.getItem('last_customer_mobile');
+    const input = document.getElementById('trackMobile');
+    if (savedMobile) {
+        input.value = savedMobile;
+        fetchOrders();
+    }
+
+    document.getElementById('ordersModal').classList.remove('hidden');
+    document.getElementById('ordersModal').classList.add('flex');
+}
+
+function closeOrdersModal() {
+    document.getElementById('ordersModal').classList.add('hidden');
+    document.getElementById('ordersModal').classList.remove('flex');
+}
+
+async function fetchOrders() {
+    const mobile = document.getElementById('trackMobile').value.trim();
+    const container = document.getElementById('ordersList');
+
+    if (!mobile) return alert('Please enter mobile number');
+
+    // Save for next time
+    localStorage.setItem('last_customer_mobile', mobile);
+
+    container.innerHTML = '<div class="text-center py-10"><div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-slate-400">Loading History...</p></div>';
+
+    try {
+        const tenantId = getTenantId();
+        const res = await fetch(`${API_BASE}/orders?mobile=${mobile}&tenantId=${tenantId}`);
+        const orders = await res.json();
+
+        container.innerHTML = '';
+        if (orders.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-10 opacity-50">
+                    <span class="material-symbols-rounded text-4xl mb-2 text-slate-300">receipt_long</span>
+                    <p class="text-slate-400 text-sm">No orders found for this number</p>
+                </div>`;
+            return;
+        }
+
+        orders.forEach(order => {
+            const statusObj = mapOrderStatus(order);
+            const date = new Date(order.date).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            const div = document.createElement('div');
+            div.className = 'bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow';
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <div class="font-bold text-slate-800 text-sm">Order #${order.receiptNo || 'N/A'}</div>
+                        <div class="text-xs text-slate-400">${date}</div>
+                    </div>
+                    <span class="px-2 py-1 rounded-lg text-xs font-bold ${statusObj.bg} ${statusObj.color}">
+                        ${statusObj.label}
+                    </span>
+                </div>
+                <div class="text-sm text-slate-600 mb-2 line-clamp-1">
+                    ${order.items.map(i => `${i.qty}x ${i.name}`).join(', ')}
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <div class="font-bold text-slate-900">${(order.total || 0).toFixed(2)} EGP</div>
+                    <button class="text-xs text-blue-600 hover:underline">Details</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<div class="text-center text-red-500 py-4">Failed to load orders</div>';
+    }
+}
+
+function mapOrderStatus(order) {
+    // Logic to map backend status to UI friendly status
+    const s = (order.status || '').toLowerCase();
+    const ks = (order.kitchenStatus || '').toLowerCase(); // pending, preparing, ready, served
+
+    // Cancelled/Void
+    if (s === 'void' || s === 'refunded' || s === 'cancelled' || s === 'rejected') {
+        return { label: 'Cancelled', color: 'text-red-700', bg: 'bg-red-50' };
+    }
+
+    // Finished/Delivered
+    if (s === 'finished' || s === 'delivered' || s === 'completed') {
+        return { label: 'Delivered', color: 'text-green-700', bg: 'bg-green-50' };
+    }
+
+    // Active States
+    if (ks === 'ready' || s === 'out_for_delivery') {
+        return { label: 'On the Way', color: 'text-purple-700', bg: 'bg-purple-50' };
+    }
+
+    if (ks === 'preparing' || s === 'confirmed') {
+        return { label: 'Preparing', color: 'text-blue-700', bg: 'bg-blue-50' };
+    }
+
+    // Default Pending
+    return { label: 'Waiting to Confirm', color: 'text-amber-700', bg: 'bg-amber-50' };
 }

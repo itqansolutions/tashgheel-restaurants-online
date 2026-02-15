@@ -48,11 +48,11 @@ window.saveNewCategory = function () {
   const input = document.getElementById('new-category-input');
   const cat = input.value.trim();
   if (cat) {
-    const categories = JSON.parse(localStorage.getItem("categories") || "[]");
+    const categories = window.DB.getCategories();
     // Case insensitive check
     if (!categories.some(c => c.toLowerCase() === cat.toLowerCase())) {
       categories.push(cat);
-      localStorage.setItem("categories", JSON.stringify(categories));
+      window.DB.saveCategories(categories);
       loadCategories();
       document.getElementById('product-category').value = cat;
       input.value = '';
@@ -132,15 +132,21 @@ function loadProducts() {
   tbody.innerHTML = "";
 
   // Keep defaults
-  let categories = JSON.parse(localStorage.getItem("categories") || "[]");
+  let categories = window.DB.getCategories();
+  let categoriesChanged = false;
+
   if (categories.length === 0) {
     const defaults = ["Meals", "Drinks", "Desserts", "Appetizers", "Add-ons"];
-    localStorage.setItem("categories", JSON.stringify(defaults));
     defaults.forEach(c => categories.push(c));
+    categoriesChanged = true;
   } else if (!categories.includes('Add-ons')) {
     // Force Add-ons existence
     categories.push('Add-ons');
-    localStorage.setItem("categories", JSON.stringify(categories));
+    categoriesChanged = true;
+  }
+
+  if (categoriesChanged) {
+    window.DB.saveCategories(categories);
   }
 
   if (products.length === 0) {
@@ -772,7 +778,7 @@ window.closeRecipeModal = closeRecipeModal;
 // We keep openRecipe because it is still called by the "Recipe" button in the table (legacy).
 // Helpers for Categories which were missing or overwritten
 function loadCategories() {
-  const categories = JSON.parse(localStorage.getItem("categories") || "[]");
+  const categories = window.DB.getCategories();
   const select = document.getElementById("product-category");
   const list = document.getElementById("category-list");
 

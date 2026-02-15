@@ -159,19 +159,29 @@ window.DB = window.DB || {
         if (index >= 0) {
             parts[index] = { ...parts[index], ...part, updatedAt: new Date().toISOString() };
         } else {
-            // Generate simple ID if not present (try to be sequential if possible, or timestamp)
+            // Generate simple ID if not present
             part.id = part.id || (parts.length > 0 ? Math.max(...parts.map(p => p.id)) + 1 : 1);
             part.createdAt = new Date().toISOString();
             parts.push(part);
         }
 
-        return window.EnhancedSecurity.storeSecureData('spare_parts', parts);
+        const success = window.EnhancedSecurity.storeSecureData('spare_parts', parts);
+        // 🚀 SYNC TO SERVER
+        if (window.electronAPI && window.electronAPI.saveData) {
+            window.electronAPI.saveData('spare_parts', parts);
+        }
+        return success;
     },
 
     deletePart: function (id) {
         const parts = this.getParts();
         const filtered = parts.filter(p => p.id !== id);
-        return window.EnhancedSecurity.storeSecureData('spare_parts', filtered);
+        const success = window.EnhancedSecurity.storeSecureData('spare_parts', filtered);
+        // 🚀 SYNC TO SERVER
+        if (window.electronAPI && window.electronAPI.saveData) {
+            window.electronAPI.saveData('spare_parts', filtered);
+        }
+        return success;
     },
 
     updateStock: function (partId, qtyChange) {
@@ -179,9 +189,30 @@ window.DB = window.DB || {
         const index = parts.findIndex(p => p.id == partId);
         if (index >= 0) {
             parts[index].stock = (parseInt(parts[index].stock) || 0) + parseInt(qtyChange);
-            return window.EnhancedSecurity.storeSecureData('spare_parts', parts);
+            const success = window.EnhancedSecurity.storeSecureData('spare_parts', parts);
+            // 🚀 SYNC TO SERVER
+            if (window.electronAPI && window.electronAPI.saveData) {
+                window.electronAPI.saveData('spare_parts', parts);
+            }
+            return success;
         }
         return false;
+    },
+
+    // === CATEGORIES ===
+    getCategories: function () {
+        try {
+            return JSON.parse(localStorage.getItem('categories') || '[]');
+        } catch (e) { return []; }
+    },
+
+    saveCategories: function (categories) {
+        localStorage.setItem('categories', JSON.stringify(categories));
+        // 🚀 SYNC TO SERVER
+        if (window.electronAPI && window.electronAPI.saveData) {
+            window.electronAPI.saveData('categories', categories);
+        }
+        return true;
     },
 
     // === VISITS (Service Jobs) ===
