@@ -4,6 +4,36 @@
  */
 
 window.DB = window.DB || {
+    // ☁️ Helper: Sync to Cloud (Desktop Mode Only)
+    _syncToCloud: async function (key, data) {
+        // Only run if we are in Desktop Mode (electronAPI exists but NOT the Web Adapter)
+        if (window.electronAPI && !window.electronAPI.isWebAdapter) {
+            console.log(`☁️ Syncing ${key} to Cloud...`);
+            if (window.apiFetch) {
+                try {
+                    await window.apiFetch('/data/save', {
+                        method: 'POST',
+                        body: JSON.stringify({ key, value: data })
+                    });
+                    console.log(`✅ Cloud sync success for ${key}`);
+                } catch (e) {
+                    console.warn(`⚠️ Cloud sync failed for ${key}`, e);
+                }
+            } else {
+                // Fallback if apiFetch not available (Try standard fetch with credentials)
+                try {
+                    const API_BASE = window.location.origin + '/api'; // Assuming same origin or proxy
+                    await fetch(API_BASE + '/data/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include', // Important for auth cookies
+                        body: JSON.stringify({ key, value: data })
+                    });
+                } catch (e2) { console.warn('Cloud sync fallback failed', e2); }
+            }
+        }
+    },
+
     // === USERS (Auth) ===
     getUsers: function () {
         // 1. Try Global Cache (Auth.js)
@@ -170,6 +200,7 @@ window.DB = window.DB || {
         if (window.electronAPI && window.electronAPI.saveData) {
             window.electronAPI.saveData('spare_parts', parts);
         }
+        this._syncToCloud('spare_parts', parts);
         return success;
     },
 
@@ -181,6 +212,7 @@ window.DB = window.DB || {
         if (window.electronAPI && window.electronAPI.saveData) {
             window.electronAPI.saveData('spare_parts', filtered);
         }
+        this._syncToCloud('spare_parts', filtered);
         return success;
     },
 
@@ -194,6 +226,7 @@ window.DB = window.DB || {
             if (window.electronAPI && window.electronAPI.saveData) {
                 window.electronAPI.saveData('spare_parts', parts);
             }
+            this._syncToCloud('spare_parts', parts);
             return success;
         }
         return false;
@@ -209,9 +242,11 @@ window.DB = window.DB || {
     saveCategories: function (categories) {
         localStorage.setItem('categories', JSON.stringify(categories));
         // 🚀 SYNC TO SERVER
+        // 🚀 SYNC TO SERVER
         if (window.electronAPI && window.electronAPI.saveData) {
             window.electronAPI.saveData('categories', categories);
         }
+        this._syncToCloud('categories', categories);
         return true;
     },
 

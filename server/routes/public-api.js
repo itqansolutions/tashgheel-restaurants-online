@@ -63,6 +63,13 @@ router.get('/menu/:branchId', async (req, res) => {
 
         const tenantId = branch.tenantId;
 
+        // STRICT CHECK: Branches must belong to a tenant to show a custom menu.
+        // If no tenantId, we should NOT fall back to global 'spare_parts.json' which contains dummy data.
+        if (!tenantId) {
+            console.warn(`Branch ${branchId} has no tenantId. Returning empty menu.`);
+            return res.json({ categories: [], products: [] });
+        }
+
         // 2. Fetch Categories (JSON)
         let categoriesRaw = await storage.readData('categories', tenantId);
 

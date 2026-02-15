@@ -87,6 +87,7 @@
     window.apiFetch = apiFetch; // 🌍 Expose Globally
 
     window.electronAPI = {
+        isWebAdapter: true, // Flag to identify Web Adapter
         // Helper to get full path - In web, this is just the key name usually, managed by server
         _getPath: async (filename) => {
             return filename; // Server handles paths
