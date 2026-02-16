@@ -92,48 +92,59 @@ router.get('/tenants', checkSuperAdmin, async (req, res) => {
 
         // Enhance tenants with stats
         const tenantStatsPromises = tenants.map(async (tenant) => {
-            const tenantObj = tenant.toObject ? tenant.toObject() : tenant;
+            const tenantObj = tenant.toObject ? tenant.toObject() : { ...tenant };
 
-            // 1. User Counts
-            const usersCount = await User.countDocuments({ tenantId: tenant._id });
-            const employeesCount = await User.countDocuments({
-                tenantId: tenant._id,
-                role: { $in: ['cashier', 'manager', 'salesman', 'chef'] } // Exclude 'admin'
-            });
+            try {
+                // 1. User Counts
+                const usersCount = await User.countDocuments({ tenantId: tenant._id });
+                const employeesCount = await User.countDocuments({
+                    tenantId: tenant._id,
+                    role: { $in: ['cashier', 'manager', 'salesman', 'chef'] }
+                });
 
-            // 2. Last Active (Login)
-            const lastActiveUser = await User.findOne({ tenantId: tenant._id })
-                .sort({ lastLogin: -1 })
-                .select('lastLogin');
+                // 2. Last Active (Login)
+                const lastActiveUser = await User.findOne({ tenantId: tenant._id })
+                    .sort({ lastLogin: -1 })
+                    .select('lastLogin');
 
-            tenantObj.lastActive = lastActiveUser ? lastActiveUser.lastLogin : null;
-            tenantObj.usersCount = usersCount;
-            tenantObj.employeesCount = employeesCount;
+                tenantObj.lastActive = lastActiveUser ? lastActiveUser.lastLogin : null;
+                tenantObj.usersCount = usersCount;
+                tenantObj.employeesCount = employeesCount;
+            } catch (userErr) {
+                console.error(`Stats error for tenant ${tenant._id} (users):`, userErr.message);
+                tenantObj.usersCount = 0;
+                tenantObj.employeesCount = 0;
+                tenantObj.lastActive = null;
+            }
 
-            // 3. Average Daily Sales
-            // Aggregation: Match Tenant -> Group by DateString -> Avg of DailySums
-            const salesStats = await Sale.aggregate([
-                {
-                    $match: {
-                        tenantId: tenant._id,
-                        status: 'finished'
+            try {
+                // 3. Average Daily Sales
+                const salesStats = await Sale.aggregate([
+                    {
+                        $match: {
+                            tenantId: tenant._id,
+                            status: 'finished'
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                            dailyTotal: { $sum: "$total" }
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            avgDailySales: { $avg: "$dailyTotal" }
+                        }
                     }
-                },
-                {
-                    $group: {
-                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-                        dailyTotal: { $sum: "$total" }
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        avgDailySales: { $avg: "$dailyTotal" }
-                    }
-                }
-            ]);
+                ]);
 
-            tenantObj.avgDailySales = salesStats.length > 0 ? salesStats[0].avgDailySales : 0;
+                tenantObj.avgDailySales = salesStats.length > 0 ? salesStats[0].avgDailySales : 0;
+            } catch (salesErr) {
+                console.error(`Stats error for tenant ${tenant._id} (sales):`, salesErr.message);
+                tenantObj.avgDailySales = 0;
+            }
 
             return tenantObj;
         });
@@ -144,8 +155,8 @@ router.get('/tenants', checkSuperAdmin, async (req, res) => {
         enhancedTenants.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         res.json(enhancedTenants);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ msg: 'Server Error' });
+        console.error('GET /tenants Error:', err.message, err.stack);
+        res.status(500).json({ msg: 'Server Error: ' + err.message });
     }
 });
 
