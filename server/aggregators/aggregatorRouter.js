@@ -288,7 +288,7 @@ router.post('/orders/:id/retry', async (req, res) => {
 });
 
 // ─── Menu Sync ───
-router.post('/menu/sync/:provider', async (req, res) => {
+router.post('/menu/:provider/sync', async (req, res) => {
     const { provider } = req.params;
     const adapter = getAdapter(provider);
     if (!adapter) return res.status(404).json({ error: 'Unknown provider' });
