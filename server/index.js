@@ -55,7 +55,59 @@ if (!mongoUri) {
 } else {
     console.log('Attempting to connect to MongoDB...');
     mongoose.connect(mongoUri)
-        .then(() => console.log('✅ MongoDB Connected'))
+        .then(async () => {
+            console.log('✅ MongoDB Connected');
+
+            // === One-Time Migration: Remove Dummy Product Data ===
+            try {
+                const Data = require('./models/Data');
+                const DUMMY_NAMES = ['coca cola 330ml', 'chicken burger', 'french fries', 'espresso'];
+
+                // Find ALL spare_parts entries across all tenants
+                const docs = await Data.find({ key: 'spare_parts' });
+                for (const doc of docs) {
+                    let products = [];
+                    try {
+                        products = typeof doc.value === 'string' ? JSON.parse(doc.value) : doc.value;
+                    } catch (e) { continue; }
+
+                    if (!Array.isArray(products) || products.length === 0) continue;
+
+                    // Check if ALL products are dummy data
+                    const allDummy = products.every(p =>
+                        DUMMY_NAMES.includes((p.name || '').toLowerCase())
+                    );
+
+                    if (allDummy) {
+                        await Data.deleteOne({ _id: doc._id });
+                        console.log(`🗑️ Migration: Removed dummy spare_parts for tenant '${doc.tenantId}'`);
+                    }
+                }
+
+                // Also remove dummy 'products' entries
+                const prodDocs = await Data.find({ key: 'products' });
+                for (const doc of prodDocs) {
+                    let products = [];
+                    try {
+                        products = typeof doc.value === 'string' ? JSON.parse(doc.value) : doc.value;
+                    } catch (e) { continue; }
+
+                    if (!Array.isArray(products) || products.length === 0) continue;
+
+                    const allDummy = products.every(p =>
+                        DUMMY_NAMES.includes((p.name || '').toLowerCase())
+                    );
+
+                    if (allDummy) {
+                        await Data.deleteOne({ _id: doc._id });
+                        console.log(`🗑️ Migration: Removed dummy products for tenant '${doc.tenantId}'`);
+                    }
+                }
+                console.log('✅ Migration check complete');
+            } catch (migErr) {
+                console.error('⚠️ Migration error (non-fatal):', migErr.message);
+            }
+        })
         .catch(err => {
             console.error('❌ MongoDB Connection Error:', err.message);
         });
