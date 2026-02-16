@@ -177,7 +177,7 @@ function loadProducts() {
           <td class="px-6 py-4 text-right text-sm font-bold text-slate-800">${parseFloat(p.price || 0).toFixed(2)}</td>
           <td class="px-6 py-4 text-right text-sm text-slate-500">${calcCost.toFixed(2)}</td>
           <td class="px-6 py-4 text-center">
-              <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div class="flex items-center justify-center gap-2">
                   <button class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors" onclick="editProduct(${p.id})" title="Edit">
                       <span class="material-symbols-outlined text-[18px]">edit</span>
                   </button>

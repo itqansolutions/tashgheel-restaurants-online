@@ -99,6 +99,23 @@ router.get('/data/list', async (req, res) => {
     }
 });
 
+// Delete a Data Key (Admin: Clear stale data)
+router.delete('/data/delete/:key', async (req, res) => {
+    const { key } = req.params;
+    if (!key) return res.status(400).json({ success: false, error: 'Key is required' });
+
+    try {
+        const Data = require('../models/Data');
+        const tid = req.tenantId || 'global';
+        await Data.deleteOne({ key, tenantId: tid });
+        console.log(`🗑️ Deleted data key '${key}' for tenant '${tid}'`);
+        res.json({ success: true, message: `Data '${key}' cleared` });
+    } catch (err) {
+        console.error(`Error deleting ${key}:`, err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Check File Exists
 router.post('/file/exists', async (req, res) => {
     const { filename } = req.body;
