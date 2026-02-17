@@ -96,7 +96,7 @@
         <div>
           <h2 class="font-bold text-sm leading-tight" id="posSystemTitle" data-i18n-key="shop_pos_system">F&B POS System
           </h2>
-          <p class="text-[10px] text-slate-400">Management System</p>
+          <p class="text-[10px] text-slate-400" data-i18n-key="management_system">Management System</p>
         </div>
       </div>
       <!-- Mobile Close -->
@@ -182,12 +182,12 @@
     <div class="flex-1 overflow-y-auto p-6 space-y-6">
 
       <!-- Search & Scan -->
-      <div class="flex gap-4 items-center">
+      <div class="flex gap-4 items-center relative z-10">
         <div class="relative flex-1 max-w-md">
           <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
           <input id="productSearch"
             class="w-full pl-10 pr-12 py-2.5 bg-white dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary shadow-sm text-sm"
-            placeholder="Search products..." type="text" />
+            placeholder="Search products..." data-i18n-placeholder="search_products" type="text" />
           <button onclick="scanBarcode()" id="scanBtn"
             class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary">
             <span class="material-symbols-outlined text-lg">qr_code_scanner</span>

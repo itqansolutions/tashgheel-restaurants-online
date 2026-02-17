@@ -5,6 +5,11 @@
 
 const navigationTranslations = {
     en: {
+        pos: 'Point of Sale',
+        menu_items: 'Menu Items',
+        inventory: 'Inventory',
+        kitchen: 'Kitchen',
+        online_ordering: 'Online Ordering',
         service_visits: 'Service Visits',
         vendors: 'Vendors',
         customers: 'Customers',
@@ -18,6 +23,11 @@ const navigationTranslations = {
         logout: 'Logout'
     },
     ar: {
+        pos: 'نقطة البيع',
+        menu_items: 'قائمة الطعام',
+        inventory: 'المخزون',
+        kitchen: 'المطبخ',
+        online_ordering: 'الطلبات الأونلاين',
         service_visits: 'زيارات الصيانة',
         vendors: 'الموردين',
         customers: 'العملاء',
@@ -28,7 +38,7 @@ const navigationTranslations = {
         expenses: 'المصاريف',
         admin_panel: 'لوحة التحكم',
         backup: 'النسخ الاحتياطي',
-        logout: 'تسجل الخروج'
+        logout: 'تسجيل الخروج'
     }
 };
 
@@ -37,11 +47,11 @@ function renderNavigation(activePage) {
     const t = navigationTranslations[lang];
 
     const navItems = [
-        { page: 'pos', label: 'POS', icon: 'point_of_sale', href: 'pos.html', key: 'nav_pos' },
-        { page: 'menu', label: 'Menu Items', icon: 'menu_book', href: 'products.html', key: 'nav_products' },
-        { page: 'inventory', label: 'Inventory', icon: 'inventory_2', href: 'inventory.html', key: 'nav_inventory' },
+        { page: 'pos', label: t.pos, icon: 'point_of_sale', href: 'pos.html', key: 'nav_pos' },
+        { page: 'menu', label: t.menu_items, icon: 'menu_book', href: 'products.html', key: 'nav_products' },
+        { page: 'inventory', label: t.inventory, icon: 'inventory_2', href: 'inventory.html', key: 'nav_inventory' },
         { page: 'customers', label: t.customers, icon: 'group', href: 'customers.html', key: 'nav_customers' },
-        { page: 'kitchen', label: 'Kitchen', icon: 'countertops', href: 'kitchen.html', key: 'nav_kitchen' },
+        { page: 'kitchen', label: t.kitchen, icon: 'countertops', href: 'kitchen.html', key: 'nav_kitchen' },
         { page: 'receipts', label: t.receipts, icon: 'receipt_long', href: 'receipts.html', key: 'nav_receipts' },
         { page: 'reports', label: t.reports, icon: 'assessment', href: 'reports.html', key: 'nav_reports' },
         { page: 'vendors', label: t.vendors, icon: 'store', href: 'vendors.html', key: 'nav_vendors' },

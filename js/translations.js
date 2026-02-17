@@ -2,8 +2,12 @@ const translations = {
     // Navigation
     nav_pos: { en: "Point of Sale", ar: "نقطة البيع" },
     nav_products: { en: "Menu Items", ar: "قائمة الطعام" },
+    nav_inventory: { en: "Inventory", ar: "المخزون" },
     nav_receipts: { en: "Receipts", ar: "الفواتير" },
     nav_reports: { en: "Reports", ar: "التقارير" },
+    nav_employees: { en: "Employees", ar: "الموظفين" },
+    nav_kitchen: { en: "Kitchen", ar: "المطبخ" },
+    nav_online_ordering: { en: "Online Ordering", ar: "الطلبات الأونلاين" },
     nav_salesmen: { en: "Employees", ar: "الموظفين" },
     nav_expenses: { en: "Expenses", ar: "المصاريف" },
     nav_admin: { en: "Admin Panel", ar: "لوحة التحكم" },
@@ -416,6 +420,15 @@ const translations = {
     dead: { en: "Dead", ar: "راكد" },
     exp_days: { en: "Exp: ", ar: "باقي: " },
     days_suffix: { en: "d", ar: "ي" },
+
+    // Additional App-Wide Keys
+    management_system: { en: "Management System", ar: "نظام الإدارة" },
+    search_products: { en: "Search products...", ar: "ابحث عن منتج..." },
+    all_categories: { en: "All", ar: "الكل" },
+    online_ordering: { en: "Online Ordering", ar: "الطلبات الأونلاين" },
+    welcome_user: { en: "Welcome,", ar: "مرحباً،" },
+    shift_active_label: { en: "SHIFT ACTIVE", ar: "الوردية نشطة" },
+    base_label: { en: "Base", ar: "الأساس" },
 };
 
 function setLanguage(lang) {
@@ -448,14 +461,26 @@ function setLanguage(lang) {
     document.querySelectorAll('[data-i18n-key]').forEach(el => {
         const key = el.getAttribute('data-i18n-key');
         if (translations[key]) {
-            // Check if there's an icon to preserve
-            const htmlContent = el.innerHTML;
-            const iconMatch = htmlContent.match(/^<[^>]+>|[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDE4F]|\uD83D[\uDE80-\uDEFF]/);
-            let icon = '';
-            if (iconMatch) icon = iconMatch[0] + ' ';
-
-            // Or usually simple text replacement if no complex HTML
-            el.textContent = translations[key][lang];
+            // Preserve child elements (icons, spans, etc.) — only update text nodes
+            const childElements = Array.from(el.children);
+            if (childElements.length > 0) {
+                // Has child HTML elements — find and update only the last text node
+                let foundText = false;
+                for (let i = el.childNodes.length - 1; i >= 0; i--) {
+                    if (el.childNodes[i].nodeType === Node.TEXT_NODE && el.childNodes[i].textContent.trim()) {
+                        el.childNodes[i].textContent = ' ' + translations[key][lang];
+                        foundText = true;
+                        break;
+                    }
+                }
+                if (!foundText) {
+                    // Append text after existing children
+                    el.appendChild(document.createTextNode(' ' + translations[key][lang]));
+                }
+            } else {
+                // Simple text-only element — safe to replace
+                el.textContent = translations[key][lang];
+            }
         }
     });
 
