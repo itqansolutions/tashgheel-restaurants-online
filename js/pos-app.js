@@ -879,9 +879,14 @@ function prodWithAddons(product) {
   const allParts = window.DB.getParts();
 
   if (product.allowAllAddons) {
-    allowedItems = allParts.filter(p => ['Add-ons', 'Extras', 'Addons'].includes(p.category));
+    // Case-insensitive category matching (consistent with products-app.js)
+    allowedItems = allParts.filter(p => {
+      const c = (p.category || '').toLowerCase();
+      return c.includes('add-on') || c.includes('addon') || c.includes('extra');
+    });
   } else {
-    allowedItems = allParts.filter(p => product.allowedAddons.includes(p.id));
+    // Use loose equality (==) to handle int/string ID mismatches
+    allowedItems = allParts.filter(p => product.allowedAddons.some(aid => aid == p.id));
   }
 
   list.innerHTML = '';
@@ -907,14 +912,16 @@ function prodWithAddons(product) {
 }
 
 function toggleAddonSelection(cb) {
-  const id = parseInt(cb.value);
+  // Keep original ID type — may be string (MongoDB) or int (localStorage)
+  const rawId = cb.value;
+  const id = isNaN(rawId) ? rawId : parseInt(rawId);
   const price = parseFloat(cb.dataset.price);
   const name = cb.dataset.name;
 
   if (cb.checked) {
     selectedAddons.push({ id, name, price, qty: 1 });
   } else {
-    selectedAddons = selectedAddons.filter(a => a.id !== id);
+    selectedAddons = selectedAddons.filter(a => a.id != id);
   }
 }
 
