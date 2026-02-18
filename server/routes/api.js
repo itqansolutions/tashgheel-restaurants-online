@@ -125,7 +125,7 @@ router.post('/file/exists', async (req, res) => {
 
 // === SHIFT MANAGEMENT ===
 
-// 1. Get Current Shift
+// 1. Get Current Shift (Multi-User)
 router.get('/shifts/current', async (req, res) => {
     try {
         console.log('🔍 Checking Current Shift:', {
@@ -133,13 +133,33 @@ router.get('/shifts/current', async (req, res) => {
             branchId: req.branchId,
             userId: req.userId
         });
+
+        // Check if user is the opener OR in the cashiers list
         const shift = await Shift.findOne({
             tenantId: req.tenantId,
             branchId: req.branchId,
-            cashierId: req.userId,
-            status: 'open'
+            status: 'open',
+            $or: [
+                { cashierId: req.userId },
+                { cashiers: req.userId }
+            ]
         });
         res.json({ shift });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 1.1 List Active Shifts for Branch (For Joining)
+router.get('/shifts/active-branch', async (req, res) => {
+    try {
+        const shifts = await Shift.find({
+            tenantId: req.tenantId,
+            branchId: req.branchId,
+            status: 'open'
+        }).populate('cashierId', 'username fullName');
+
+        res.json(shifts);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -163,11 +183,39 @@ router.post('/shifts/open', async (req, res) => {
             tenantId: req.tenantId,
             branchId: req.branchId,
             cashierId: req.userId,
+            cashiers: [req.userId], // Initialize list
             openingCash: parseFloat(openingCash || 0)
         });
 
         await newShift.save();
         res.json({ success: true, shift: newShift });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2.1 Join Existing Shift
+router.post('/shifts/join', async (req, res) => {
+    try {
+        const { shiftId } = req.body;
+
+        const shift = await Shift.findOne({
+            _id: shiftId,
+            tenantId: req.tenantId,
+            branchId: req.branchId,
+            status: 'open'
+        });
+
+        if (!shift) return res.status(404).json({ error: 'Shift not found or closed' });
+
+        // Add user to cashiers list if not present
+        if (!shift.cashiers.includes(req.userId)) {
+            shift.cashiers.push(req.userId);
+            await shift.save();
+        }
+
+        res.json({ success: true, shift });
 
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -244,10 +292,13 @@ router.post('/sales', async (req, res) => {
         const activeShift = await Shift.findOne({
             tenantId: req.tenantId,
             branchId: req.branchId,
-            cashierId: req.userId,
-            status: 'open'
+            status: 'open',
+            $or: [
+                { cashierId: req.userId },
+                { cashiers: req.userId }
+            ]
         });
-        if (!activeShift) return res.status(403).json({ error: 'No open shift found. Please open a shift first.' });
+        if (!activeShift) return res.status(403).json({ error: 'No open shift found. Please open or join a shift first.' });
         saleData.shiftId = activeShift._id;
 
         // Apply Costs

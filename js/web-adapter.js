@@ -245,6 +245,12 @@
             } catch (err) { return null; }
         },
 
+        getActiveBranchShifts: async () => {
+            try {
+                return await apiFetch(`/shifts/active-branch`);
+            } catch (err) { return []; }
+        },
+
         openShift: async (openingCash) => {
             try {
                 return await apiFetch(`/shifts/open`, {
@@ -252,6 +258,15 @@
                     body: JSON.stringify({ openingCash })
                 });
             } catch (err) { return { error: err.message }; }
+        },
+
+        joinShift: async (shiftId) => {
+            try {
+                return await apiFetch(`/shifts/join`, {
+                    method: 'POST',
+                    body: JSON.stringify({ shiftId })
+                });
+            } catch (err) { return { success: false, error: err.message }; }
         },
 
         closeShift: async (shiftId, closingCash, notes) => {

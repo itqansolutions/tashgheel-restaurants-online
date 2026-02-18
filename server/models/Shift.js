@@ -19,6 +19,11 @@ const shiftSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    // Multi-User Shift Support
+    cashiers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'users'
+    }],
 
     openedAt: { type: Date, default: Date.now },
     closedAt: { type: Date },

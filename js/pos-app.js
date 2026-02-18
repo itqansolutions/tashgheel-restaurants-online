@@ -107,6 +107,13 @@ window.closeDay = function () {
 // ===================== SHIFT MANAGEMENT =====================
 
 async function checkShift() {
+  // 🔒 Kitchen Role Restriction
+  const userRole = localStorage.getItem('role');
+  if (userRole === 'kitchen') {
+    window.location.href = 'kitchen.html';
+    return;
+  }
+
   const result = await window.electronAPI.getCurrentShift();
 
   if (result && result.error === 'BRANCH_REQUIRED') {
@@ -120,7 +127,83 @@ async function checkShift() {
     currentShift = result.shift;
     updateShiftUI();
   } else {
-    document.getElementById('openShiftModal').style.display = 'flex';
+    // Check for ANY active shifts in this branch (for Join functionality)
+    if (window.electronAPI.getActiveBranchShifts) {
+      const activeShifts = await window.electronAPI.getActiveBranchShifts();
+      if (activeShifts && activeShifts.length > 0) {
+        promptDiffShift(activeShifts);
+      } else {
+        document.getElementById('openShiftModal').style.display = 'flex';
+      }
+    } else {
+      document.getElementById('openShiftModal').style.display = 'flex';
+    }
+  }
+}
+
+function promptDiffShift(activeShifts) {
+  const modal = document.getElementById('openShiftModal');
+  const content = modal.querySelector('.bg-white');
+
+  if (!modal.dataset.original) modal.dataset.original = content.innerHTML;
+
+  let html = `
+    <div class="text-center">
+        <div class="flex justify-center mb-4">
+            <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                 <span class="material-symbols-outlined text-3xl text-blue-600 dark:text-blue-400">group_add</span>
+            </div>
+        </div>
+        <h2 class="text-2xl font-bold mb-2 dark:text-white" data-i18n-key="active_shifts_found">Active Shifts Found</h2>
+        <p class="text-slate-500 mb-6" data-i18n-key="join_shift_desc">There are active shifts in this branch. You can join one or start a new one.</p>
+        
+        <div class="space-y-3 mb-6 max-h-[200px] overflow-y-auto">
+            ${activeShifts.map(s => `
+                <button onclick="joinExistingShift('${s._id}')" 
+                    class="w-full flex items-center justify-between p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-sm">person</span>
+                        </div>
+                        <div class="text-left">
+                            <div class="font-bold text-sm dark:text-white">${s.cashierId?.fullName || 'Cashier'}</div>
+                            <div class="text-[10px] text-slate-500">Opened: ${new Date(s.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                    </div>
+                    <span class="text-blue-600 font-bold text-sm" data-i18n-key="join">Join</span>
+                </button>
+            `).join('')}
+        </div>
+
+        <div class="flex flex-col gap-3">
+             <button onclick="restoreOpenShiftModal()" class="w-full py-3 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                <span data-i18n-key="start_new_shift">Start New Shift Instead</span>
+             </button>
+        </div>
+    </div>
+    `;
+
+  content.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+window.restoreOpenShiftModal = function () {
+  const modal = document.getElementById('openShiftModal');
+  if (modal.dataset.original) {
+    modal.querySelector('.bg-white').innerHTML = modal.dataset.original;
+  }
+}
+
+window.joinExistingShift = async function (shiftId) {
+  if (!confirm('Join this shift?')) return;
+
+  const result = await window.electronAPI.joinShift(shiftId);
+  if (result && result.success) {
+    currentShift = result.shift;
+    document.getElementById('openShiftModal').style.display = 'none';
+    updateShiftUI();
+  } else {
+    alert(result?.error || 'Failed to join shift');
   }
 }
 
