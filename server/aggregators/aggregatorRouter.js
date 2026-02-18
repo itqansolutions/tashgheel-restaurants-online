@@ -26,6 +26,19 @@ const {
 const auth = require('../middleware/auth');
 const branchScope = require('../middleware/branchScope');
 
+// ─── Helper: Load decrypted credentials for a provider from Branch config ───
+async function loadProviderCredentials(provider, branchId) {
+    const branch = await Branch.findById(branchId).lean();
+    const config = branch?.settings?.aggregators?.[provider];
+    if (!config?.encryptedCredentials) return null;
+    try {
+        return decryptCredentials(config.encryptedCredentials, provider);
+    } catch (e) {
+        console.warn(`⚠️ Could not decrypt ${provider} credentials:`, e.message);
+        return null;
+    }
+}
+
 // ═══════════════════════════════════════════════
 // WEBHOOK — Public (HMAC-verified, no JWT)
 // ═══════════════════════════════════════════════
@@ -44,7 +57,9 @@ router.post('/:provider/webhook', async (req, res) => {
         // Raw body for HMAC verification
         const rawBody = req.body; // Will be a Buffer because of express.raw()
         const signature = req.headers[adapter.getSignatureHeader()];
-        const webhookSecret = process.env.TALABAT_WEBHOOK_SECRET; // TODO: per-provider secrets
+        // Per-provider webhook secrets from environment
+        const secretEnvKey = `${provider.toUpperCase()}_WEBHOOK_SECRET`;
+        const webhookSecret = process.env[secretEnvKey];
 
         // Verify signature
         if (webhookSecret && !adapter.verifySignature(rawBody, signature, webhookSecret)) {
@@ -69,10 +84,16 @@ router.post('/:provider/webhook', async (req, res) => {
             return res.sendStatus(200);
         }
 
-        // Determine branch (from payload or config — for now use first active branch of tenant)
-        // TODO: Map provider store ID → branchId via config
-        const tenantId = payload.tenantId; // This would come from config mapping
-        const branchId = payload.branchId;
+        // Resolve tenant/branch from provider config (find first branch with this provider enabled)
+        const branch = await Branch.findOne({
+            [`settings.aggregators.${provider}.enabled`]: true
+        }).lean();
+        if (!branch) {
+            console.warn(`⚠️ [Aggregator] No branch configured for provider: ${provider}`);
+            return res.status(400).json({ error: `No branch configured for ${provider}` });
+        }
+        const tenantId = branch.tenantId;
+        const branchId = branch._id;
 
         // Save order
         const aggOrder = new AggregatorOrder({
@@ -146,9 +167,13 @@ router.post('/orders/:id/accept', async (req, res) => {
         const branch = await Branch.findById(order.branchId);
 
         // Generate next invoice ID
-        const lastSale = await Sale.findOne({ tenantId: order.tenantId, branchId: order.branchId })
-            .sort({ date: -1 }).lean();
-        const lastNum = lastSale ? parseInt(lastSale.id.replace(/\D/g, '')) || 0 : 0;
+        // Query only aggregator sales to avoid ID collisions with POS receipts
+        const lastAggSale = await Sale.findOne({
+            tenantId: order.tenantId,
+            branchId: order.branchId,
+            source: { $exists: true }
+        }).sort({ date: -1 }).lean();
+        const lastNum = lastAggSale ? parseInt((lastAggSale.id || '').replace(/\D/g, '')) || 0 : 0;
         const nextId = `AGG-${lastNum + 1}`;
 
         // Map to Sale
@@ -156,7 +181,7 @@ router.post('/orders/:id/accept', async (req, res) => {
 
         // Enrich costs from products
         try {
-            const rawProducts = await storage.readData('products', order.tenantId);
+            const rawProducts = await storage.readData('spare_parts', order.tenantId);
             const products = JSON.parse(rawProducts || '[]');
             saleData.items = enrichItemCosts(saleData.items, products);
         } catch (e) {
@@ -190,8 +215,10 @@ router.post('/orders/:id/accept', async (req, res) => {
         try {
             const adapter = getAdapter(order.provider);
             if (adapter.capabilities.pushStatus) {
-                // TODO: Load decrypted credentials from branch config
-                // await adapter.pushStatus(order.providerOrderId, 'accepted', credentials);
+                const credentials = await loadProviderCredentials(order.provider, order.branchId);
+                if (credentials) {
+                    await adapter.pushStatus(order.providerOrderId, 'accepted', credentials);
+                }
             }
         } catch (e) {
             console.warn(`⚠️ Could not push status to ${order.provider}:`, e.message);
@@ -230,7 +257,10 @@ router.post('/orders/:id/reject', async (req, res) => {
         try {
             const adapter = getAdapter(order.provider);
             if (adapter.capabilities.pushStatus) {
-                // await adapter.pushStatus(order.providerOrderId, 'rejected', credentials);
+                const credentials = await loadProviderCredentials(order.provider, order.branchId);
+                if (credentials) {
+                    await adapter.pushStatus(order.providerOrderId, 'rejected', credentials);
+                }
             }
         } catch (e) {
             console.warn(`⚠️ Could not push rejection to ${order.provider}:`, e.message);
@@ -254,7 +284,10 @@ router.post('/orders/:id/ready', async (req, res) => {
         try {
             const adapter = getAdapter(order.provider);
             if (adapter.capabilities.pushStatus) {
-                // await adapter.pushStatus(order.providerOrderId, 'ready', credentials);
+                const credentials = await loadProviderCredentials(order.provider, order.branchId);
+                if (credentials) {
+                    await adapter.pushStatus(order.providerOrderId, 'ready', credentials);
+                }
             }
         } catch (e) {
             console.warn(`⚠️ Could not push ready status to ${order.provider}:`, e.message);
@@ -297,13 +330,16 @@ router.post('/menu/:provider/sync', async (req, res) => {
     }
 
     try {
-        const rawProducts = await storage.readData('products', req.tenantId);
+        const rawProducts = await storage.readData('spare_parts', req.tenantId);
         const products = JSON.parse(rawProducts || '[]');
 
-        // TODO: Load decrypted credentials from branch config
-        // const result = await adapter.syncMenu(products, credentials);
+        const credentials = await loadProviderCredentials(provider, req.branchId);
+        if (!credentials) {
+            return res.status(400).json({ error: `No credentials configured for ${provider}` });
+        }
+        const result = await adapter.syncMenu(products, credentials);
 
-        res.json({ success: true, message: `Menu sync to ${provider} initiated`, itemCount: products.length });
+        res.json({ success: true, message: `Menu sync to ${provider} completed`, itemCount: products.length, result });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
