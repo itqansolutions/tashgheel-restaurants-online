@@ -23,14 +23,24 @@ const vendorSchema = new mongoose.Schema({
     updatedAt: Date
 });
 
+const customerAddressSchema = new mongoose.Schema({
+    id: mongoose.Schema.Types.Mixed,  // Date.now() from frontend
+    area: String,
+    street: String,
+    building: String,
+    floor: String,
+    apt: String,
+    extra: String           // Landmark / Directions
+}, { _id: false });
+
 const customerSchema = new mongoose.Schema({
     name: String,
     mobile: String,
-    address: String,
     notes: String,
+    addresses: [customerAddressSchema],  // Array of delivery addresses
     loyaltyPoints: { type: Number, default: 0 },
     tenantId: String,
-    branchId: String, // Global or Branch Specific? Usually Global per Tenant.
+    branchId: String,
     createdAt: { type: Date, default: Date.now },
     updatedAt: Date
 });
