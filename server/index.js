@@ -124,6 +124,7 @@ app.use('/api/expenses', auth, require('./routes/expenses')); // 🆕 Expenses M
 app.use('/api/parties', auth, require('./routes/parties')); // 🆕 Vendors & Customers
 app.use('/api/branches', auth, require('./routes/branches')); // 🆕 Branch Management
 app.use('/api/delivery-zones', auth, require('./routes/delivery-zones')); // 🆕 Delivery Zones Management
+app.use('/api/users', auth, require('./routes/users')); // 🆕 User Management
 
 // 🌍 Public Store API (Rate Limited, No Auth Required for Read)
 app.use('/api/public', require('./routes/public-api'));

@@ -89,8 +89,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const roleSelect = document.getElementById('user-role');
   const userTableBody = document.getElementById('user-table-body');
 
-  function loadUsers() {
-    const users = getActiveUsers();
+  async function loadUsers() {
+    if (window.apiFetchUsers) {
+      try { await window.apiFetchUsers(); } catch (e) { console.error(e); }
+    }
+
+    // Fallback or use updated cache
+    const users = typeof getActiveUsers === 'function' ? getActiveUsers() : [];
     userTableBody.innerHTML = '';
 
     if (users.length === 0) {
@@ -118,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td class="px-4 py-3 text-right">
              ${user.username !== 'admin' ?
-          `<button onclick="handleDeleteUser(${user.id})" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete"><span class="material-symbols-outlined text-[16px]">delete</span></button>` :
+          `<button onclick="handleDeleteUser('${user.id}')" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete"><span class="material-symbols-outlined text-[16px]">delete</span></button>` :
           `<span class="text-xs text-slate-300 italic">Protected</span>`
         }
         </td>
@@ -127,12 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  window.handleDeleteUser = function (id) {
+  window.handleDeleteUser = async function (id) {
     try {
-      const confirmed = confirm("Are you sure you want to delete this user?");
+      const confirmed = await confirm("Are you sure you want to delete this user?");
       if (!confirmed) return;
-      deleteUser(id);
-      loadUsers();
+
+      await deleteUser(id);
+      await loadUsers();
       showToast('User deleted.');
     } catch (e) {
       alert(e.message);
@@ -152,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  userForm.addEventListener('submit', (e) => {
+  userForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
@@ -173,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!username || !password || !fullName || !role) return alert('Fill all fields');
 
     try {
-      addUser({
+      await addUser({
         username,
         password,
         role,
@@ -188,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reset checkboxes
       document.querySelectorAll('input[name="access"]').forEach(cb => cb.checked = false);
 
-      loadUsers();
+      await loadUsers();
     } catch (e) {
       alert(e.message);
     }

@@ -1140,14 +1140,52 @@ function canManageVisits() {
     return r === 'admin' || r === 'manager' || r === 'technician';
 }
 
-// Enhanced add user function
-function addUser(userData) {
+// Enhanced add user function (Async)
+window.apiFetchUsers = async function () {
+    if (window.apiFetch) {
+        try {
+            const users = await window.apiFetch('/users');
+            window.DataCache = window.DataCache || {};
+            window.DataCache.users = users;
+            // Update secure storage if possible for offline fallback
+            if (window.EnhancedSecurity && window.EnhancedSecurity.storeSecureData) {
+                window.EnhancedSecurity.storeSecureData('users', users);
+            } else {
+                localStorage.setItem('users', JSON.stringify(users));
+            }
+            return users;
+        } catch (e) {
+            console.error('Failed to fetch users', e);
+            return [];
+        }
+    }
+    return getUsers();
+};
+
+async function addUser(userData) {
+    if (window.apiFetch) {
+        // API Mode
+        try {
+            const res = await window.apiFetch('/users', {
+                method: 'POST',
+                body: JSON.stringify(userData)
+            });
+            await window.apiFetchUsers(); // Sync
+            return res;
+        } catch (e) { throw e; }
+    } else {
+        return _localAddUser(userData);
+    }
+}
+
+function _localAddUser(userData) {
     if (!canManageUsers()) {
         throw new Error('Permission denied - Admin access required');
     }
 
     var users = getUsers();
 
+    // Check local duplicate only if local
     for (var i = 0; i < users.length; i++) {
         if (users[i].username === userData.username && users[i].active) {
             throw new Error('Username already exists');
@@ -1164,7 +1202,7 @@ function addUser(userData) {
         passwordHash: hashPassword(userData.password),
         role: userData.role,
         fullName: userData.fullName,
-        allowedPages: userData.allowedPages || [], // Store allowed pages
+        allowedPages: userData.allowedPages || [],
         active: true,
         createdAt: new Date().toISOString(),
         createdBy: getCurrentUser().username
@@ -1177,7 +1215,21 @@ function addUser(userData) {
 }
 
 // Enhanced edit user function
-function editUser(userId, userData) {
+async function editUser(userId, userData) {
+    if (window.apiFetch) {
+        try {
+            await window.apiFetch(`/users/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify(userData)
+            });
+            await window.apiFetchUsers();
+            return;
+        } catch (e) { throw e; }
+    }
+    return _localEditUser(userId, userData);
+}
+
+function _localEditUser(userId, userData) {
     if (!canManageUsers()) {
         throw new Error('Permission denied - Admin access required');
     }
@@ -1222,8 +1274,19 @@ function editUser(userId, userData) {
     return users[userIndex];
 }
 
-// Delete user function
-function deleteUser(userId) {
+// Enhanced delete user function
+async function deleteUser(userId) {
+    if (window.apiFetch) {
+        try {
+            await window.apiFetch(`/users/${userId}`, { method: 'DELETE' });
+            await window.apiFetchUsers();
+            return;
+        } catch (e) { throw e; }
+    }
+    return _localDeleteUser(userId);
+}
+
+function _localDeleteUser(userId) {
     if (!canManageUsers()) {
         throw new Error('Permission denied - Admin access required');
     }
