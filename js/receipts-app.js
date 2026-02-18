@@ -335,18 +335,17 @@ window.logout = function () {
 window.printStoredReceipt = async function (receiptId) { // Added async
     let receipt = null;
 
-    // 1. Try fetching from server (Robust method)
-    if (window.electronAPI && window.electronAPI.getSalesHistory) {
+    // 1. Try fetching single receipt by ID (most reliable)
+    if (window.apiFetch) {
         try {
-            const res = await window.electronAPI.getSalesHistory({ limit: 100 });
-            if (res && res.sales) {
-                receipt = res.sales.find(s => (s._id == receiptId || s.id == receiptId));
-            }
-        } catch (e) { console.error(e); }
-    } else if (window.apiFetch) {
-        // 🚀 WEB MODE SUPPORT
+            receipt = await window.apiFetch(`/sales/${receiptId}`);
+        } catch (e) { console.warn('Direct sale fetch failed, trying batch:', e.message); }
+    }
+
+    // 2. Fallback: search in batch (for electronAPI or if direct fetch failed)
+    if (!receipt && window.electronAPI && window.electronAPI.getSalesHistory) {
         try {
-            const res = await window.apiFetch('/reports/history?limit=100');
+            const res = await window.electronAPI.getSalesHistory({ limit: 200 });
             if (res && res.sales) {
                 receipt = res.sales.find(s => (s._id == receiptId || s.id == receiptId));
             }

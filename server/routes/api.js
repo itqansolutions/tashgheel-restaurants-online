@@ -606,6 +606,20 @@ router.get('/reports/history', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// 2b. Get Single Sale by ID (for receipt printing)
+router.get('/sales/:id', async (req, res) => {
+    try {
+        const { tenantId, branchId } = req;
+        const sale = await Sale.findOne({ _id: req.params.id, tenantId, branchId });
+        if (!sale) return res.status(404).json({ error: 'Receipt not found' });
+        res.json(sale);
+    } catch (err) {
+        console.error('Get Sale Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // === INVENTORY MANAGEMENT ===
 
 const InventoryAdjustment = require('../models/InventoryAdjustment');
