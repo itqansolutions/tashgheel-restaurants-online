@@ -1656,12 +1656,12 @@ window.printStoredReceipt = function (receiptId) {
     font-weight: bold;
   }
 
-  th:nth-child(1), td:nth-child(1) { width: 14%; } /* Code */
-  th:nth-child(2), td:nth-child(2) { width: 30%; } /* Name - Expanded */
+  th:nth-child(1), td:nth-child(1) { width: 12%; } /* Code */
+  th:nth-child(2), td:nth-child(2) { width: 28%; } /* Name */
   th:nth-child(3), td:nth-child(3) { width: 10%; } /* Qty */
-  th:nth-child(4), td:nth-child(4) { width: 14%; } /* Price */
+  th:nth-child(4), td:nth-child(4) { width: 16%; } /* Price */
   th:nth-child(5), td:nth-child(5) { width: 16%; } /* Total */
-  /* Discount col reduced or hidden if needed, here approx 16% left */
+  th:nth-child(6), td:nth-child(6) { width: 18%; } /* Discount */
 
   .summary {
     margin: 10px 8px 0;
@@ -1689,10 +1689,7 @@ window.printStoredReceipt = function (receiptId) {
     <hr/>
     <p>${t('receipt_no') || 'Receipt No'}: #${receipt.receiptNo || receipt.id}</p>
     <p>${t('cashier') || 'Cashier'}: ${receipt.cashier || '-'}</p>
-    <p>${receipt.orderType === 'dine_in' ? (t('waiter') || 'Waiter') :
-      receipt.orderType === 'delivery' ? (t('delivery_man') || 'Delivery Man') :
-        (t('salesman') || 'Salesman')
-    }: ${receipt.salesman || '-'}</p>
+    <p>${t('waiter') || 'Waiter'}: ${receipt.salesman || '-'}</p>
     
     ${receipt.tableId ? `<p><strong>${t('table') || 'Table'}: ${receipt.tableName}</strong></p>` : ''}
     ${receipt.customer ? `<p><strong>${t('customer') || 'Customer'}: ${receipt.customer.name}</strong></p>` : ''}
@@ -1708,7 +1705,7 @@ window.printStoredReceipt = function (receiptId) {
       <th>${t('qty') || 'Qty'}</th>
       <th>${t('unit_price') || 'Price'}</th>
       <th>${t('total') || 'Total'}</th>
-      <th>Disc%</th>
+      <th>${t('discount') || 'Disc'}</th>
     </tr>
   </thead>
   <tbody>
