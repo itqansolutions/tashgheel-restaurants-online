@@ -82,11 +82,16 @@ async function loadKitchenOrders() {
                 `).join('')}
             </ul>
 
-            <div class="p-3 bg-slate-750 border-t border-slate-700">
+            <div class="p-3 bg-slate-750 border-t border-slate-700 flex gap-2">
+                 <button onclick="printKitchenTicket('${sale._id || sale.id}')" 
+                    class="flex-1 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 border border-slate-500 hover:border-slate-400">
+                    <span class="material-symbols-outlined">print</span>
+                    <span>Print</span>
+                 </button>
                  <button onclick="completeOrder('${sale._id || sale.id}')" 
-                    class="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-green-500/20 active:scale-95">
+                    class="flex-1 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-green-500/20 active:scale-95">
                     <span class="material-symbols-outlined">check</span>
-                    <span>Complete Order</span>
+                    <span>Complete</span>
                  </button>
             </div>
         `;
@@ -132,3 +137,100 @@ window.completeOrder = async function (saleId) {
         alert('Error completing order: ' + err.message);
     }
 };
+
+// ===================== KITCHEN PRINTING =====================
+
+window.printKitchenTicket = async function (saleId) {
+    try {
+        // We need full order details. Depending on API, list might have it or we fetch single.
+        // For now, let's assume we need to fetch or filter from current list.
+        // Since list is local to loadKitchenOrders, we'll quickly re-fetch specific order or just use the list if we made it global.
+        // Simplest: Fetch single order or reuse API. 
+        // Strategy: We will fetch the specific order for printing to ensure fresh data.
+        // Endpoint might not exist? We used /kitchen/orders (returns all).
+        // Let's use /reports/receipt/:id if available or just find in DOM if we stored data.
+
+        // BETTER: Let's fetch all active orders again and find it (since we don't have get-single yet and it's cheap)
+        const kitchenOrders = await window.apiFetch('/kitchen/orders');
+        const sale = kitchenOrders.find(s => (s._id || s.id) === saleId);
+
+        if (!sale) {
+            alert("Order not found or already completed.");
+            return;
+        }
+
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        const html = generateKitchenTicketHtml(sale);
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+
+        // Auto print after load
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+
+    } catch (err) {
+        console.error("Print Error:", err);
+        alert("Failed to print ticket.");
+    }
+};
+
+function generateKitchenTicketHtml(sale) {
+    const date = new Date(sale.date);
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    return `
+    <html>
+    <head>
+        <title>Kitchen Ticket #${sale.receiptNo}</title>
+        <style>
+            body { font-family: 'Courier New', monospace; padding: 10px; width: 300px; margin: 0 auto; color: #000; }
+            .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+            .title { font-size: 24px; font-weight: bold; display: block; }
+            .meta { font-size: 14px; margin-top: 5px; }
+            .item { display: flex; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+            .qty { font-size: 20px; font-weight: bold; width: 40px; }
+            .details { flex: 1; }
+            .name { font-size: 18px; font-weight: bold; }
+            .note { font-size: 16px; font-weight: bold; background: #000; color: #fff; padding: 2px 4px; display: inline-block; margin-top: 2px; }
+            .item-note { font-size: 14px; font-weight: bold; display: block; margin-top: 2px; text-decoration: underline;}
+            .addons { font-size: 12px; margin-top: 2px; }
+            .footer { border-top: 2px dashed #000; padding-top: 10px; margin-top: 10px; text-align: center; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <span class="title">KITCHEN TICKET</span>
+            <div class="meta">
+                #${sale.receiptNo}<br>
+                ${sale.tableName ? `Table: ${sale.tableName}<br>` : ''}
+                Server: ${sale.cashier || 'Staff'}<br>
+                Time: ${time}
+            </div>
+            ${sale.note ? `<div class="note">NOTE: ${sale.note}</div>` : ''}
+        </div>
+
+        <div class="items">
+            ${sale.items.map(item => `
+                <div class="item">
+                    <div class="qty">${item.qty}</div>
+                    <div class="details">
+                        <div class="name">${item.name}</div>
+                        ${item.sizeName ? `<div>(${item.sizeName})</div>` : ''}
+                        ${item.note ? `<span class="item-note">** ${item.note} **</span>` : ''}
+                        ${item.addons && item.items ? '' : (item.addons || []).map(a => `<div class="addons">+ ${a.name}</div>`).join('')}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="footer">
+            END OF TICKET
+        </div>
+    </body>
+    </html>
+    `;
+}

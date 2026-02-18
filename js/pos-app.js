@@ -1100,6 +1100,16 @@ function addItemToCartFinal(product, addons = [], sizeObj = null, note = '') {
   updateCartDisplay();
 }
 
+window.editItemNote = function (index) {
+  const item = cart[index];
+  if (!item) return;
+  const note = prompt('Enter note for ' + item.name, item.note || '');
+  if (note !== null) {
+    item.note = note.trim();
+    updateCartDisplay();
+  }
+};
+
 function updateCartDisplay() {
   const container = document.getElementById("cartItems");
   container.innerHTML = "";
@@ -1155,6 +1165,9 @@ function updateCartDisplay() {
       <div class="flex flex-col items-end gap-1">
         <p class="text-xs font-black text-slate-800 dark:text-slate-100">${(finalPrice * item.qty).toFixed(2)}</p>
         <div class="flex items-center gap-1">
+           <button onclick="editItemNote(${index})" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 hover:text-amber-500 hover:border-amber-300 transition-colors" title="Add Note">
+             <span class="material-symbols-outlined text-[14px]">edit_note</span>
+           </button>
            <button onclick="openDiscountModal(${index})" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 hover:text-blue-500 hover:border-blue-300 transition-colors" title="${t('discount')}">
              <span class="material-symbols-outlined text-[14px]">percent</span>
            </button>
