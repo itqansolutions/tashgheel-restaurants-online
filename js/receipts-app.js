@@ -408,7 +408,6 @@ window.printStoredReceipt = async function (receiptId) {
 
         return `
           <tr>
-            <td>${item.code || '-'}</td>
             <td style="text-align:left;">${itemName}${addonsText}</td>
             <td>${qty}</td>
             <td>${price.toFixed(2)}</td>
@@ -504,12 +503,11 @@ window.printStoredReceipt = async function (receiptId) {
     font-weight: bold;
   }
 
-  th:nth-child(1), td:nth-child(1) { width: 12%; } /* Code */
-  th:nth-child(2), td:nth-child(2) { width: 28%; } /* Name */
-  th:nth-child(3), td:nth-child(3) { width: 10%; } /* Qty */
-  th:nth-child(4), td:nth-child(4) { width: 16%; } /* Price */
-  th:nth-child(5), td:nth-child(5) { width: 16%; } /* Total */
-  th:nth-child(6), td:nth-child(6) { width: 18%; } /* Discount */
+  th:nth-child(1), td:nth-child(1) { width: 35%; text-align:left; } /* Name */
+  th:nth-child(2), td:nth-child(2) { width: 12%; } /* Qty */
+  th:nth-child(3), td:nth-child(3) { width: 18%; } /* Price */
+  th:nth-child(4), td:nth-child(4) { width: 18%; } /* Total */
+  th:nth-child(5), td:nth-child(5) { width: 17%; } /* Discount */
 
   .summary {
     margin: 10px 8px 0;
@@ -548,7 +546,6 @@ window.printStoredReceipt = async function (receiptId) {
     <table>
   <thead>
     <tr>
-      <th>${t('code', 'كود') || 'Code'}</th>
       <th>${t('name', 'الاسم') || 'Name'}</th>
       <th>${t('qty', 'الكمية') || 'Qty'}</th>
       <th>${t('unit_price', 'السعر') || 'Price'}</th>
