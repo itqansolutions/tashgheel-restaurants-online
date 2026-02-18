@@ -70,6 +70,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 🚀 Shift Check (Mandatory for SaaS)
   checkShift();
+
+  // 👤 Update Username Display
+  if (window.getCurrentUser) {
+    const user = window.getCurrentUser();
+    if (user && user.username) {
+      const nameEl = document.getElementById('currentUserName');
+      if (nameEl) nameEl.textContent = user.username;
+    }
+  }
 });
 
 function bindSearchOnce() {
@@ -1579,9 +1588,7 @@ function printReceipt(receipt) {
   }
 }
 
-function getCurrentUser() {
-  return JSON.parse(localStorage.getItem("currentUser") || '{"username":"User"}');
-}
+
 
 window.printStoredReceipt = function (receiptId) {
   const raw = localStorage.getItem(receiptId);
