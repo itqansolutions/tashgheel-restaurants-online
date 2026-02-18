@@ -7,21 +7,21 @@
 window.ReportCharts = {
     // --- LIVE MONITOR / SALES ---
     renderSalesPerHour(receipts) {
-        const ctx = document.getElementById('chart-sales-per-hour');
+        const ctx = document.getElementById('chart-sales-hour');
         if (!ctx) return;
 
         if (window.salesHourChart) window.salesHourChart.destroy();
 
         const hours = Array(24).fill(0);
         receipts.forEach(r => {
-            const h = new Date(r.createdAt).getHours();
+            const h = new Date(r.date || r.createdAt).getHours();
             hours[h] += (r.total || 0);
         });
 
         window.salesHourChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: hours.map(h => `${h}:00`),
+                labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
                 datasets: [{
                     label: 'Sales (EGP)',
                     data: hours,
