@@ -77,7 +77,7 @@ function renderNavigation(activePage) {
 
     // Logout Button (Standard)
     navHTML += `
-    <button onclick="confirmLogout()" class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left hidden">
+    <button onclick="confirmLogout()" class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
         <span class="material-symbols-outlined text-xl">logout</span>
         <span class="text-sm font-medium" data-i18n-key="logout">${t.logout}</span>
     </button>
