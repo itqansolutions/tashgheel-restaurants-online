@@ -332,7 +332,7 @@ window.logout = function () {
 };
 
 // ===================== PRINT RECEIPT MODULE =====================
-window.printStoredReceipt = async function (receiptId) { // Added async
+window.printStoredReceipt = async function (receiptId) {
     let receipt = null;
 
     // 1. Try fetching single receipt by ID (most reliable)
@@ -352,7 +352,7 @@ window.printStoredReceipt = async function (receiptId) { // Added async
         } catch (e) { console.error(e); }
     }
 
-    // 2. Fallback to Local
+    // 3. Fallback to Local
     if (!receipt && window.DB) {
         const sales = window.DB.getSales();
         receipt = sales.find(s => s.id === receiptId);
@@ -365,119 +365,230 @@ window.printStoredReceipt = async function (receiptId) { // Added async
 
     const shopName = localStorage.getItem('shopName') || 'Tashgheel Restaurant';
     const shopAddress = localStorage.getItem('shopAddress') || '';
-    const shopFooter = localStorage.getItem('footerMessage') || 'Thank you for your visit!';
     const shopLogo = localStorage.getItem('shopLogo') || '';
+    const receiptFooterMessage = localStorage.getItem('footerMessage') || '';
 
     const lang = localStorage.getItem('pos_language') || 'en';
-    const isArabic = lang === 'ar';
-    const dir = isArabic ? 'rtl' : 'ltr';
+
+    const paymentMap = {
+        cash: t('cash', 'نقدي'),
+        card: t('card', 'بطاقة'),
+        mobile: t('mobile', 'محفظة')
+    };
 
     let totalDiscount = 0;
     let subtotal = 0;
 
-    const itemsHtml = receipt.items.map(item => {
-        // item.price is usually the unit price. 
-        // We need to calculate if discount was applied or if it's already net.
-        // POS-APP processSale: item.price is FINAL unit price (after addons).
-        // item.discount is stored. 
-        // But calculateTotal uses item.price... 
-        // Let's rely on stored totals for simplicity if possible, but receipt needs line items.
-        // Let's derive from current values.
+    const itemsHtml = (receipt.items || []).map(item => {
+        const price = item.price || 0;
+        const qty = item.qty || 0;
+        const originalTotal = price * qty;
 
-        let unitPrice = item.price;
-        let discountAmount = 0;
-
-        // If discount type is percent, then item.price IS the base price? 
-        // pos-app.js calculateTotal applies discount TO price. So item.price is PRE-discount.
-        // Yes: calculateTotal -> let finalPrice = i.price; if percent finalPrice *= ...
-
-        const lineTotalRaw = item.price * item.qty;
+        let discountStr = "-";
+        let discountAmountPerUnit = 0;
 
         if (item.discount?.type === "percent") {
-            discountAmount = lineTotalRaw * (item.discount.value / 100);
+            discountAmountPerUnit = price * (item.discount.value / 100);
+            discountStr = `${item.discount.value}%`;
         } else if (item.discount?.type === "value") {
-            discountAmount = item.discount.value; // Total discount value for line or per unit?
-            // pos-app.js: finalPrice -= item.discount.value. This means PER UNIT.
-            discountAmount = item.discount.value * item.qty;
+            discountAmountPerUnit = item.discount.value;
+            discountStr = `${discountAmountPerUnit.toFixed(2)}`;
         }
 
-        const lineTotalNet = lineTotalRaw - discountAmount;
+        const itemDiscountTotal = discountAmountPerUnit * qty;
+        totalDiscount += itemDiscountTotal;
+        subtotal += originalTotal;
 
-        subtotal += lineTotalRaw;
-        totalDiscount += discountAmount;
+        const itemName = item.sizeName ? `${item.name} (${item.sizeName})` : (item.name || '-');
+
+        let addonsText = '';
+        if (item.addons && item.addons.length > 0) {
+            addonsText = `<div style="font-size:10px; color:#555;">+ ${item.addons.map(a => a.name).join(', ')}</div>`;
+        }
 
         return `
-            <tr style="border-bottom: 1px dashed #ddd;">
-                <td style="padding: 5px; text-align: ${isArabic ? 'right' : 'left'};">
-                    ${item.name} <br>
-                    <small style="color:#777;">${item.qty} x ${item.price.toFixed(2)}</small>
-                </td>
-                <td style="padding: 5px; text-align: ${isArabic ? 'left' : 'right'};">
-                    ${lineTotalNet.toFixed(2)}
-                </td>
-            </tr>
+          <tr>
+            <td>${item.code || '-'}</td>
+            <td style="text-align:left;">${itemName}${addonsText}</td>
+            <td>${qty}</td>
+            <td>${price.toFixed(2)}</td>
+            <td>${originalTotal.toFixed(2)}</td>
+            <td>${discountStr}</td>
+          </tr>
         `;
     }).join('');
 
-    const receiptHTML = `
-        <div id="receiptModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;">
-            <div style="background:white; padding:20px; width:300px; max-height:90vh; overflow-y:auto; font-family: 'Courier New', monospace; direction: ${dir}; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                
-                <div style="text-align:center; margin-bottom:10px;">
-                    ${shopLogo ? `<img src="${shopLogo}" style="max-height:60px; margin-bottom:5px;">` : ''}
-                    <h3 style="margin:5px 0;">${shopName}</h3>
-                    <p style="margin:0; font-size:12px;">${shopAddress}</p>
-                    <p style="margin:5px 0; font-size:12px;">${new Date(receipt.date).toLocaleString()}</p>
-                    <p style="margin:0; font-size:12px;">#${receipt.id}</p>
-                </div>
+    // Tax Breakdown HTML
+    let taxesHtml = '';
+    if (receipt.appliedTaxes && receipt.appliedTaxes.length > 0) {
+        taxesHtml = receipt.appliedTaxes.map(tax =>
+            `<p>${tax.name} (${tax.percentage}%): ${tax.amount.toFixed(2)}</p>`
+        ).join('');
+    } else if (receipt.tax > 0) {
+        taxesHtml = `<p>${t('tax', 'ضريبة') || 'Tax'}: ${receipt.tax.toFixed(2)}</p>`;
+    }
 
-                <hr style="border-top: 1px dashed #000;">
+    // Delivery Fee HTML
+    let deliveryHtml = '';
+    if (receipt.deliveryFee > 0) {
+        deliveryHtml = `<p>${t('delivery_fee', 'التوصيل') || 'Delivery'}: ${receipt.deliveryFee.toFixed(2)}</p>`;
+    }
 
-                <table style="width:100%; font-size:14px; border-collapse: collapse;">
-                    ${itemsHtml}
-                </table>
+    const dateFormatted = new Date(receipt.date).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
 
-                <hr style="border-top: 1px dashed #000;">
+    const html = `
+    <html>
+<head>
+  <title>${t('receipt', 'إيصال') || 'Receipt'}</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 11.5px;
+    font-weight: bold;
+    line-height: 1.5;
+    direction: ${lang === 'ar' ? 'rtl' : 'ltr'};
+    margin: 0;
+    padding: 0;
+  }
 
-                <div style="display:flex; justify-content:space-between; font-size:14px;">
-                    <span>${t('subtotal', 'المجموع')}</span>
-                    <span>${subtotal.toFixed(2)}</span>
-                </div>
-                ${totalDiscount > 0 ? `
-                <div style="display:flex; justify-content:space-between; font-size:14px; color:red;">
-                    <span>${t('discount', 'الخصم')}</span>
-                    <span>-${totalDiscount.toFixed(2)}</span>
-                </div>
-                ` : ''}
-                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px; margin-top:5px;">
-                    <span>${t('total', 'الإجمالي')}</span>
-                    <span>${receipt.total.toFixed(2)}</span>
-                </div>
+  .receipt-container {
+    width: 72mm;
+    margin: 0;
+    padding: 5px 0;
+    background: #fff;
+    box-sizing: border-box;
+  }
 
-                <hr style="border-top: 1px dashed #000;">
+  .center {
+    text-align: center;
+  }
 
-                <div style="text-align:center; font-size:12px; margin-top:10px;">
-                    <p>${shopFooter}</p>
-                    <p>${t('cashier', 'الكاشير')}: ${receipt.cashier}</p>
-                </div>
+  img.logo {
+    max-height: 70px;
+    display: block;
+    margin: 0 auto 5px;
+  }
 
-                <div style="margin-top:20px; text-align:center;" class="no-print">
-                    <button onclick="window.print()" class="btn btn-primary btn-sm">🖨️ ${t('print', 'طباعة')}</button>
-                    <button onclick="document.getElementById('receiptModal').remove()" class="btn btn-secondary btn-sm">❌ ${t('close', 'إغلاق')}</button>
-                </div>
+  h2 {
+    margin: 3px 0;
+    font-size: 15px;
+    font-weight: bold;
+  }
 
-                <style>
-                    @media print {
-                        .no-print { display: none; }
-                        body * { visibility: hidden; }
-                        #receiptModal, #receiptModal * { visibility: visible; }
-                        #receiptModal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: none; }
-                        #receiptModal > div { box-shadow: none; width: 100%; max-width: 100%; }
-                    }
-                </style>
-            </div>
-        </div>
-    `;
+  p {
+    margin: 2px 8px;
+    font-weight: bold;
+  }
 
-    document.body.insertAdjacentHTML('beforeend', receiptHTML);
+  table {
+    width: 98%;
+    border-collapse: collapse;
+    margin: 8px auto 4px;
+    table-layout: fixed;
+  }
+
+  th, td {
+    border: 1px dashed #444;
+    padding: 4px 5px;
+    text-align: center;
+    font-size: 11px;
+    white-space: normal;
+    word-break: break-word;
+    font-weight: bold;
+  }
+
+  th:nth-child(1), td:nth-child(1) { width: 12%; } /* Code */
+  th:nth-child(2), td:nth-child(2) { width: 28%; } /* Name */
+  th:nth-child(3), td:nth-child(3) { width: 10%; } /* Qty */
+  th:nth-child(4), td:nth-child(4) { width: 16%; } /* Price */
+  th:nth-child(5), td:nth-child(5) { width: 16%; } /* Total */
+  th:nth-child(6), td:nth-child(6) { width: 18%; } /* Discount */
+
+  .summary {
+    margin: 10px 8px 0;
+    font-size: 12px;
+    font-weight: bold;
+    border-top: 1px solid #000;
+    padding-top: 5px;
+  }
+
+  .footer {
+    text-align: center;
+    margin: 12px 0 0;
+    font-size: 10.5px;
+    border-top: 1px dashed #ccc;
+    padding-top: 6px;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <div class="receipt-container">
+    ${shopLogo ? `<img src="${shopLogo}" class="logo">` : ''}
+    <h2 class="center">${shopName}</h2>
+    <p class="center">${shopAddress}</p>
+    <hr/>
+    <p>${t('receipt_no', 'رقم الإيصال') || 'Receipt No'}: #${receipt.receiptNo || receipt.invoiceNumber || (receipt._id || receipt.id || '').toString().slice(-6).toUpperCase()}</p>
+    <p>${t('cashier', 'الكاشير') || 'Cashier'}: ${receipt.cashier || '-'}</p>
+    <p>${t('waiter', 'النادل') || 'Waiter'}: ${receipt.salesman || '-'}</p>
+    
+    ${receipt.tableId ? `<p><strong>${t('table', 'الطاولة') || 'Table'}: ${receipt.tableName || receipt.tableId}</strong></p>` : ''}
+    ${receipt.customer ? `<p><strong>${t('customer', 'العميل') || 'Customer'}: ${receipt.customer.name || ''}</strong></p>` : ''}
+    
+    <p>${t('date', 'التاريخ') || 'Date'}: ${dateFormatted}</p>
+    <p>${t('method', 'طريقة الدفع') || 'Payment Method'}: ${paymentMap[receipt.method] || receipt.method || '-'}</p>
+
+    <table>
+  <thead>
+    <tr>
+      <th>${t('code', 'كود') || 'Code'}</th>
+      <th>${t('name', 'الاسم') || 'Name'}</th>
+      <th>${t('qty', 'الكمية') || 'Qty'}</th>
+      <th>${t('unit_price', 'السعر') || 'Price'}</th>
+      <th>${t('total', 'الإجمالي') || 'Total'}</th>
+      <th>${t('discount', 'الخصم') || 'Disc'}</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${itemsHtml}
+  </tbody>
+</table>
+
+    <div class="summary">
+      <p style="display:flex; justify-content:space-between;"><span>${t('subtotal', 'المجموع')}:</span> <span>${subtotal.toFixed(2)}</span></p>
+      ${totalDiscount > 0 ? `<p style="display:flex; justify-content:space-between;"><span>${t('total_discounts', 'إجمالي الخصومات')}:</span> <span>-${totalDiscount.toFixed(2)}</span></p>` : ''}
+      
+      <!-- Taxes -->
+      ${taxesHtml ? `<div style="border-top:1px dashed #ccc; margin:5px 0; padding:2px 0;">${taxesHtml}</div>` : ''}
+      
+      <!-- Delivery Fee -->
+      ${deliveryHtml ? `<div style="border-top:1px dashed #ccc; margin:5px 0; padding:2px 0;">${deliveryHtml}</div>` : ''}
+      
+      <p style="display:flex; justify-content:space-between; font-size:16px; margin-top:5px; border-top:2px solid #000; padding-top:2px;">
+         <span>${t('total', 'الإجمالي')}:</span> 
+         <span>${(receipt.total || 0).toFixed(2)}</span>
+      </p>
+    </div>
+    
+    <hr/>
+    ${receiptFooterMessage ? `<p class="footer" style="font-size:13px; font-weight: bold;">${receiptFooterMessage}</p>` : ''}
+    <p class="footer">
+      <strong>Tashgheel POS &copy; 2025</strong><br>
+    </p>
+  </div>
+  <script>window.onload = () => window.print();</script>
+</body>
+    </html>
+  `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
 };
