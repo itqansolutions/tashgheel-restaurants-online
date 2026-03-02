@@ -288,16 +288,17 @@
 
         results.classList.remove('hidden');
         results.innerHTML = matches.map(p => `
-            <button onclick="DineIn.addItem(${JSON.stringify(JSON.stringify(p))})"
+            <button onclick="DineIn.addItem('${p.id}')"
                 class="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-700 transition-colors text-left">
                 <span class="text-sm text-white">${p.name}</span>
                 <span class="text-sm text-amber-400">${formatCurrency(p.price || 0)}</span>
             </button>`).join('');
     }
 
-    async function addItem(productJson) {
+    async function addItem(productId) {
         if (!activeOrderId) return;
-        const p = JSON.parse(productJson);
+        const p = products.find(prod => String(prod.id) === String(productId));
+        if (!p) return;
 
         document.getElementById('item-search').value = '';
         document.getElementById('product-results').classList.add('hidden');
