@@ -34,7 +34,8 @@ module.exports = async function (req, res, next) {
         // 4. Verify Branch Exists & Belongs to Tenant (Strict Security)
         const branch = await Branch.findOne({ _id: branchId, tenantId: req.tenantId });
         if (!branch) {
-            console.warn(`Security Alert: Tenant ${req.tenantId} user ${req.user.id} attempted to access invalid/cross-tenant branch ${branchId}`);
+            const userId = req.user?.id || req.userId || 'unknown';
+            console.warn(`Security Alert: Tenant ${req.tenantId} user ${userId} attempted to access invalid/cross-tenant branch ${branchId}`);
             return res.status(404).json({ error: 'BRANCH_NOT_FOUND', msg: 'Branch not found or access denied' });
         }
 

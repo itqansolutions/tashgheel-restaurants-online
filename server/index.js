@@ -137,8 +137,12 @@ app.use('/api/aggregator', require('./aggregators/aggregatorRouter'));
 
 // 🪑 Dine-In System
 const qrAuth = require('./middleware/qrAuth');
+// Note: qrAuth already validates the JWT (staff or customer QR) and sets req.tenantId + req.branchId
+// directly from the token payload — branchScope is NOT used here because:
+//   1. Customer QR tokens don't send x-branch-id header
+//   2. req.user is undefined for customer tokens, which crashes branchScope
 app.use('/api/tables', auth, branchScope, require('./routes/tables'));             // Table management (staff only)
-app.use('/api/orders', qrAuth, branchScope, require('./routes/orders'));           // Orders (staff + customer QR)
+app.use('/api/orders', qrAuth, require('./routes/orders'));                        // Orders (staff + customer QR) — auth handled by qrAuth
 app.use('/api/dine-in/kitchen', auth, branchScope, require('./routes/kitchen-orders')); // Kitchen display (staff only)
 
 app.use('/api', auth, branchScope, apiRoutes);
