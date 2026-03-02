@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Tables Management — Tashgheel POS</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e293b',
+                        accent: '#f59e0b',
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        };
+    </script>
+    <style type="text/tailwindcss">
+        @layer base { body { @apply font-sans; } }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+
+<body class="bg-[#0f172a] text-slate-100 h-screen overflow-hidden flex">
+
+    <!-- Sidebar -->
+    <aside id="sidebar"
+        class="fixed inset-y-0 left-0 z-40 w-64 bg-primary text-white flex flex-col shrink-0 transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0">
+        <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="favicon.png" alt="Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain shadow-sm">
+                <div>
+                    <h2 class="font-bold text-sm leading-tight">F&amp;B POS System</h2>
+                    <p class="text-[10px] text-slate-400">Management System</p>
+                </div>
+            </div>
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4 space-y-1" id="dynamic-nav"></nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <!-- Header -->
+        <header class="bg-primary border-b border-slate-700 px-6 py-4 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-400 text-2xl">table_restaurant</span>
+                    <div>
+                        <h1 class="text-lg font-bold">Tables Management</h1>
+                        <p class="text-xs text-slate-400">Create and manage dining tables for this branch</p>
+                    </div>
+                </div>
+            </div>
+            <button onclick="TablesAdmin.openAddModal()"
+                class="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-sm rounded-xl transition-all active:scale-95">
+                <span class="material-symbols-outlined text-lg">add</span>
+                Add Table
+            </button>
+        </header>
+
+        <!-- Stats row -->
+        <div class="px-6 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-slate-800 shrink-0">
+            <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+                <p class="text-xs text-slate-400 mb-1">Total Tables</p>
+                <p id="stat-total" class="text-2xl font-black text-white">—</p>
+            </div>
+            <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+                <p class="text-xs text-slate-400 mb-1">Available</p>
+                <p id="stat-available" class="text-2xl font-black text-green-400">—</p>
+            </div>
+            <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+                <p class="text-xs text-slate-400 mb-1">Occupied</p>
+                <p id="stat-occupied" class="text-2xl font-black text-amber-400">—</p>
+            </div>
+            <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+                <p class="text-xs text-slate-400 mb-1">Total Seats</p>
+                <p id="stat-seats" class="text-2xl font-black text-blue-400">—</p>
+            </div>
+        </div>
+
+        <!-- Table list -->
+        <div class="flex-1 overflow-y-auto p-6">
+            <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div class="col-span-full flex flex-col items-center justify-center py-20 text-slate-600">
+                    <span class="material-symbols-outlined text-5xl mb-3">table_restaurant</span>
+                    <p>Loading tables...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ═══ Add / Edit Table Modal ═══ -->
+    <div id="table-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#1e293b] rounded-2xl border border-slate-700 w-full max-w-md shadow-2xl">
+            <div class="flex items-center justify-between p-6 border-b border-slate-700">
+                <h3 id="modal-title" class="text-lg font-bold">Add Table</h3>
+                <button onclick="TablesAdmin.closeModal()"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-700">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="edit-table-id">
+
+                <!-- Table Name -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">Table Name
+                        *</label>
+                    <input id="field-name" type="text" placeholder="e.g. Table 1 / VIP Room / Bar Seat 3"
+                        class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 placeholder-slate-500">
+                </div>
+
+                <!-- Short Code -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                        Short Code * <span class="text-slate-500 font-normal normal-case">(used in QR URL)</span>
+                    </label>
+                    <input id="field-code" type="text" placeholder="e.g. T1, VIP, BAR3" maxlength="10"
+                        class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 placeholder-slate-500 uppercase">
+                    <p class="text-xs text-slate-500 mt-1">Alphanumeric, max 10 chars. Customers scan a QR that contains
+                        this code.</p>
+                </div>
+
+                <!-- Number of Seats -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">Number of
+                        Seats</label>
+                    <div class="flex items-center gap-3">
+                        <button onclick="TablesAdmin.adjustSeats(-1)"
+                            class="w-10 h-10 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-xl text-lg font-bold transition-colors">−</button>
+                        <input id="field-capacity" type="number" min="1" max="50" value="4"
+                            class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-2.5 text-center text-lg font-bold focus:outline-none focus:border-amber-500">
+                        <button onclick="TablesAdmin.adjustSeats(1)"
+                            class="w-10 h-10 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-xl text-lg font-bold transition-colors">+</button>
+                    </div>
+                </div>
+
+                <!-- Error -->
+                <p id="modal-error" class="text-red-400 text-sm hidden"></p>
+            </div>
+
+            <div class="px-6 pb-6 flex gap-3">
+                <button onclick="TablesAdmin.closeModal()"
+                    class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl text-sm transition-colors">
+                    Cancel
+                </button>
+                <button id="modal-save-btn" onclick="TablesAdmin.saveTable()"
+                    class="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-xl text-sm transition-all active:scale-95">
+                    Save Table
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Confirm Archive Modal ═══ -->
+    <div id="archive-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#1e293b] rounded-2xl border border-slate-700 w-full max-w-sm shadow-2xl p-6 text-center">
+            <span class="material-symbols-outlined text-5xl text-red-400 mb-3 block">archive</span>
+            <h3 class="text-lg font-bold mb-2">Archive Table?</h3>
+            <p class="text-sm text-slate-400 mb-1">Table: <strong id="archive-table-name" class="text-white"></strong>
+            </p>
+            <p class="text-xs text-slate-500 mb-6">The table will be hidden from the floor plan. Historical orders are
+                preserved.</p>
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('archive-modal').classList.add('hidden')"
+                    class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-sm">Cancel</button>
+                <button id="archive-confirm-btn" onclick="TablesAdmin.confirmArchive()"
+                    class="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl font-bold text-sm">Archive</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] hidden pointer-events-none">
+        <div id="toast-inner" class="px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-2xl"></div>
+    </div>
+
+    <script src="js/web-adapter.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script>window.currentPage = 'tables';</script>
+    <script src="js/shared-nav.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/tables-app.js"></script>
+</body>
+
+</html>
