@@ -137,6 +137,14 @@
         </div>
       </div>
       <div class="flex items-center gap-6">
+        <!-- Tables button for cashier dine-in bill closing -->
+        <button onclick="DineInPOS.openTablesView()"
+          class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-lg text-xs font-bold border border-amber-200 dark:border-amber-700 transition-colors">
+          <span class="material-symbols-outlined text-sm">table_restaurant</span>
+          <span class="hidden md:inline">Tables</span>
+          <span id="tables-bill-badge"
+            class="hidden w-4 h-4 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">!</span>
+        </button>
         <button onclick="startNewShift()"
           class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 transition-colors">
           <span class="material-symbols-outlined text-sm">schedule</span>
@@ -543,6 +551,205 @@
       <div id="pendingOrdersList" class="max-h-60 overflow-y-auto space-y-2"></div>
     </div>
   </div>
+
+  <!-- ═══ Dine-In Tables View Modal (Cashier) ═══ -->
+  <div id="dineInTablesModal" class="modal" style="display:none;align-items:flex-start;padding-top:60px;">
+    <div class="modal-content"
+      style="width:560px;max-width:95%;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;background:#1e293b;color:#f1f5f9;border-radius:20px;">
+      <div
+        style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #334155;">
+        <div>
+          <h3 style="font-size:18px;font-weight:bold;margin:0;">🪑 Open Tables</h3>
+          <p style="font-size:12px;color:#94a3b8;margin:4px 0 0;">Select a table to view and close the bill</p>
+        </div>
+        <button onclick="document.getElementById('dineInTablesModal').style.display='none'"
+          style="width:32px;height:32px;background:#334155;border:none;border-radius:8px;color:#94a3b8;cursor:pointer;font-size:18px;">×</button>
+      </div>
+
+      <!-- Table list -->
+      <div id="dinein-tables-list" style="flex:1;overflow-y:auto;padding:16px;"></div>
+
+      <!-- Order detail panel -->
+      <div id="dinein-order-detail" style="display:none;border-top:1px solid #334155;padding:20px 24px;">
+        <h4 id="dinein-detail-title" style="font-size:15px;font-weight:bold;margin:0 0 12px;">Order Items</h4>
+        <div id="dinein-detail-items" style="max-height:200px;overflow-y:auto;margin-bottom:16px;"></div>
+
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <select id="dinein-close-discount-type"
+            style="flex:1;padding:8px;background:#0f172a;border:1px solid #334155;color:white;border-radius:8px;font-size:13px;">
+            <option value="none">No Discount</option>
+            <option value="percent">Percent %</option>
+            <option value="value">Fixed Amount</option>
+          </select>
+          <input id="dinein-close-discount-val" type="number" min="0" placeholder="0"
+            style="width:80px;padding:8px;background:#0f172a;border:1px solid #334155;color:white;border-radius:8px;font-size:13px;text-align:center;">
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button onclick="DineInPOS.setMethod('cash')" id="dpos-cash"
+            style="flex:1;padding:10px;background:#16a34a;color:white;border:none;border-radius:10px;font-weight:bold;cursor:pointer;font-size:12px;">💵
+            Cash</button>
+          <button onclick="DineInPOS.setMethod('card')" id="dpos-card"
+            style="flex:1;padding:10px;background:#334155;color:white;border:none;border-radius:10px;font-weight:bold;cursor:pointer;font-size:12px;">💳
+            Card</button>
+          <button onclick="DineInPOS.setMethod('mobile')" id="dpos-mobile"
+            style="flex:1;padding:10px;background:#334155;color:white;border:none;border-radius:10px;font-weight:bold;cursor:pointer;font-size:12px;">📱
+            Mobile</button>
+        </div>
+
+        <div id="dinein-not-ready-warning"
+          style="display:none;background:#7c2d12;border:1px solid #dc2626;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#fca5a5;">
+          ⚠️ <span id="dinein-not-ready-text">Some items are still being prepared.</span>
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button onclick="DineInPOS.closeBill(false)"
+            style="flex:1;padding:12px;background:#d97706;color:white;border:none;border-radius:12px;font-weight:bold;cursor:pointer;font-size:13px;">Close
+            Bill</button>
+          <button id="dinein-force-close-btn" onclick="DineInPOS.closeBill(true)"
+            style="display:none;
+            flex:1;padding:12px;background:#dc2626;color:white;border:none;border-radius:12px;font-weight:bold;cursor:pointer;font-size:13px;">⚡ Force Close</button>
+        </div>
+        <p style="text-align:center;font-size:11px;color:#64748b;margin-top:8px;">Force Close requires manager
+          confirmation and overrides item readiness checks.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── Dine-In POS (Cashier tables view) ───
+    (function () {
+      let selectedOrderId = null;
+      let selectedMethod = 'cash';
+
+      async function openTablesView() {
+        const modal = document.getElementById('dineInTablesModal');
+        modal.style.display = 'flex';
+        document.getElementById('dinein-order-detail').style.display = 'none';
+        document.getElementById('dinein-tables-list').innerHTML = '<p style="text-align:center;padding:32px;color:#64748b;">Loading...</p>';
+        try {
+          const tables = await apiFetch('/tables');
+          renderTablesList(tables || []);
+        } catch (e) {
+          document.getElementById('dinein-tables-list').innerHTML = `<p style="color:#ef4444;text-align:center;">${e.message}</p>`;
+        }
+      }
+
+      function renderTablesList(tables) {
+        const occupied = tables.filter(t => t.status === 'occupied');
+        const list = document.getElementById('dinein-tables-list');
+
+        // Update bill badge in header
+        const billRequested = occupied.filter(t => t.orderSummary?.requestedBillAt);
+        const headerBadge = document.getElementById('tables-bill-badge');
+        if (billRequested.length > 0) {
+          headerBadge.textContent = billRequested.length;
+          headerBadge.style.display = 'flex';
+        } else {
+          headerBadge.style.display = 'none';
+        }
+
+        if (occupied.length === 0) {
+          list.innerHTML = '<p style="text-align:center;padding:32px;color:#64748b;">No occupied tables right now.</p>';
+          return;
+        }
+
+        list.innerHTML = occupied.map(t => {
+          const hasBill = t.orderSummary?.requestedBillAt;
+          return `
+                    <button onclick="DineInPOS.openOrder('${t.activeOrderId}', '${t.name}')"
+                      style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#0f172a;border:1px solid ${hasBill ? '#d97706' : '#334155'};border-radius:12px;margin-bottom:8px;cursor:pointer;color:white;text-align:left;">
+                      <div>
+                        <p style="font-size:14px;font-weight:bold;">${t.name}</p>
+                        <p style="font-size:11px;color:#94a3b8;">${t.orderSummary?.itemCount || 0} items</p>
+                      </div>
+                      ${hasBill ? '<span style="font-size:11px;background:#92400e;color:#fbbf24;padding:3px 8px;border-radius:20px;font-weight:bold;">🔔 Bill Requested</span>' : '<span style="font-size:11px;color:#64748b;">Open →</span>'}
+                    </button>`;
+        }).join('');
+      }
+
+      async function openOrder(orderId, tableName) {
+        selectedOrderId = orderId;
+        selectedMethod = 'cash';
+        document.getElementById('dpos-cash').style.background = '#16a34a';
+        document.getElementById('dpos-card').style.background = '#334155';
+        document.getElementById('dpos-mobile').style.background = '#334155';
+
+        try {
+          const order = await apiFetch(`/orders/${orderId}`);
+          document.getElementById('dinein-detail-title').textContent = `${tableName} — Bill`;
+
+          const billItems = (order.items || []).filter(i => i.kitchenStatus !== 'cancelled');
+          const subtotal = billItems.reduce((s, i) => s + i.price * i.qty, 0);
+          const hasUnready = billItems.some(i => !['ready', 'cancelled'].includes(i.kitchenStatus));
+
+          document.getElementById('dinein-detail-items').innerHTML = billItems.map(i => `
+                    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b;font-size:13px;">
+                        <span>${i.qty}× ${i.name}</span>
+                        <span style="color:#fbbf24;">${(i.price * i.qty).toFixed(2)}</span>
+                    </div>`).join('') +
+            `<div style="display:flex;justify-content:space-between;padding:10px 0;font-weight:bold;font-size:14px;">
+                        <span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>`;
+
+          const warn = document.getElementById('dinein-not-ready-warning');
+          const forceBtn = document.getElementById('dinein-force-close-btn');
+          if (hasUnready) {
+            const notReadyCount = billItems.filter(i => !['ready', 'cancelled'].includes(i.kitchenStatus)).length;
+            warn.style.display = 'block';
+            document.getElementById('dinein-not-ready-text').textContent = `${notReadyCount} item(s) are still being prepared.`;
+            forceBtn.style.display = 'block';
+          } else {
+            warn.style.display = 'none';
+            forceBtn.style.display = 'none';
+          }
+
+          document.getElementById('dinein-order-detail').style.display = 'block';
+        } catch (e) {
+          alert('Could not load order: ' + e.message);
+        }
+      }
+
+      function setMethod(method) {
+        selectedMethod = method;
+        ['cash', 'card', 'mobile'].forEach(m => {
+          document.getElementById(`dpos-${m}`).style.background = m === method ? '#d97706' : '#334155';
+        });
+      }
+
+      async function closeBill(force = false) {
+        if (!selectedOrderId) return;
+        if (force && !confirm('Force close this bill? Some items may not be ready yet.')) return;
+
+        const discountType = document.getElementById('dinein-close-discount-type').value;
+        const discount = parseFloat(document.getElementById('dinein-close-discount-val').value) || 0;
+
+        try {
+          const res = await apiFetch(`/orders/${selectedOrderId}/close`, {
+            method: 'POST',
+            body: JSON.stringify({
+              method: selectedMethod,
+              discountType,
+              discount,
+              closeOverride: force
+            })
+          });
+          if (res?.success) {
+            alert(`✅ Bill closed! Receipt: ${res.receiptNo} | Total: ${res.total?.toFixed(2)}`);
+            document.getElementById('dineInTablesModal').style.display = 'none';
+          }
+        } catch (e) {
+          if (e.message && e.message.includes('not ready')) {
+            document.getElementById('dinein-not-ready-warning').style.display = 'block';
+            document.getElementById('dinein-force-close-btn').style.display = 'block';
+          } else {
+            alert('Could not close bill: ' + e.message);
+          }
+        }
+      }
+
+      window.DineInPOS = { openTablesView, openOrder, setMethod, closeBill };
+    })();
+  </script>
 
   <!-- Scripts -->
   <script src="js/web-adapter.js"></script>

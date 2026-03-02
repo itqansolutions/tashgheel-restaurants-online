@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dine-In Management - F&B POS</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* Table card pulse animation for occupied tables with ready items */
+        @keyframes pulse-border {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+            }
+        }
+
+        .all-ready-pulse {
+            animation: pulse-border 2s infinite;
+        }
+
+        /* Item status chip animations */
+        @keyframes slide-in {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .item-row {
+            animation: slide-in 0.2s ease;
+        }
+
+        /* Panel slide-in */
+        #order-panel {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #order-panel.hidden-panel {
+            transform: translateX(100%);
+        }
+
+        #panel-backdrop {
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 h-screen overflow-hidden flex">
+
+    <!-- Sidebar (shared nav pattern) -->
+    <aside id="sidebar"
+        class="fixed inset-y-0 left-0 z-40 w-64 bg-[#0f172a] border-r border-slate-800 text-slate-300 flex flex-col shrink-0 transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0">
+        <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="favicon.png" alt="Logo"
+                    class="w-10 h-10 rounded-lg bg-slate-800 p-1 object-contain shadow-sm border border-slate-700">
+                <div>
+                    <h2 class="font-bold text-sm leading-tight text-white">F&B POS System</h2>
+                    <p class="text-[10px] text-slate-500">Management System</p>
+                </div>
+            </div>
+            <button onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')"
+                class="md:hidden text-slate-400 hover:text-white">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto py-4 space-y-1">
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="pos.html">
+                <span class="material-symbols-outlined text-xl">point_of_sale</span>
+                <span class="text-sm font-medium">POS</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 bg-amber-600/20 border-l-4 border-amber-500 text-amber-500"
+                href="dine-in.html">
+                <span class="material-symbols-outlined text-xl">table_restaurant</span>
+                <span class="text-sm font-bold">Dine-In</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="kitchen.html">
+                <span class="material-symbols-outlined text-xl">countertops</span>
+                <span class="text-sm font-medium">Kitchen</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="products.html">
+                <span class="material-symbols-outlined text-xl">menu_book</span>
+                <span class="text-sm font-medium">Menu Items</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="inventory.html">
+                <span class="material-symbols-outlined text-xl">inventory_2</span>
+                <span class="text-sm font-medium">Inventory</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="reports.html">
+                <span class="material-symbols-outlined text-xl">assessment</span>
+                <span class="text-sm font-medium">Reports</span>
+            </a>
+            <a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                href="admin.html">
+                <span class="material-symbols-outlined text-xl">settings</span>
+                <span class="text-sm font-medium">Admin Panel</span>
+            </a>
+            <button onclick="confirmLogout()"
+                class="w-full flex items-center gap-3 px-6 py-3 text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors text-left">
+                <span class="material-symbols-outlined text-xl">logout</span>
+                <span class="text-sm font-medium">Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+
+        <!-- Top Header -->
+        <header
+            class="h-16 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between px-4 sm:px-6 shrink-0 z-20">
+            <div class="flex items-center gap-4">
+                <button onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')"
+                    class="md:hidden p-2 -ml-2 text-slate-400 hover:bg-slate-800 rounded-lg">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <h1 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-500">table_restaurant</span>
+                    Dine-In Management
+                </h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- Stats bar -->
+                <div class="hidden sm:flex items-center gap-4 text-sm text-slate-400">
+                    <span class="flex items-center gap-1">
+                        <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                        <span id="stat-occupied">0</span> Occupied
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span id="stat-available">0</span> Available
+                    </span>
+                </div>
+                <!-- Manage Tables button -->
+                <button onclick="DineIn.openTableManager()"
+                    class="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-medium transition-colors">
+                    <span class="material-symbols-outlined text-sm">edit_square</span>
+                    Manage Tables
+                </button>
+                <button onclick="DineIn.loadTables()"
+                    class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold transition-colors">
+                    <span class="material-symbols-outlined text-sm">refresh</span>
+                    Refresh
+                </button>
+            </div>
+        </header>
+
+        <!-- Table Grid -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-900">
+            <div id="tables-grid"
+                class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <!-- Populated by JS -->
+                <div class="col-span-full flex flex-col items-center justify-center p-20 text-slate-600">
+                    <span class="material-symbols-outlined text-5xl mb-3 animate-spin">sync</span>
+                    <p>Loading tables...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Order Panel Backdrop -->
+    <div id="panel-backdrop" class="fixed inset-0 bg-black/60 z-40 opacity-0 pointer-events-none"
+        onclick="DineIn.closePanel()"></div>
+
+    <!-- Order Panel (Right Drawer) -->
+    <div id="order-panel"
+        class="fixed inset-y-0 right-0 w-full max-w-lg bg-[#0f172a] border-l border-slate-800 z-50 flex flex-col hidden-panel pointer-events-none">
+
+        <!-- Panel Header -->
+        <div class="h-16 border-b border-slate-800 flex items-center justify-between px-5 shrink-0">
+            <div>
+                <h2 class="text-lg font-bold text-white" id="panel-title">Table 1</h2>
+                <p class="text-xs text-slate-500" id="panel-subtitle">Open order</p>
+            </div>
+            <button onclick="DineIn.closePanel()"
+                class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <!-- Item List -->
+        <div id="order-items" class="flex-1 overflow-y-auto p-4 space-y-2">
+            <!-- Populated by JS -->
+        </div>
+
+        <!-- Add Item Search Bar -->
+        <div class="border-t border-slate-800 p-4 shrink-0">
+            <div class="relative mb-3">
+                <span
+                    class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-lg">search</span>
+                <input id="item-search" type="text" placeholder="Search menu items to add..."
+                    class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg py-2 pl-9 pr-3 text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                    oninput="DineIn.searchProducts(this.value)">
+            </div>
+            <!-- Product search results -->
+            <div id="product-results"
+                class="hidden max-h-40 overflow-y-auto bg-slate-800 rounded-lg border border-slate-700 mb-3"></div>
+        </div>
+
+        <!-- Panel Action Buttons -->
+        <div class="border-t border-slate-800 p-4 grid grid-cols-2 gap-3 shrink-0">
+            <button id="btn-send-kitchen" onclick="DineIn.sendToKitchen()"
+                class="flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                <span class="material-symbols-outlined text-lg">send</span>
+                Send to Kitchen
+            </button>
+            <button id="btn-request-bill" onclick="DineIn.requestBill()"
+                class="flex items-center justify-center gap-2 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-sm transition-colors">
+                <span class="material-symbols-outlined text-lg">receipt</span>
+                Request Bill
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Manager Modal -->
+    <div id="table-manager-modal" class="fixed inset-0 bg-black/70 z-60 hidden flex items-center justify-center p-4">
+        <div class="bg-[#1e293b] rounded-2xl border border-slate-700 w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between p-5 border-b border-slate-700">
+                <h3 class="font-bold text-lg">Manage Tables</h3>
+                <button onclick="document.getElementById('table-manager-modal').classList.add('hidden')"
+                    class="text-slate-400 hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5">
+                <div id="table-manager-list" class="space-y-2 mb-4"></div>
+                <!-- Add table form -->
+                <div class="border-t border-slate-700 pt-4">
+                    <p class="text-sm font-semibold text-slate-400 mb-3">Add New Table</p>
+                    <div class="flex gap-2">
+                        <input id="new-table-name" type="text" placeholder="Name (e.g. Table 5)"
+                            class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500">
+                        <input id="new-table-code" type="text" placeholder="Code (T5)"
+                            class="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 uppercase">
+                        <button onclick="DineIn.addTable()"
+                            class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-bold transition-colors">
+                            Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] hidden">
+        <div id="toast-inner"
+            class="px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-2xl flex items-center gap-2 max-w-sm">
+        </div>
+    </div>
+
+    <script src="js/web-adapter.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script>window.currentPage = 'dine-in';</script>
+    <script src="js/shared-nav.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/dine-in-app.js"></script>
+</body>
+
+</html>

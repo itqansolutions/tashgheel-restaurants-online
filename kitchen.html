@@ -192,6 +192,13 @@
                         <span id="aggregator-badge"
                             class="hidden items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse">0</span>
                     </button>
+                    <button id="tab-dinein" onclick="switchKitchenTab('dinein')"
+                        class="px-4 py-2.5 text-sm font-bold rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all flex items-center gap-2 relative">
+                        <span class="material-symbols-outlined text-lg">table_restaurant</span>
+                        Dine-In
+                        <span id="dinein-badge"
+                            class="hidden items-center justify-center w-5 h-5 bg-green-500 text-white text-[10px] font-bold rounded-full">0</span>
+                    </button>
                 </div>
 
                 <!-- Kitchen Orders Grid -->
@@ -211,6 +218,15 @@
                     </div>
                 </div>
 
+                <!-- Dine-In Kitchen Grid -->
+                <div id="dinein-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                    style="display: none;">
+                    <div class="col-span-full flex flex-col items-center justify-center p-20 text-slate-600 opacity-50">
+                        <span class="material-symbols-outlined text-5xl mb-3">table_restaurant</span>
+                        <p class="text-lg">No active dine-in items</p>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -224,30 +240,145 @@
     <script src="js/kitchen-app.js"></script>
     <script src="js/aggregator-app.js"></script>
     <script>
-        // Tab switching logic
+        // ─── Tab switching (now handles 3 tabs) ───
+        let dineInPollTimer = null;
+
         function switchKitchenTab(tab) {
             const kitchenGrid = document.getElementById('kitchen-grid');
             const aggGrid = document.getElementById('aggregator-grid');
+            const dineinGrid = document.getElementById('dinein-grid');
             const tabKitchen = document.getElementById('tab-kitchen');
             const tabDelivery = document.getElementById('tab-delivery');
+            const tabDinein = document.getElementById('tab-dinein');
 
-            const activeClass = 'border-amber-500 text-amber-500 bg-slate-800/50';
-            const inactiveClass = 'border-transparent text-slate-400 hover:text-slate-200';
+            const active = 'border-amber-500 text-amber-500 bg-slate-800/50';
+            const inactive = 'border-transparent text-slate-400 hover:text-slate-200';
+
+            // Hide all
+            kitchenGrid.style.display = 'none';
+            aggGrid.style.display = 'none';
+            dineinGrid.style.display = 'none';
+
+            // Deactivate all tabs
+            [tabKitchen, tabDelivery, tabDinein].forEach(t => {
+                if (t) t.className = t.className.replace(active, inactive);
+            });
 
             if (tab === 'kitchen') {
                 kitchenGrid.style.display = 'grid';
-                aggGrid.style.display = 'none';
-                tabKitchen.className = tabKitchen.className.replace(inactiveClass, '').replace(activeClass, '') + ' ' + activeClass;
-                tabDelivery.className = tabDelivery.className.replace(activeClass, '').replace(inactiveClass, '') + ' ' + inactiveClass;
-            } else {
-                kitchenGrid.style.display = 'none';
+                tabKitchen.className = tabKitchen.className.replace(inactive, active);
+                loadKitchenOrders();
+                clearInterval(dineInPollTimer);
+            } else if (tab === 'delivery') {
                 aggGrid.style.display = 'grid';
-                tabDelivery.className = tabDelivery.className.replace(inactiveClass, '').replace(activeClass, '') + ' ' + activeClass;
-                tabKitchen.className = tabKitchen.className.replace(activeClass, '').replace(inactiveClass, '') + ' ' + inactiveClass;
+                tabDelivery.className = tabDelivery.className.replace(inactive, active);
                 window.AggregatorHub && window.AggregatorHub.loadAggregatorOrders();
+                clearInterval(dineInPollTimer);
+            } else if (tab === 'dinein') {
+                dineinGrid.style.display = 'grid';
+                tabDinein.className = tabDinein.className.replace(inactive, active);
+                loadDineInKitchen();
+                // Poll dine-in every 3 seconds
+                clearInterval(dineInPollTimer);
+                dineInPollTimer = setInterval(loadDineInKitchen, 3000);
+            }
+        }
+
+        // ─── Dine-In Kitchen ───
+        async function loadDineInKitchen() {
+            try {
+                const data = await apiFetch('/dine-in/kitchen');
+                renderDineInKitchen(data || []);
+                // Update badge
+                const badge = document.getElementById('dinein-badge');
+                const totalItems = (data || []).reduce((s, o) =>
+                    s + (o.batches || []).reduce((bs, b) => bs + (b.items || []).length, 0), 0);
+                if (totalItems > 0) {
+                    badge.textContent = totalItems;
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                } else {
+                    badge.classList.add('hidden');
+                    badge.classList.remove('flex');
+                }
+            } catch (e) { console.error('dine-in kitchen load error:', e); }
+        }
+
+        function renderDineInKitchen(orders) {
+            const grid = document.getElementById('dinein-grid');
+            if (!orders || orders.length === 0) {
+                grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center p-20 text-slate-600 opacity-50">
+                    <span class="material-symbols-outlined text-5xl mb-3">table_restaurant</span>
+                    <p class="text-lg">No active dine-in items</p></div>`;
+                return;
+            }
+
+            grid.innerHTML = orders.map(order => {
+                const billBadge = order.requestedBillAt
+                    ? `<div class="mb-2 flex items-center gap-1 text-amber-400 text-xs font-bold">
+                        <span class="material-symbols-outlined text-sm">notifications_active</span>
+                        🔔 Bill Requested
+                       </div>`
+                    : '';
+
+                const batchesHtml = (order.batches || []).map(batch => `
+                    <div class="mb-3">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase mb-1.5">Batch ${batch.batchNo}</p>
+                        ${(batch.items || []).map(item => `
+                            <div class="flex items-center gap-2 py-1.5 border-b border-slate-700/50">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-bold text-white truncate">
+                                        <span class="text-amber-400">${item.qty}×</span> ${item.name}
+                                    </p>
+                                    ${item.note ? `<p class="text-xs text-slate-500">📝 ${item.note}</p>` : ''}
+                                </div>
+                                <div class="flex gap-1 shrink-0">
+                                    ${item.kitchenStatus === 'sent' ? `
+                                    <button onclick="updateDineInItem('${order.orderId}', '${item.lineId}', 'preparing')"
+                                        class="px-2 py-1 bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-bold rounded-lg transition-colors">
+                                        🍳 Start
+                                    </button>` : ''}
+                                    ${item.kitchenStatus === 'preparing' ? `
+                                    <button onclick="updateDineInItem('${order.orderId}', '${item.lineId}', 'ready')"
+                                        class="px-2 py-1 bg-green-600 hover:bg-green-500 text-white text-[11px] font-bold rounded-lg transition-colors">
+                                        ✅ Ready
+                                    </button>` : ''}
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full ${item.kitchenStatus === 'sent' ? 'bg-blue-600 text-white' :
+                        item.kitchenStatus === 'preparing' ? 'bg-orange-500 text-white' :
+                            'bg-green-600 text-white'
+                    }">${item.kitchenStatus}</span>
+                                </div>
+                            </div>`).join('')}
+                    </div>`).join('');
+
+                return `
+                    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-amber-400 text-xl">table_restaurant</span>
+                                <h3 class="text-base font-bold text-white">${order.tableName || 'Table'}</h3>
+                            </div>
+                            <span class="text-xs text-slate-500">Order #${String(order.orderId).slice(-6)}</span>
+                        </div>
+                        ${billBadge}
+                        ${batchesHtml}
+                    </div>`;
+            }).join('');
+        }
+
+        async function updateDineInItem(orderId, lineId, status) {
+            try {
+                await apiFetch(`/dine-in/kitchen/${orderId}/items/${lineId}/status`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status })
+                });
+                loadDineInKitchen(); // Immediate refresh
+            } catch (e) {
+                alert('Could not update: ' + e.message);
             }
         }
     </script>
+
 
     <!-- Mobile Sidebar Logic handled by shared-nav.js -->
 </body>

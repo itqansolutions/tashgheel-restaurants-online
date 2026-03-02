@@ -107,6 +107,9 @@ if (!mongoUri) {
             } catch (migErr) {
                 console.error('⚠️ Migration error (non-fatal):', migErr.message);
             }
+
+            // Start background jobs (must run after DB connection)
+            require('./jobs/orderCleanup');
         })
         .catch(err => {
             console.error('❌ MongoDB Connection Error:', err.message);
@@ -131,6 +134,12 @@ app.use('/api/public', require('./routes/public-api'));
 
 // Aggregator Hub — webhook uses raw body for HMAC, other routes use auth+branchScope inside router
 app.use('/api/aggregator', require('./aggregators/aggregatorRouter'));
+
+// 🪑 Dine-In System
+const qrAuth = require('./middleware/qrAuth');
+app.use('/api/tables', auth, branchScope, require('./routes/tables'));             // Table management (staff only)
+app.use('/api/orders', qrAuth, branchScope, require('./routes/orders'));           // Orders (staff + customer QR)
+app.use('/api/dine-in/kitchen', auth, branchScope, require('./routes/kitchen-orders')); // Kitchen display (staff only)
 
 app.use('/api', auth, branchScope, apiRoutes);
 

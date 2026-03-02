@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Branch = require('../models/Branch');
+const Order = require('../models/Order');
 const auth = require('../middleware/auth');
+
 
 // Apply Auth Middleware to ALL routes in this file
 router.use(auth);
@@ -48,13 +50,21 @@ router.post('/', async (req, res) => {
 });
 
 // @route   DELETE /api/branches/:id
-// @desc    Delete a branch
+// @desc    Delete a branch — blocked if active dine-in orders exist
 router.delete('/:id', async (req, res) => {
     try {
-        const branch = await Branch.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
-        if (!branch) {
-            return res.status(404).json({ msg: 'Branch not found' });
+        const branch = await Branch.findOne({ _id: req.params.id, tenantId: req.tenantId });
+        if (!branch) return res.status(404).json({ msg: 'Branch not found' });
+
+        // Guard: cannot delete branch with open dine-in orders
+        const hasOpenOrders = await Order.exists({ branchId: req.params.id, status: 'open' });
+        if (hasOpenOrders) {
+            return res.status(409).json({
+                msg: 'This branch has active dine-in orders. Close all table bills before deleting the branch.'
+            });
         }
+
+        await Branch.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
         res.json({ msg: 'Branch removed' });
     } catch (err) {
         console.error(err.message);
@@ -63,3 +73,4 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+

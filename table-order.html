@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Order from Your Table</title>
+    <meta name="description" content="Scan to order food directly from your table">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: pan-y;
+        }
+
+        /* Category pill active state */
+        .cat-pill.active {
+            background: #d97706;
+            color: #fff;
+        }
+
+        /* Product card press effect */
+        .product-card:active {
+            transform: scale(0.97);
+        }
+
+        .product-card {
+            transition: transform 0.1s ease;
+        }
+
+        /* Item status colors */
+        .status-pending {
+            background: #374151;
+            color: #9ca3af;
+        }
+
+        .status-sent {
+            background: #1d4ed8;
+            color: #fff;
+        }
+
+        .status-preparing {
+            background: #c2410c;
+            color: #fff;
+        }
+
+        .status-ready {
+            background: #15803d;
+            color: #fff;
+        }
+
+        .status-cancelled {
+            background: transparent;
+            color: #6b7280;
+            text-decoration: line-through;
+        }
+
+        @keyframes fade-up {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-up {
+            animation: fade-up 0.3s ease;
+        }
+
+        /* Cart button bounce */
+        @keyframes bounce-once {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            40% {
+                transform: scale(1.18);
+            }
+
+            70% {
+                transform: scale(0.95);
+            }
+        }
+
+        .bounce {
+            animation: bounce-once 0.4s ease;
+        }
+
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+    <!-- ─── Loading Screen ─── -->
+    <div id="loading-screen" class="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center">
+        <span class="material-symbols-outlined text-6xl text-amber-500 mb-4">restaurant</span>
+        <p class="text-xl font-bold text-white">Welcome</p>
+        <p class="text-slate-400 text-sm mt-1" id="loading-message">Loading your table's menu...</p>
+        <div class="mt-6 flex gap-1">
+            <span class="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style="animation-delay:0s"></span>
+            <span class="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style="animation-delay:0.15s"></span>
+            <span class="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style="animation-delay:0.3s"></span>
+        </div>
+    </div>
+
+    <!-- ─── Error Screen ─── -->
+    <div id="error-screen"
+        class="fixed inset-0 bg-slate-950 z-50 hidden flex flex-col items-center justify-center p-8 text-center">
+        <span class="material-symbols-outlined text-6xl text-red-500 mb-4">error</span>
+        <p class="text-xl font-bold text-white mb-2">Something went wrong</p>
+        <p class="text-slate-400 text-sm mb-6" id="error-message">Please scan the QR code again.</p>
+        <button onclick="window.location.reload()" class="px-6 py-3 bg-amber-600 text-white rounded-xl font-bold">Try
+            Again</button>
+    </div>
+
+    <!-- ─── Locked Screen (during bill processing) ─── -->
+    <div id="locked-screen"
+        class="fixed inset-0 bg-slate-950/95 z-40 hidden flex flex-col items-center justify-center p-8 text-center">
+        <span class="material-symbols-outlined text-6xl text-amber-400 mb-4 animate-pulse">lock</span>
+        <p class="text-xl font-bold text-white mb-2">Bill is being processed</p>
+        <p class="text-slate-400 text-sm">Your waiter is processing the bill. Please wait or ask for assistance.</p>
+    </div>
+
+    <!-- ─── Main App ─── -->
+    <div id="app" class="hidden pb-36">
+
+        <!-- Header -->
+        <header class="sticky top-0 z-30 bg-slate-950/95 backdrop-blur border-b border-slate-800 px-4 py-3">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <h1 class="text-base font-bold text-white" id="header-table-name">Table</h1>
+                    <p class="text-xs text-slate-500" id="header-subtitle">Scan &amp; Order</p>
+                </div>
+                <!-- My Order badge -->
+                <button onclick="TableOrder.showMyOrder()"
+                    class="relative flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors">
+                    <span class="material-symbols-outlined text-xl text-amber-400">receipt_long</span>
+                    <span class="text-sm font-semibold text-white">My Order</span>
+                    <span id="cart-badge"
+                        class="hidden absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-[10px] font-bold text-white rounded-full flex items-center justify-center">0</span>
+                </button>
+            </div>
+
+            <!-- Category pills -->
+            <div id="category-pills" class="flex gap-2 overflow-x-auto pb-1">
+                <button
+                    class="cat-pill active px-4 py-1.5 rounded-full bg-slate-700 text-white text-sm font-semibold whitespace-nowrap shrink-0"
+                    onclick="TableOrder.filterCategory('all')" data-cat="all">🍽️ All</button>
+                <!-- More pills added by JS -->
+            </div>
+        </header>
+
+        <!-- Product Grid -->
+        <div id="product-grid" class="p-4 grid grid-cols-2 gap-3">
+            <!-- Populated by JS -->
+        </div>
+
+    </div>
+
+    <!-- ─── My Order Drawer ─── -->
+    <div id="order-backdrop" class="fixed inset-0 bg-black/60 z-40 hidden" onclick="TableOrder.hideMyOrder()"></div>
+    <div id="order-drawer"
+        class="fixed bottom-0 left-0 right-0 z-50 bg-[#0f172a] rounded-t-2xl border-t border-slate-800 translate-y-full transition-transform duration-300 max-h-[85vh] flex flex-col">
+
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800 shrink-0">
+            <div>
+                <h2 class="font-bold text-white">My Order</h2>
+                <p class="text-xs text-slate-500" id="order-summary-text">0 items</p>
+            </div>
+            <button onclick="TableOrder.hideMyOrder()" class="text-slate-400 hover:text-white">
+                <span class="material-symbols-outlined">expand_more</span>
+            </button>
+        </div>
+
+        <div id="order-items-list" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+
+        <div class="p-4 border-t border-slate-800 shrink-0">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm text-slate-400">Total estimate</p>
+                <p class="text-lg font-bold text-white" id="order-total">0.00</p>
+            </div>
+            <button id="btn-send-order" onclick="TableOrder.sendToKitchen()"
+                class="w-full py-3.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined">send</span>
+                Send to Kitchen
+            </button>
+            <p class="text-center text-xs text-slate-500 mt-2">Only pending items will be sent</p>
+        </div>
+    </div>
+
+    <!-- ─── Add Item Note Modal ─── -->
+    <div id="note-modal" class="fixed inset-0 bg-black/70 z-60 hidden flex items-end justify-center">
+        <div class="bg-[#1e293b] rounded-t-2xl w-full p-5 border-t border-slate-700">
+            <p class="font-bold text-white mb-3" id="note-modal-title">Add a note</p>
+            <input id="note-input" type="text" placeholder="Special request (e.g. no onions)"
+                class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 mb-3">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('note-modal').classList.add('hidden')"
+                    class="flex-1 py-3 bg-slate-700 text-white rounded-xl font-semibold">Cancel</button>
+                <button onclick="TableOrder.confirmAddWithNote()"
+                    class="flex-1 py-3 bg-amber-600 text-white rounded-xl font-bold">Add Item</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] hidden w-[90vw] max-w-sm">
+        <div id="toast-inner" class="px-4 py-3 rounded-xl text-white text-sm font-semibold shadow-2xl text-center">
+        </div>
+    </div>
+
+    <!-- Send to Kitchen floating button (visible when pending items exist) -->
+    <div id="send-fab" class="fixed bottom-4 left-4 right-4 z-30 hidden fade-up">
+        <button onclick="TableOrder.showMyOrder()"
+            class="w-full py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-bold text-base shadow-2xl flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined">restaurant</span>
+            <span id="fab-text">View Order · 0 items</span>
+        </button>
+    </div>
+
+    <script src="js/table-order-app.js"></script>
+</body>
+
+</html>
