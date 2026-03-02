@@ -17,10 +17,25 @@ module.exports = async function qrAuth(req, res, next) {
     if (cookieToken) {
         try {
             const decoded = jwt.verify(cookieToken, process.env.JWT_SECRET);
-            req.tenantId = decoded.tenantId;
-            req.branchId = decoded.branchId;
-            req.userId = decoded.userId;
+            // Staff JWT payload is nested: { user: { id, tenantId, role, branchIds[], defaultBranchId } }
+            const user = decoded.user;
+            if (!user) throw new Error('Invalid JWT structure');
+
+            req.tenantId = user.tenantId;
+            req.userId = user.id;
+            req.user = user;        // Keep req.user for any downstream middleware
             req.userRole = 'staff';
+
+            // branchId is NOT in the JWT — the existing system sends it as x-branch-id header
+            // (same as branchScope reads it). We do the same here.
+            const headerBranchId = req.header('x-branch-id');
+            if (headerBranchId && /^[0-9a-fA-F]{24}$/.test(headerBranchId)) {
+                req.branchId = headerBranchId;
+            } else {
+                // Fallback: user's defaultBranchId for staff who didn't send the header
+                req.branchId = user.defaultBranchId || null;
+            }
+
             return next();
         } catch (e) {
             // Cookie token present but invalid — fall through to check Bearer
