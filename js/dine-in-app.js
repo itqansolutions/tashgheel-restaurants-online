@@ -266,23 +266,12 @@
 
     async function loadProducts() {
         try {
-            // Use the same route that web-adapter.js uses for electronAPI.readData
-            const data = await apiFetch('/data/read/spare_parts');
-            if (Array.isArray(data)) {
-                products = data;
-            } else if (typeof data === 'string') {
-                products = JSON.parse(data);
-            } else if (data && typeof data === 'object') {
-                // Some backends wrap in { value: [...] }
-                products = Array.isArray(data.value)
-                    ? data.value
-                    : (typeof data.value === 'string' ? JSON.parse(data.value) : []);
-            } else {
-                products = [];
-            }
-            console.log(`[DineIn] Loaded ${products.length} products`);
+            // Dine-in is a staff page. All staff pages have auth.js and db.js loaded.
+            // Menu items are already preloaded into memory/storage during the global auth boot sequence.
+            products = window.DB.getParts() || [];
+            console.log(`[DineIn] Loaded ${products.length} products from local DB sync`);
         } catch (e) {
-            console.error('[DineIn] Failed to load products:', e.message);
+            console.error('[DineIn] Failed to load products from DB:', e.message);
             products = [];
         }
     }
