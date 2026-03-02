@@ -266,9 +266,25 @@
 
     async function loadProducts() {
         try {
-            const data = await window.electronAPI.readData('spare_parts');
-            products = Array.isArray(data) ? data : (typeof data === 'string' ? JSON.parse(data) : []);
-        } catch (e) { products = []; }
+            // Use the same route that web-adapter.js uses for electronAPI.readData
+            const data = await apiFetch('/data/read/spare_parts');
+            if (Array.isArray(data)) {
+                products = data;
+            } else if (typeof data === 'string') {
+                products = JSON.parse(data);
+            } else if (data && typeof data === 'object') {
+                // Some backends wrap in { value: [...] }
+                products = Array.isArray(data.value)
+                    ? data.value
+                    : (typeof data.value === 'string' ? JSON.parse(data.value) : []);
+            } else {
+                products = [];
+            }
+            console.log(`[DineIn] Loaded ${products.length} products`);
+        } catch (e) {
+            console.error('[DineIn] Failed to load products:', e.message);
+            products = [];
+        }
     }
 
     function searchProducts(query) {
