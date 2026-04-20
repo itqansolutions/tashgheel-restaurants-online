@@ -542,8 +542,7 @@ router.post('/kitchen/complete/:id', async (req, res) => {
         await prisma.sale.update({
             where: { id },
             data: {
-                kitchenStatus: 'ready',
-                kitchenCompletedAt: new Date()
+                kitchenStatus: 'ready'
             }
         });
 
