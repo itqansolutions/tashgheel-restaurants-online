@@ -5,7 +5,7 @@
   "main": "server/index.js",
   "author": "itqan",
   "scripts": {
-    "start": "npx prisma db push --accept-data-loss && node server/index.js",
+    "start": "NODE_OPTIONS=\"--dns-result-order=ipv4first\" npx prisma db push --accept-data-loss && NODE_OPTIONS=\"--dns-result-order=ipv4first\" node server/index.js",
     "dev": "nodemon server/index.js",
     "postinstall": "prisma generate"
   },
