@@ -706,25 +706,38 @@ router.post('/inventory/transfer', async (req, res) => {
 // 1. Live Sales Monitor
 router.get('/reports/live', async (req, res) => {
     try {
-        const { branchId, tenantId } = req;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const { tenantId } = req;
+        const branchId = req.query.branchId || req.branchId;
+
+        // Use Branch Timezone for "Today" boundaries
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+        const timezone = branch?.settings?.timezone || 'Africa/Cairo';
+        
+        // Get start of today in branch timezone, converted to UTC
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+        const today = new Date(todayStr + 'T00:00:00Z'); // Note: This is an approximation, but better than UTC 00:00
+
+        const filter = { tenantId, date: { gte: today }, status: 'finished' };
+        if (branchId && branchId !== 'all') filter.branchId = branchId;
 
         const stats = await prisma.sale.aggregate({
-            where: { tenantId, branchId, date: { gte: today }, status: 'finished' },
+            where: filter,
             _sum: { total: true },
             _count: { id: true },
             _avg: { total: true }
         });
 
         const recentOrders = await prisma.sale.findMany({
-            where: { tenantId, branchId, date: { gte: today } },
+            where: filter,
             orderBy: { date: 'desc' },
             take: 10
         });
 
+        const shiftFilter = { tenantId, cashierId: req.userId, status: 'open' };
+        if (branchId && branchId !== 'all') shiftFilter.branchId = branchId;
+
         const currentShift = await prisma.shift.findFirst({
-            where: { tenantId, branchId, cashierId: req.userId, status: 'open' }
+            where: shiftFilter
         });
 
         res.json({
@@ -744,12 +757,20 @@ router.get('/reports/live', async (req, res) => {
 // 2. Sales History (Paginated)
 router.get('/reports/history', async (req, res) => {
     try {
-        const { branchId, tenantId } = req;
+        const { tenantId } = req;
+        const queryBranchId = req.query.branchId;
+        
         let { page = 1, limit = 50, from, to, cashier, status } = req.query;
         page = parseInt(page);
         limit = parseInt(limit);
 
-        const filter = { tenantId, branchId };
+        const filter = { tenantId };
+        
+        if (queryBranchId && queryBranchId !== 'all') {
+            filter.branchId = queryBranchId;
+        } else if (req.branchId && queryBranchId !== 'all') {
+            filter.branchId = req.branchId;
+        }
 
         if (from || to) {
             filter.date = {};
