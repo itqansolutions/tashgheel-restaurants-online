@@ -6,7 +6,8 @@
   "author": "itqan",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^7.7.0",
@@ -21,7 +22,8 @@
     "nodemailer": "^6.9.16"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "prisma": "^7.7.0"
   },
   "engines": {
     "node": "20.x"
