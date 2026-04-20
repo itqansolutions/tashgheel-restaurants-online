@@ -21,25 +21,36 @@ router.post('/vendors', async (req, res) => {
 
         let vendor;
         if (id) {
-            vendor = await prisma.vendor.upsert({
-                where: { id },
-                update: {
-                    name: data.name,
-                    mobile: data.mobile,
-                    address: data.address,
-                    credit: parseFloat(data.credit) || 0,
-                    updatedAt: new Date()
-                },
-                create: {
-                    id: id.length === 36 ? id : undefined, // Ensure it's a UUID if provided, else let Prisma generate
-                    name: data.name,
-                    mobile: data.mobile,
-                    address: data.address,
-                    credit: parseFloat(data.credit) || 0,
-                    tenantId,
-                    branchId
-                }
-            });
+            // Verify ownership before updating
+            const existing = await prisma.vendor.findUnique({ where: { id } });
+            if (existing && existing.tenantId !== tenantId) {
+                return res.status(403).json({ error: 'Access denied to this vendor' });
+            }
+
+            if (existing) {
+                vendor = await prisma.vendor.update({
+                    where: { id },
+                    data: {
+                        name: data.name,
+                        mobile: data.mobile,
+                        address: data.address,
+                        credit: parseFloat(data.credit) || 0,
+                        updatedAt: new Date()
+                    }
+                });
+            } else {
+                vendor = await prisma.vendor.create({
+                    data: {
+                        id: id.length === 36 ? id : undefined,
+                        name: data.name,
+                        mobile: data.mobile,
+                        address: data.address,
+                        credit: parseFloat(data.credit) || 0,
+                        tenantId,
+                        branchId
+                    }
+                });
+            }
         } else {
             vendor = await prisma.vendor.create({
                 data: {
@@ -85,27 +96,37 @@ router.post('/customers', async (req, res) => {
 
         let customer;
         if (id) {
-            customer = await prisma.customer.upsert({
-                where: { id },
-                update: {
-                    name: data.name,
-                    mobile: data.mobile,
-                    notes: data.notes,
-                    addresses: data.addresses,
-                    loyaltyPoints: parseInt(data.loyaltyPoints) || 0,
-                    updatedAt: new Date()
-                },
-                create: {
-                    id: id.length === 36 ? id : undefined,
-                    name: data.name,
-                    mobile: data.mobile,
-                    notes: data.notes,
-                    addresses: data.addresses,
-                    loyaltyPoints: parseInt(data.loyaltyPoints) || 0,
-                    tenantId,
-                    branchId
-                }
-            });
+            const existing = await prisma.customer.findUnique({ where: { id } });
+            if (existing && existing.tenantId !== tenantId) {
+                return res.status(403).json({ error: 'Access denied to this customer' });
+            }
+
+            if (existing) {
+                customer = await prisma.customer.update({
+                    where: { id },
+                    data: {
+                        name: data.name,
+                        mobile: data.mobile,
+                        notes: data.notes,
+                        addresses: data.addresses,
+                        loyaltyPoints: parseInt(data.loyaltyPoints) || 0,
+                        updatedAt: new Date()
+                    }
+                });
+            } else {
+                customer = await prisma.customer.create({
+                    data: {
+                        id: id.length === 36 ? id : undefined,
+                        name: data.name,
+                        mobile: data.mobile,
+                        notes: data.notes,
+                        addresses: data.addresses,
+                        loyaltyPoints: parseInt(data.loyaltyPoints) || 0,
+                        tenantId,
+                        branchId
+                    }
+                });
+            }
         } else {
             customer = await prisma.customer.create({
                 data: {

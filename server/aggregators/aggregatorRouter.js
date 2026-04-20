@@ -30,9 +30,11 @@ const AGGREGATOR_STATUSES = {
 };
 
 // ─── Helper: Status transition ───
-async function transitionOrder(orderId, newStatus, note) {
-    const order = await prisma.aggregatorOrder.findUnique({ where: { id: orderId } });
-    if (!order) return null;
+async function transitionOrder(orderId, newStatus, note, tenantId) {
+    const order = await prisma.aggregatorOrder.findUnique({ 
+        where: { id: orderId } 
+    });
+    if (!order || order.tenantId !== tenantId) return null;
 
     const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
     const updatedHistory = [...history, { status: newStatus, at: new Date(), note }];
@@ -164,7 +166,8 @@ router.get('/orders', async (req, res) => {
 router.post('/orders/:id/accept', async (req, res) => {
     try {
         const order = await prisma.aggregatorOrder.findUnique({ where: { id: req.params.id } });
-        if (!order) return res.status(404).json({ error: 'Order not found' });
+        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
+        
         if (order.status !== AGGREGATOR_STATUSES.PENDING) {
             return res.status(400).json({ error: `Cannot accept order in status: ${order.status}` });
         }
@@ -273,7 +276,7 @@ router.post('/orders/:id/accept', async (req, res) => {
 router.post('/orders/:id/reject', async (req, res) => {
     try {
         const { reason } = req.body;
-        const order = await transitionOrder(req.params.id, AGGREGATOR_STATUSES.REJECTED, reason || 'Rejected by staff');
+        const order = await transitionOrder(req.params.id, AGGREGATOR_STATUSES.REJECTED, reason || 'Rejected by staff', req.tenantId);
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
         try {
@@ -293,7 +296,7 @@ router.post('/orders/:id/reject', async (req, res) => {
 // ─── Mark Ready ───
 router.post('/orders/:id/ready', async (req, res) => {
     try {
-        const order = await transitionOrder(req.params.id, AGGREGATOR_STATUSES.READY, 'Marked ready for pickup');
+        const order = await transitionOrder(req.params.id, AGGREGATOR_STATUSES.READY, 'Marked ready for pickup', req.tenantId);
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
         try {

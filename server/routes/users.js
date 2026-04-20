@@ -56,6 +56,17 @@ router.post('/', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
+        // STRICTOR Isolation: Verify that ALL branchIds belong to this tenant
+        if (branchIds && branchIds.length > 0) {
+            const validBranches = await prisma.branch.findMany({
+                where: { id: { in: branchIds }, tenantId: req.tenantId },
+                select: { id: true }
+            });
+            if (validBranches.length !== branchIds.length) {
+                return res.status(403).json({ msg: 'One or more invalid Branch IDs provided' });
+            }
+        }
+
         const user = await prisma.user.create({
             data: {
                 tenantId: req.tenantId,
@@ -116,6 +127,15 @@ router.put('/:id', async (req, res) => {
         }
 
         if (branchIds) {
+            // STRICTOR Isolation: Verify that ALL branchIds belong to this tenant
+            const validBranches = await prisma.branch.findMany({
+                where: { id: { in: branchIds }, tenantId: req.tenantId },
+                select: { id: true }
+            });
+            if (validBranches.length !== branchIds.length) {
+                return res.status(403).json({ msg: 'One or more invalid Branch IDs provided' });
+            }
+
             updateData.branches = {
                 set: branchIds.map(id => ({ id }))
             };

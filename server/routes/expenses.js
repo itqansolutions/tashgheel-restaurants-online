@@ -5,10 +5,17 @@ const prisma = require('../prisma');
 // GET /api/expenses
 router.get('/', async (req, res) => {
     try {
-        const { branchId, tenantId } = req;
-        const { from, to, category } = req.query;
+        const { tenantId } = req;
+        const { from, to, category, branchId: queryBranchId } = req.query;
 
-        const filter = { tenantId, branchId };
+        const filter = { tenantId };
+        
+        // Use queryBranchId if 'all' isn't requested, or fallback to session branchId
+        if (queryBranchId && queryBranchId !== 'all') {
+            filter.branchId = queryBranchId;
+        } else if (req.branchId && queryBranchId !== 'all') {
+            filter.branchId = req.branchId;
+        }
 
         if (from || to) {
             filter.date = {};

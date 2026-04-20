@@ -134,7 +134,11 @@ router.put('/:id', async (req, res) => {
         const { name, capacity, isActive } = req.body;
         
         await prisma.table.update({
-            where: { id: req.params.id },
+            where: { 
+                id: req.params.id,
+                tenantId: req.tenantId,
+                branchId: req.branchId
+            },
             data: {
                 name: name ? name.trim() : undefined,
                 capacity: capacity !== undefined ? parseInt(capacity) : undefined,
@@ -142,7 +146,9 @@ router.put('/:id', async (req, res) => {
             }
         });
 
-        const updatedTable = await prisma.table.findUnique({ where: { id: req.params.id } });
+        const updatedTable = await prisma.table.findFirst({ 
+            where: { id: req.params.id, tenantId: req.tenantId, branchId: req.branchId } 
+        });
         res.json({ success: true, table: updatedTable });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -152,8 +158,14 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/tables/:id
 router.delete('/:id', async (req, res) => {
     try {
-        const table = await prisma.table.findUnique({ where: { id: req.params.id } });
-        if (!table || table.tenantId !== req.tenantId || table.branchId !== req.branchId) {
+        const table = await prisma.table.findFirst({
+            where: {
+                id: req.params.id,
+                tenantId: req.tenantId,
+                branchId: req.branchId
+            }
+        });
+        if (!table) {
             return res.status(404).json({ error: 'Table not found' });
         }
 
@@ -169,7 +181,7 @@ router.delete('/:id', async (req, res) => {
         }
 
         await prisma.table.update({
-            where: { id: req.params.id },
+            where: { id: req.params.id, tenantId: req.tenantId, branchId: req.branchId },
             data: { isActive: false, isArchived: true }
         });
 
@@ -183,7 +195,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/rotate-qr', async (req, res) => {
     try {
         await prisma.table.update({
-            where: { id: req.params.id },
+            where: { id: req.params.id, tenantId: req.tenantId, branchId: req.branchId },
             data: { qrSecret: crypto.randomBytes(32).toString('hex') }
         });
         res.json({ success: true, message: 'QR secret rotated. Previous QR codes are now invalid.' });

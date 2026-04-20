@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 /**
- * Orders Router
+ * Orders Router (Hardened)
  *
  * Full lifecycle management for live dine-in open orders.
  * Auth: qrAuth middleware (accepts both staff JWT and customer QR token).
@@ -132,7 +132,9 @@ router.post('/', async (req, res) => {
                             cost: i.cost,
                             note: i.note,
                             addedBy: i.addedBy,
-                            lineId: i.lineId
+                            lineId: i.lineId,
+                            tenantId: req.tenantId,
+                            branchId: req.branchId
                         }))
                     }
                 },
@@ -140,7 +142,7 @@ router.post('/', async (req, res) => {
             });
 
             await tx.table.update({
-                where: { id: tableId },
+                where: { id: tableId, tenantId: req.tenantId },
                 data: { status: 'occupied', activeOrderId: newOrder.id }
             });
 
@@ -195,7 +197,7 @@ router.patch('/:id/items', async (req, res) => {
                         throw new Error(`Item "${existing.name}" cannot be edited — it has already been sent to the kitchen.`);
                     }
                     await tx.orderItem.update({
-                        where: { id: existing.id },
+                        where: { id: existing.id, tenantId: req.tenantId },
                         data: {
                             qty: item.qty,
                             price: item.price,
@@ -214,14 +216,16 @@ router.patch('/:id/items', async (req, res) => {
                             cost: item.cost,
                             note: item.note,
                             addedBy: item.addedBy,
-                            lineId: item.lineId
+                            lineId: item.lineId,
+                            tenantId: req.tenantId,
+                            branchId: req.branchId
                         }
                     });
                 }
             }
 
             await tx.order.update({
-                where: { id: order.id },
+                where: { id: order.id, tenantId: req.tenantId },
                 data: {
                     version: { increment: 1 },
                     lastActivityAt: new Date()
@@ -232,7 +236,7 @@ router.patch('/:id/items', async (req, res) => {
         const updatedOrder = await prisma.order.findUnique({ where: { id: req.params.id }, include: { items: true } });
         res.json({ success: true, version: updatedOrder.version, order: updatedOrder });
     } catch (err) {
-        res.status(err.message.includes('cannot be edited') ? 409 : 500).json({ error: err.message });
+        res.status(err.message && err.message.includes('cannot be edited') ? 409 : 500).json({ error: err.message });
     }
 });
 
@@ -257,12 +261,12 @@ router.delete('/:id/items/:lineId', async (req, res) => {
         }
 
         await prisma.orderItem.update({
-            where: { id: item.id },
+            where: { id: item.id, tenantId: req.tenantId },
             data: { kitchenStatus: 'cancelled', cancelledAt: new Date() }
         });
 
         await prisma.order.update({
-            where: { id: order.id },
+            where: { id: order.id, tenantId: req.tenantId },
             data: { version: { increment: 1 }, lastActivityAt: new Date() }
         });
 
@@ -290,11 +294,11 @@ router.post('/:id/send', async (req, res) => {
 
         await prisma.$transaction([
             prisma.orderItem.updateMany({
-                where: { orderId: order.id, kitchenStatus: 'pending' },
+                where: { orderId: order.id, kitchenStatus: 'pending', tenantId: req.tenantId },
                 data: { kitchenStatus: 'sent', sentAt: now, batchNo }
             }),
             prisma.order.update({
-                where: { id: order.id },
+                where: { id: order.id, tenantId: req.tenantId },
                 data: { currentBatch: batchNo, version: { increment: 1 }, lastActivityAt: now }
             })
         ]);
@@ -314,7 +318,7 @@ router.post('/:id/lock', async (req, res) => {
         if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
 
         await prisma.order.update({
-            where: { id: order.id },
+            where: { id: order.id, tenantId: req.tenantId },
             data: { isLocked: true, requestedBillAt: order.requestedBillAt || new Date() }
         });
 
@@ -328,8 +332,8 @@ router.post('/:id/lock', async (req, res) => {
 router.post('/:id/unlock', async (req, res) => {
     try {
         if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });
-        const order = await prisma.order.update({
-            where: { id: req.params.id },
+        await prisma.order.update({
+            where: { id: req.params.id, tenantId: req.tenantId },
             data: { isLocked: false }
         });
         res.json({ success: true });
@@ -369,7 +373,7 @@ router.post('/:id/close', async (req, res) => {
             where: { tenantId: order.tenantId, branchId: order.branchId },
             orderBy: { date: 'desc' }
         });
-        const lastNum = lastSale ? (parseInt(lastSale.receiptNo) || 0) : 0;
+        const lastNum = lastSale ? (parseInt(lastSale.receiptNo.replace(/\D/g, '')) || 0) : 0;
         const receiptNo = String(lastNum + 1).padStart(4, '0');
         const saleId = `REC-${lastNum + 1}`;
 
@@ -414,18 +418,19 @@ router.post('/:id/close', async (req, res) => {
             }
 
             await tx.order.update({
-                where: { id: order.id },
+                where: { id: order.id, tenantId: order.tenantId },
                 data: { status: 'closed', closedAt: new Date(), mappedSaleId: saleId }
             });
 
             await tx.table.update({
-                where: { id: order.tableId },
+                where: { id: order.tableId, tenantId: order.tenantId, branchId: order.branchId },
                 data: { status: 'available', activeOrderId: null }
             });
 
             return sale;
         });
 
+        log('ORDER_CLOSED', { branch: order.branchId, table: order.tableName, orderId: order.id, saleId: result.id });
         res.json({ success: true, saleId: result.id, receiptNo, total });
     } catch (err) {
         console.error('Order Close Error:', err);
@@ -441,8 +446,14 @@ router.post('/:id/cancel', async (req, res) => {
         if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
 
         await prisma.$transaction([
-            prisma.order.update({ where: { id: order.id }, data: { status: 'cancelled', closedAt: new Date() } }),
-            prisma.table.update({ where: { id: order.tableId }, data: { status: 'available', activeOrderId: null } })
+            prisma.order.update({ 
+                where: { id: order.id, tenantId: req.tenantId }, 
+                data: { status: 'cancelled', closedAt: new Date() } 
+            }),
+            prisma.table.update({ 
+                where: { id: order.tableId, tenantId: req.tenantId, branchId: req.branchId }, 
+                data: { status: 'available', activeOrderId: null } 
+            })
         ]);
 
         res.json({ success: true });

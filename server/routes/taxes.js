@@ -6,11 +6,11 @@ const prisma = require('../prisma');
 router.get('/', async (req, res) => {
     try {
         const { enabled, branchId } = req.query;
-        let filter = {};
+        let filter = { tenantId: req.tenantId }; // STRICT Isolation
 
         if (enabled === 'true') filter.enabled = true;
 
-        if (branchId) {
+        if (branchId && branchId !== 'all') {
             filter.OR = [
                 { branchId: null }, // Global taxes
                 { branchId: branchId }
@@ -58,9 +58,12 @@ router.put('/:id', async (req, res) => {
     try {
         const { name, percentage, enabled, branchId, orderTypes } = req.body;
 
-        const tax = await prisma.tax.findUnique({ where: { id: req.params.id } });
-        if (!tax || (tax.tenantId && tax.tenantId !== req.tenantId)) {
-            return res.status(404).json({ error: 'Tax not found' });
+        const tax = await prisma.tax.findUnique({ 
+            where: { id: req.params.id } 
+        });
+        
+        if (!tax || tax.tenantId !== req.tenantId) {
+            return res.status(404).json({ error: 'Tax not found or access denied' });
         }
 
         const updatedTax = await prisma.tax.update({
@@ -70,7 +73,7 @@ router.put('/:id', async (req, res) => {
                 percentage: percentage !== undefined ? parseFloat(percentage) : undefined,
                 enabled,
                 orderTypes,
-                branchId
+                branchId: branchId || undefined
             }
         });
 
@@ -83,9 +86,12 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/taxes/:id - Delete tax
 router.delete('/:id', async (req, res) => {
     try {
-        const tax = await prisma.tax.findUnique({ where: { id: req.params.id } });
-        if (!tax || (tax.tenantId && tax.tenantId !== req.tenantId)) {
-            return res.status(404).json({ error: 'Tax not found' });
+        const tax = await prisma.tax.findUnique({ 
+            where: { id: req.params.id } 
+        });
+        
+        if (!tax || tax.tenantId !== req.tenantId) {
+            return res.status(404).json({ error: 'Tax not found or access denied' });
         }
 
         await prisma.tax.delete({ where: { id: req.params.id } });

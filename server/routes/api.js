@@ -425,6 +425,12 @@ router.post('/sales/refund/:id', async (req, res) => {
         });
 
         if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Sale not found' });
+
+        // STRICTOR Isolation: Ensure branchId matches to prevent cross-branch refunding by non-admins
+        if (sale.branchId !== req.branchId && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'FORBIDDEN', msg: 'You do not have permission to refund sales from this branch' });
+        }
+
         if (sale.status === 'refunded' || sale.status === 'void') {
             return res.status(400).json({ error: 'Sale is already refunded/voided' });
         }
@@ -710,8 +716,15 @@ router.get('/reports/live', async (req, res) => {
         const branchId = req.query.branchId || req.branchId;
 
         // Use Branch Timezone for "Today" boundaries
-        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
-        const timezone = branch?.settings?.timezone || 'Africa/Cairo';
+        const branch = await prisma.branch.findFirst({ 
+            where: { id: branchId, tenantId: req.tenantId } 
+        });
+        
+        if (!branch) {
+            return res.status(403).json({ error: 'FORBIDDEN', msg: 'Branch access denied or invalid branch' });
+        }
+        
+        const timezone = branch.settings?.timezone || 'Africa/Cairo';
         
         // Get start of today in branch timezone, converted to UTC
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: timezone });

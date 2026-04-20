@@ -60,8 +60,10 @@ router.get('/menu/:branchId', async (req, res) => {
     try {
         const { branchId } = req.params;
 
-        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
-        if (!branch) return res.status(404).json({ error: 'Branch not found' });
+        const branch = await prisma.branch.findFirst({ 
+            where: { id: branchId, isActive: true } 
+        });
+        if (!branch) return res.status(404).json({ error: 'Branch not found or inactive' });
 
         const tenantId = branch.tenantId;
 
