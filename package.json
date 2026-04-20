@@ -5,7 +5,7 @@
   "main": "server/index.js",
   "author": "itqan",
   "scripts": {
-    "start": "node server/index.js",
+    "start": "npx prisma db push --accept-data-loss && node server/index.js",
     "dev": "nodemon server/index.js",
     "postinstall": "prisma generate"
   },
