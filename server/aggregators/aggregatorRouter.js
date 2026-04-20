@@ -5,6 +5,8 @@
  * Dynamically loads the correct adapter based on :provider param.
  */
 
+const express = require('express');
+const router = express.Router();
 const prisma = require('../prisma');
 const storage = require('../utils/storage');
 const { getAdapter } = require('./adapters');
