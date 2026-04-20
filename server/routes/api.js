@@ -753,8 +753,8 @@ router.get('/reports/history', async (req, res) => {
 
         if (from || to) {
             filter.date = {};
-            if (from) filter.date.gte = new Date(parseInt(from) || from);
-            if (to) filter.date.lte = new Date(parseInt(to) || to);
+            if (from) filter.date.gte = new Date(isNaN(Number(from)) ? from : Number(from));
+            if (to) filter.date.lte = new Date(isNaN(Number(to)) ? to : Number(to));
         }
         if (cashier) filter.cashierId = cashier;
         if (status) filter.status = status;
