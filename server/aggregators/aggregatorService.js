@@ -5,8 +5,7 @@
  * and cross-cutting concerns for all providers.
  */
 
-const crypto = require('crypto');
-const AggregatorOrder = require('../models/AggregatorOrder');
+const prisma = require('../prisma');
 const { getAdapter, listProviders } = require('./adapters');
 
 const ALGORITHM = 'aes-256-cbc';
@@ -21,7 +20,6 @@ function getMasterKey() {
 
 /**
  * Derive a per-provider encryption key from master key
- * Limits blast radius if one provider's data is compromised
  */
 function deriveProviderKey(provider) {
     const master = getMasterKey();
@@ -32,9 +30,6 @@ function deriveProviderKey(provider) {
 
 /**
  * Encrypt credentials before storing
- * @param {object} credentials - Plain text credentials object
- * @param {string} provider - Provider key for key derivation
- * @returns {string} Encrypted string (iv:encrypted)
  */
 function encryptCredentials(credentials, provider) {
     const key = deriveProviderKey(provider);
@@ -47,9 +42,6 @@ function encryptCredentials(credentials, provider) {
 
 /**
  * Decrypt stored credentials
- * @param {string} encryptedStr - Format: iv:encrypted
- * @param {string} provider - Provider key for key derivation
- * @returns {object} Decrypted credentials object
  */
 function decryptCredentials(encryptedStr, provider) {
     const key = deriveProviderKey(provider);
@@ -63,29 +55,27 @@ function decryptCredentials(encryptedStr, provider) {
 
 /**
  * Get health status for a specific provider + branch
- * @param {string} provider 
- * @param {ObjectId} branchId 
- * @param {ObjectId} tenantId 
- * @returns {object}
  */
 async function getHealthStatus(provider, branchId, tenantId) {
     const adapter = getAdapter(provider);
     if (!adapter) return { error: 'Unknown provider' };
 
-    // Last webhook received
-    const lastOrder = await AggregatorOrder.findOne(
-        { provider, branchId, tenantId },
-        { createdAt: 1 }
-    ).sort({ createdAt: -1 }).lean();
+    // Last order received
+    const lastOrder = await prisma.aggregatorOrder.findFirst({
+        where: { provider, branchId, tenantId },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true }
+    });
 
     // Counts by status
-    const statusCounts = await AggregatorOrder.aggregate([
-        { $match: { provider, branchId, tenantId } },
-        { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
+    const statusCounts = await prisma.aggregatorOrder.groupBy({
+        by: ['status'],
+        where: { provider, branchId, tenantId },
+        _count: { _all: true }
+    });
 
     const counts = {};
-    statusCounts.forEach(s => { counts[s._id] = s.count; });
+    statusCounts.forEach(s => { counts[s.status] = s._count._all; });
 
     return {
         provider,

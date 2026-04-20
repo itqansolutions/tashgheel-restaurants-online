@@ -1,9 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Expense = require('../models/Expense');
-
-// Middleware to ensure authentication and branch context
-// Assumes auth middleware (req.user) and branch middleware (req.branchId) are applied in index.js
+const prisma = require('../prisma');
 
 // GET /api/expenses
 router.get('/', async (req, res) => {
@@ -11,17 +8,20 @@ router.get('/', async (req, res) => {
         const { branchId, tenantId } = req;
         const { from, to, category } = req.query;
 
-        const query = { tenantId, branchId };
+        const filter = { tenantId, branchId };
 
         if (from || to) {
-            query.date = {};
-            if (from) query.date.$gte = from;
-            if (to) query.date.$lte = to;
+            filter.date = {};
+            if (from) filter.date.gte = new Date(from);
+            if (to) filter.date.lte = new Date(to);
         }
 
-        if (category) query.category = category;
+        if (category) filter.category = category;
 
-        const expenses = await Expense.find(query).sort({ date: -1, createdAt: -1 });
+        const expenses = await prisma.expense.findMany({
+            where: filter,
+            orderBy: { date: 'desc' }
+        });
         res.json(expenses);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -32,26 +32,27 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { description, amount, date, seller, method, notes, category } = req.body;
-        const { branchId, tenantId, user } = req;
+        const { branchId, tenantId, username } = req; // auth middleware sets req.username
 
         if (!description || !amount || !date) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const expense = new Expense({
-            description,
-            amount,
-            date,
-            seller,
-            method,
-            notes,
-            category,
-            tenantId,
-            branchId,
-            createdBy: user ? user.username : 'system'
+        const expense = await prisma.expense.create({
+            data: {
+                description,
+                amount: parseFloat(amount),
+                date: new Date(date),
+                seller,
+                method,
+                notes,
+                category,
+                tenantId,
+                branchId,
+                createdBy: username || 'system'
+            }
         });
 
-        await expense.save();
         res.status(201).json(expense);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -64,10 +65,12 @@ router.delete('/:id', async (req, res) => {
         const { id } = req.params;
         const { branchId, tenantId } = req;
 
-        const deleted = await Expense.findOneAndDelete({ _id: id, tenantId, branchId });
+        const expense = await prisma.expense.findUnique({ where: { id } });
+        if (!expense || expense.tenantId !== tenantId || expense.branchId !== branchId) {
+            return res.status(404).json({ error: 'Expense not found' });
+        }
 
-        if (!deleted) return res.status(404).json({ error: 'Expense not found' });
-
+        await prisma.expense.delete({ where: { id } });
         res.json({ success: true, id });
     } catch (err) {
         res.status(500).json({ error: err.message });

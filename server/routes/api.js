@@ -1,26 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const storage = require('../utils/storage');
+const prisma = require('../prisma');
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
 
-// Models
-const ProductStock = require('../models/ProductStock');
-const Shift = require('../models/Shift');
-const Sale = require('../models/Sale');
-const DailySummary = require('../models/DailySummary');
-const Branch = require('../models/Branch');
-
 // === Data Storage Endpoints ===
 
-// Save Data (Replace `saveData` command)
+// Save Data
 router.post('/data/save', async (req, res) => {
     const { key, value } = req.body;
     if (!key) return res.status(400).json({ success: false, error: 'Key is required' });
 
     try {
-        await storage.saveData(key, value, req.tenantId);
+        const tid = req.tenantId || 'global';
+        await prisma.data.upsert({
+            where: { key_tenantId: { key, tenantId: tid } },
+            update: { value, updatedAt: new Date() },
+            create: { key, tenantId: tid, value }
+        });
         res.json({ success: true });
     } catch (err) {
         console.error(`Error saving ${key}:`, err);
@@ -28,24 +26,28 @@ router.post('/data/save', async (req, res) => {
     }
 });
 
-// Read Data (Filtered by Branch for Sales)
+// Read Data
 router.get('/data/read/:key', async (req, res) => {
     const { key } = req.params;
     try {
-        const rawData = await storage.readData(key, req.tenantId);
+        const tid = req.tenantId || 'global';
+        const dataDoc = await prisma.data.findUnique({
+            where: { key_tenantId: { key, tenantId: tid } }
+        });
+
+        let rawData = dataDoc ? dataDoc.value : null;
 
         // Branch Enforcement for Sales/Receipts
         if (req.branchId && (key === 'sales' || key.startsWith('receipts'))) {
             if (!rawData) return res.json([]);
 
-            let data = [];
-            try { data = JSON.parse(rawData); } catch (e) { data = []; }
+            let data = Array.isArray(rawData) ? rawData : [];
+            if (typeof rawData === 'string') {
+                try { data = JSON.parse(rawData); } catch (e) { data = []; }
+            }
 
             if (Array.isArray(data)) {
-                // Filter by Branch ID
-                const filtered = data.filter(item => {
-                    return item.branchId === req.branchId;
-                });
+                const filtered = data.filter(item => item.branchId === req.branchId);
                 return res.json(filtered);
             }
         }
@@ -53,23 +55,23 @@ router.get('/data/read/:key', async (req, res) => {
         // Branch Stock Merging for Products
         if (req.branchId && (key === 'spare_parts' || key === 'products')) {
             let products = [];
-            try { products = JSON.parse(rawData || '[]'); } catch (e) { products = []; }
-
-            // Fetch real stock
-            try {
-                // Hard check to avoid CastError
-                if (!/^[0-9a-fA-F]{24}$/.test(req.branchId)) {
-                    console.error('Bypassing merge: Invalid branchId format:', req.branchId);
-                    return res.json(products);
+            if (rawData) {
+                products = Array.isArray(rawData) ? rawData : [];
+                if (typeof rawData === 'string') {
+                    try { products = JSON.parse(rawData); } catch (e) { products = []; }
                 }
+            }
 
-                const stocks = await ProductStock.find({
-                    tenantId: req.tenantId,
-                    branchId: req.branchId
+            try {
+                const stocks = await prisma.productStock.findMany({
+                    where: {
+                        tenantId: req.tenantId,
+                        branchId: req.branchId
+                    }
                 });
 
                 const stockMap = {};
-                stocks.forEach(s => stockMap[s.productId.toString()] = s.qty);
+                stocks.forEach(s => stockMap[s.productId] = s.qty);
 
                 products.forEach(p => {
                     p.stock = stockMap[p.id] || 0;
@@ -82,6 +84,9 @@ router.get('/data/read/:key', async (req, res) => {
             }
         }
 
+        if (typeof rawData === 'object' && rawData !== null) {
+            return res.json(rawData);
+        }
         res.send(rawData || '');
     } catch (err) {
         console.error(`Error reading ${key}:`, err);
@@ -92,23 +97,27 @@ router.get('/data/read/:key', async (req, res) => {
 // List Data Files
 router.get('/data/list', async (req, res) => {
     try {
-        const files = await storage.listDataFiles(req.tenantId);
-        res.json(files);
+        const tid = req.tenantId || 'global';
+        const dataItems = await prisma.data.findMany({
+            where: { tenantId: tid },
+            select: { key: true, updatedAt: true }
+        });
+        res.json(dataItems.map(d => ({ key: d.key, updatedAt: d.updatedAt })));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Delete a Data Key (Admin: Clear stale data)
+// Delete a Data Key
 router.delete('/data/delete/:key', async (req, res) => {
     const { key } = req.params;
     if (!key) return res.status(400).json({ success: false, error: 'Key is required' });
 
     try {
-        const Data = require('../models/Data');
         const tid = req.tenantId || 'global';
-        await Data.deleteOne({ key, tenantId: tid });
-        console.log(`🗑️ Deleted data key '${key}' for tenant '${tid}'`);
+        await prisma.data.deleteMany({
+            where: { key, tenantId: tid }
+        });
         res.json({ success: true, message: `Data '${key}' cleared` });
     } catch (err) {
         console.error(`Error deleting ${key}:`, err);
@@ -116,33 +125,21 @@ router.delete('/data/delete/:key', async (req, res) => {
     }
 });
 
-// Check File Exists
-router.post('/file/exists', async (req, res) => {
-    const { filename } = req.body;
-    const exists = await storage.checkFileExists(filename, req.tenantId);
-    res.json(exists);
-});
-
 // === SHIFT MANAGEMENT ===
 
 // 1. Get Current Shift (Multi-User)
 router.get('/shifts/current', async (req, res) => {
     try {
-        console.log('🔍 Checking Current Shift:', {
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            userId: req.userId
-        });
-
-        // Check if user is the opener OR in the cashiers list
-        const shift = await Shift.findOne({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            status: 'open',
-            $or: [
-                { cashierId: req.userId },
-                { cashiers: req.userId }
-            ]
+        const shift = await prisma.shift.findFirst({
+            where: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                status: 'open',
+                OR: [
+                    { cashierId: req.userId },
+                    { cashiers: { path: [], array_contains: req.userId } }
+                ]
+            }
         });
         res.json({ shift });
     } catch (err) {
@@ -150,15 +147,19 @@ router.get('/shifts/current', async (req, res) => {
     }
 });
 
-// 1.1 List Active Shifts for Branch (For Joining)
+// 1.1 List Active Shifts for Branch
 router.get('/shifts/active-branch', async (req, res) => {
     try {
-        const shifts = await Shift.find({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            status: 'open'
-        }).populate('cashierId', 'username fullName');
-
+        const shifts = await prisma.shift.findMany({
+            where: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                status: 'open'
+            },
+            include: {
+                cashier: { select: { username: true, fullName: true } }
+            }
+        });
         res.json(shifts);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -170,26 +171,28 @@ router.post('/shifts/open', async (req, res) => {
     try {
         const { openingCash } = req.body;
 
-        const existing = await Shift.findOne({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            cashierId: req.userId,
-            status: 'open'
+        const existing = await prisma.shift.findFirst({
+            where: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                cashierId: req.userId,
+                status: 'open'
+            }
         });
 
         if (existing) return res.status(400).json({ error: 'You already have an open shift' });
 
-        const newShift = new Shift({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            cashierId: req.userId,
-            cashiers: [req.userId], // Initialize list
-            openingCash: parseFloat(openingCash || 0)
+        const newShift = await prisma.shift.create({
+            data: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                cashierId: req.userId,
+                cashiers: [req.userId],
+                openingCash: parseFloat(openingCash || 0)
+            }
         });
 
-        await newShift.save();
         res.json({ success: true, shift: newShift });
-
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -200,23 +203,24 @@ router.post('/shifts/join', async (req, res) => {
     try {
         const { shiftId } = req.body;
 
-        const shift = await Shift.findOne({
-            _id: shiftId,
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            status: 'open'
+        const shift = await prisma.shift.findUnique({
+            where: { id: shiftId }
         });
 
-        if (!shift) return res.status(404).json({ error: 'Shift not found or closed' });
+        if (!shift || shift.status !== 'open' || shift.tenantId !== req.tenantId) {
+            return res.status(404).json({ error: 'Shift not found or closed' });
+        }
 
-        // Add user to cashiers list if not present
-        if (!shift.cashiers.includes(req.userId)) {
-            shift.cashiers.push(req.userId);
-            await shift.save();
+        let cashiers = Array.isArray(shift.cashiers) ? shift.cashiers : [];
+        if (!cashiers.includes(req.userId)) {
+            cashiers.push(req.userId);
+            await prisma.shift.update({
+                where: { id: shiftId },
+                data: { cashiers }
+            });
         }
 
         res.json({ success: true, shift });
-
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -227,50 +231,65 @@ router.post('/shifts/close', async (req, res) => {
     try {
         const { closingCash, shiftId, notes } = req.body;
 
-        const shift = await Shift.findById(shiftId);
+        const shift = await prisma.shift.findUnique({
+            where: { id: shiftId }
+        });
         if (!shift || shift.status !== 'open') return res.status(404).json({ error: 'Shift not found or already closed' });
 
-        const sales = await Sale.aggregate([
-            { $match: { shiftId: shift._id, status: 'finished' } },
-            {
-                $group: {
-                    _id: null,
-                    cashTotal: { $sum: { $cond: [{ $eq: ["$method", "cash"] }, "$total", 0] } },
-                    cardTotal: { $sum: { $cond: [{ $eq: ["$method", "card"] }, "$total", 0] } },
-                    mobileTotal: { $sum: { $cond: [{ $eq: ["$method", "mobile"] }, "$total", 0] } },
-                    totalSales: { $sum: "$total" }
-                }
+        // Prisma Aggregate for stats
+        const aggregations = await prisma.sale.aggregate({
+            _where: { shiftId: shift.id, status: 'finished' },
+            _sum: { total: true },
+        });
+        
+        // Manual grouping for different methods as Prisma aggregate is simple
+        const salesByMethod = await prisma.sale.groupBy({
+            by: ['method'],
+            where: { shiftId: shift.id, status: 'finished' },
+            _sum: { total: true }
+        });
+
+        const stats = { cashTotal: 0, cardTotal: 0, mobileTotal: 0, totalSales: 0 };
+        salesByMethod.forEach(m => {
+            if (m.method === 'cash') stats.cashTotal = m._sum.total || 0;
+            if (m.method === 'card') stats.cardTotal = m._sum.total || 0;
+            if (m.method === 'mobile') stats.mobileTotal = m._sum.total || 0;
+        });
+        stats.totalSales = (stats.cashTotal + stats.cardTotal + stats.mobileTotal);
+
+        const voidsCount = await prisma.sale.count({
+            where: { shiftId: shift.id, status: 'void' }
+        });
+        const voidsSum = await prisma.sale.aggregate({
+            where: { shiftId: shift.id, status: 'void' },
+            _sum: { total: true }
+        });
+
+        const updateData = {
+            closedAt: new Date(),
+            status: 'closed',
+            closingCash: parseFloat(closingCash || 0),
+            expectedCash: shift.openingCash + stats.cashTotal,
+            difference: parseFloat(closingCash || 0) - (shift.openingCash + stats.cashTotal),
+            notes: notes || "",
+            totals: {
+                ...stats,
+                voidsCount,
+                voidsValue: voidsSum._sum.total || 0
             }
-        ]);
-
-        const stats = sales[0] || { cashTotal: 0, cardTotal: 0, mobileTotal: 0, totalSales: 0 };
-        const voids = await Sale.countDocuments({ shiftId: shift._id, status: 'void' });
-        const voidsValue = await Sale.aggregate([
-            { $match: { shiftId: shift._id, status: 'void' } },
-            { $group: { _id: null, total: { $sum: "$total" } } }
-        ]);
-
-        shift.closedAt = new Date();
-        shift.status = 'closed';
-        shift.closingCash = parseFloat(closingCash || 0);
-        shift.expectedCash = shift.openingCash + stats.cashTotal;
-        shift.difference = shift.closingCash - shift.expectedCash;
-        shift.notes = notes || "";
-
-        if (req.userId.toString() !== shift.cashierId.toString()) {
-            shift.forcedBy = req.userId;
-            shift.status = 'force-closed';
-        }
-
-        shift.totals = {
-            ...stats,
-            voidsCount: voids,
-            voidsValue: voidsValue[0]?.total || 0
         };
 
-        await shift.save();
-        res.json({ success: true, shift });
+        if (req.userId !== shift.cashierId) {
+            updateData.forcedById = req.userId;
+            updateData.status = 'force-closed';
+        }
 
+        const closedShift = await prisma.shift.update({
+            where: { id: shiftId },
+            data: updateData
+        });
+
+        res.json({ success: true, shift: closedShift });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -278,33 +297,30 @@ router.post('/shifts/close', async (req, res) => {
 
 // === SALES ===
 
-
-const AuditLog = require('../models/AuditLog');
-
 router.post('/sales', async (req, res) => {
     try {
         const saleData = req.body;
         if (!saleData || !saleData.items) return res.status(400).json({ error: 'Invalid Sale Data' });
 
-        saleData.branchId = req.branchId;
-        saleData.tenantId = req.tenantId;
-
-        const activeShift = await Shift.findOne({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            status: 'open',
-            $or: [
-                { cashierId: req.userId },
-                { cashiers: req.userId }
-            ]
+        const activeShift = await prisma.shift.findFirst({
+            where: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                status: 'open',
+                OR: [
+                    { cashierId: req.userId },
+                    { cashiers: { path: [], array_contains: req.userId } }
+                ]
+            }
         });
         if (!activeShift) return res.status(403).json({ error: 'No open shift found. Please open or join a shift first.' });
-        saleData.shiftId = activeShift._id;
 
-        // Apply Costs
+        // Cost Snapshot
         try {
-            const masterDataRaw = await storage.readData('spare_parts', req.tenantId);
-            const masterProducts = JSON.parse(masterDataRaw || '[]');
+            const masterData = await prisma.data.findUnique({
+                where: { key_tenantId: { key: 'spare_parts', tenantId: req.tenantId } }
+            });
+            const masterProducts = masterData ? (Array.isArray(masterData.value) ? masterData.value : []) : [];
             const costMap = {};
             masterProducts.forEach(p => costMap[String(p.id)] = p.cost || 0);
 
@@ -313,172 +329,200 @@ router.post('/sales', async (req, res) => {
             });
         } catch (e) { console.error('Cost Snapshot Error:', e); }
 
-        const newSale = new Sale(saleData);
-        await newSale.save();
+        // Atomic Transaction for Sale creation and Stock deduction
+        const result = await prisma.$transaction(async (tx) => {
+            const sale = await tx.sale.create({
+                data: {
+                    id: saleData.id,
+                    receiptNo: saleData.receiptNo,
+                    note: saleData.note,
+                    tenantId: req.tenantId,
+                    branchId: req.branchId,
+                    cashier: saleData.cashier,
+                    salesman: saleData.salesman,
+                    shiftId: activeShift.id,
+                    total: saleData.total,
+                    subtotal: saleData.subtotal,
+                    discount: saleData.discount || 0,
+                    deliveryFee: saleData.deliveryFee || 0,
+                    tax: saleData.tax || 0,
+                    method: saleData.method || 'cash',
+                    orderType: saleData.orderType || 'take_away',
+                    tableId: saleData.tableId,
+                    tableName: saleData.tableName,
+                    customer: saleData.customer || {},
+                    source: saleData.source || 'pos',
+                    aggregatorOrderId: saleData.aggregatorOrderId,
+                    date: new Date(),
+                    items: {
+                        create: saleData.items.map(item => ({
+                            productId: String(item.id),
+                            productCode: item.code,
+                            name: item.name,
+                            qty: item.qty,
+                            price: item.price,
+                            cost: item.cost || 0,
+                            note: item.note || '',
+                            discountType: item.discount?.type || 'none',
+                            discountValue: item.discount?.value || 0
+                        }))
+                    }
+                }
+            });
 
-        // 🟢 ATOMICITY IMPROVEMENT: Sequentially deduct stock, rollback on failure
-        const deductedItems = [];
-        try {
+            // Deduct Stock
             for (const item of saleData.items) {
-                await deductStock(req.tenantId, req.branchId, item.id, item.qty);
-                deductedItems.push({ id: item.id, qty: item.qty });
-                if (item.addons && item.addons.length > 0) {
+                await tx.productStock.upsert({
+                    where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(item.id) } },
+                    update: { qty: { decrement: item.qty } },
+                    create: { tenantId: req.tenantId, branchId: req.branchId, productId: String(item.id), qty: -item.qty }
+                });
+
+                if (item.addons) {
                     for (const addon of item.addons) {
-                        await deductStock(req.tenantId, req.branchId, addon.id, item.qty);
-                        deductedItems.push({ id: addon.id, qty: item.qty });
+                        await tx.productStock.upsert({
+                            where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(addon.id) } },
+                            update: { qty: { decrement: item.qty } },
+                            create: { tenantId: req.tenantId, branchId: req.branchId, productId: String(addon.id), qty: -item.qty }
+                        });
                     }
                 }
             }
-        } catch (stockErr) {
-            console.error('❌ Critical Stock Error. Rolling back sale...', stockErr);
-            // Rollback: Delete Sale
-            await Sale.deleteOne({ _id: newSale._id });
-            // Rollback: Restore Stock (Reverse what succeeded)
-            for (const rolledItem of deductedItems) {
-                await restoreStock(req.tenantId, req.branchId, rolledItem.id, rolledItem.qty);
-            }
-            return res.status(500).json({ error: 'Transaction Failed (Stock Error). Sale was rolled back.' });
-        }
 
-        // Legacy + Async Updates (Non-blocking)
-        storage.insert('sales', saleData).catch(e => console.error('Legacy Save Error:', e));
-        updateDailySummary(req, newSale).catch(e => console.error('Summary Update Error:', e));
-
-        // 🟢 AUDIT LOG
-        AuditLog.create({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            userId: req.userId,
-            action: 'SALE_CREATE',
-            details: { saleId: newSale._id, total: newSale.total, itemsCount: newSale.items.length },
-            ipAddress: req.ip
+            return sale;
         });
 
-        res.json({ success: true, id: newSale.id });
+        // Async Updates (Audit and Summary)
+        updateDailySummary(req, result).catch(e => console.error('Summary Update Error:', e));
 
+        await prisma.auditLog.create({
+            data: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                userId: req.userId,
+                action: 'SALE_CREATE',
+                details: { saleId: result.id, total: result.total },
+                ipAddress: req.ip
+            }
+        });
+
+        res.json({ success: true, id: result.id });
     } catch (err) {
         console.error('Sale Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// 🟢 NEW: Refund Endpoint
+// Refund Endpoint
 router.post('/sales/refund/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
 
-        const sale = await Sale.findOne({ _id: id, tenantId: req.tenantId, branchId: req.branchId });
-        if (!sale) return res.status(404).json({ error: 'Sale not found' });
+        const sale = await prisma.sale.findUnique({
+            where: { id },
+            include: { items: true }
+        });
 
+        if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Sale not found' });
         if (sale.status === 'refunded' || sale.status === 'void') {
             return res.status(400).json({ error: 'Sale is already refunded/voided' });
         }
 
-        // 1. Mark as Refunded
-        sale.status = 'refunded';
-        sale.refundReason = reason || 'Customer Return';
-        sale.refundedAt = new Date();
-        sale.refundedBy = req.userId;
-        await sale.save();
-
-        // 2. Restore Stock
-        for (const item of sale.items) {
-            await restoreStock(req.tenantId, req.branchId, item.id, item.qty);
-            if (item.addons) {
-                for (const addon of item.addons) {
-                    await restoreStock(req.tenantId, req.branchId, addon.id, item.qty);
+        await prisma.$transaction(async (tx) => {
+            await tx.sale.update({
+                where: { id },
+                data: {
+                    status: 'refunded',
+                    note: (sale.note || '') + ` | Refund Reason: ${reason || 'Customer Return'}`
                 }
+            });
+
+            // Restore Stock
+            for (const item of sale.items) {
+                await tx.productStock.upsert({
+                    where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: item.productId } },
+                    update: { qty: { increment: item.qty } },
+                    create: { tenantId: req.tenantId, branchId: req.branchId, productId: item.productId, qty: item.qty }
+                });
             }
-        }
+        });
 
-        // 3. Update Summary (Negative/Reverse)
-        // We can re-use updateDailySummary logic but handle 'isRefund' flag within it
-        // Or specific revert logic. The existing summary logic handles isVoid/isRefund by adding 0.
-        // But to correct PAST summary, we need $inc negative values.
-        // For simplicity, let's just log it. Real-time reports query live data anyway.
-        // DailySummary.update... ($inc: { totalRevenue: -sale.total })
-
-        // 4. Audit Log
-        AuditLog.create({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            userId: req.userId,
-            action: 'SALE_REFUND',
-            details: { saleId: sale._id, reason: reason, total: sale.total },
-            ipAddress: req.ip
+        await prisma.auditLog.create({
+            data: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                userId: req.userId,
+                action: 'SALE_REFUND',
+                details: { saleId: id, reason, total: sale.total },
+                ipAddress: req.ip
+            }
         });
 
         res.json({ success: true });
-
     } catch (err) {
         console.error('Refund Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-async function updateDailySummary(req, newSale) {
+async function updateDailySummary(req, result) {
     try {
-        const branch = await Branch.findById(req.branchId);
+        const branch = await prisma.branch.findUnique({ where: { id: req.branchId } });
         const timezone = branch?.settings?.timezone || 'Africa/Cairo';
-        const branchDateStr = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+        const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
 
-        const isVoid = newSale.status === 'void';
-        const isRefund = newSale.status === 'refunded';
+        const isVoid = result.status === 'void';
+        const isRefund = result.status === 'refunded';
 
-        const update = {
-            $inc: {
-                totalRevenue: (isVoid || isRefund) ? 0 : newSale.total,
+        const costTotal = Array.isArray(result.items) ? result.items.reduce((sum, i) => sum + ((i.cost || 0) * (i.qty || 0)), 0) : 0;
+
+        await prisma.dailySummary.upsert({
+            where: { tenantId_branchId_date: { tenantId: req.tenantId, branchId: req.branchId, date: dateStr } },
+            update: {
+                totalRevenue: { increment: (isVoid || isRefund) ? 0 : result.total },
+                totalOrders: { increment: (isVoid || isRefund) ? 0 : 1 },
+                totalDiscount: { increment: (isVoid || isRefund) ? 0 : (result.discount || 0) },
+                totalTax: { increment: (isVoid || isRefund) ? 0 : (result.tax || 0) },
+                totalCost: { increment: (isVoid || isRefund) ? 0 : costTotal },
+                voidsCount: { increment: isVoid ? 1 : 0 },
+                voidsValue: { increment: isVoid ? result.total : 0 },
+                cashTotal: { increment: (!isVoid && !isRefund && result.method === 'cash') ? result.total : 0 },
+                cardTotal: { increment: (!isVoid && !isRefund && result.method === 'card') ? result.total : 0 },
+                mobileTotal: { increment: (!isVoid && !isRefund && result.method === 'mobile') ? result.total : 0 },
+            },
+            create: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                date: dateStr,
+                totalRevenue: (isVoid || isRefund) ? 0 : result.total,
                 totalOrders: (isVoid || isRefund) ? 0 : 1,
-                totalDiscount: (isVoid || isRefund) ? 0 : (newSale.discount || 0),
-                totalTax: (isVoid || isRefund) ? 0 : (newSale.tax || 0),
-                totalCost: (isVoid || isRefund) ? 0 : newSale.items.reduce((sum, i) => sum + ((i.cost || 0) * (i.qty || 0)), 0),
+                totalDiscount: (isVoid || isRefund) ? 0 : (result.discount || 0) ,
+                totalTax: (isVoid || isRefund) ? 0 : (result.tax || 0),
+                totalCost: (isVoid || isRefund) ? 0 : costTotal,
                 voidsCount: isVoid ? 1 : 0,
-                voidsValue: isVoid ? newSale.total : 0
+                voidsValue: isVoid ? result.total : 0,
+                mobileTotal: (!isVoid && !isRefund && result.method === 'mobile') ? result.total : 0
             }
-        };
-
-        if (!isVoid && !isRefund) {
-            const methodKey = `${(newSale.method || 'cash').toLowerCase()}Total`;
-            if (['cashTotal', 'cardTotal', 'mobileTotal'].includes(methodKey)) {
-                update.$inc[methodKey] = newSale.total;
-            }
-        }
-
-        await DailySummary.findOneAndUpdate(
-            { tenantId: req.tenantId, branchId: req.branchId, date: branchDateStr },
-            update,
-            { upsert: true, new: true }
-        );
+        });
     } catch (e) { console.error('Summary Update Error:', e); }
 }
-
-async function restoreStock(tenantId, branchId, productId, qty) {
-    try {
-        let stock = await ProductStock.findOne({ tenantId, branchId, productId });
-        if (stock) {
-            stock.qty += qty;
-            await stock.save();
-        }
-    } catch (e) { console.error('Stock restore error', e); }
-}
-
 
 // === KITCHEN DISPLAY SYSTEM ===
 
 // 1. Get Pending Kitchen Orders
 router.get('/kitchen/orders', async (req, res) => {
     try {
-        const { branchId, tenantId } = req;
-
-        // Find orders where kitchenStatus is 'pending' AND status is NOT void/refunded
-        const orders = await Sale.find({
-            tenantId,
-            branchId,
-            kitchenStatus: 'pending',
-            status: { $nin: ['void', 'refunded'] }
-        }).sort({ date: 1 }); // Oldest first (FIFO)
-
+        const orders = await prisma.sale.findMany({
+            where: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                kitchenStatus: 'pending',
+                status: { notIn: ['void', 'refunded'] }
+            },
+            include: { items: true },
+            orderBy: { date: 'asc' }
+        });
         res.json(orders);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -489,17 +533,19 @@ router.get('/kitchen/orders', async (req, res) => {
 router.post('/kitchen/complete/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const sale = await Sale.findOne({
-            _id: id,
-            tenantId: req.tenantId,
-            branchId: req.branchId
+        const sale = await prisma.sale.findUnique({
+            where: { id }
         });
 
-        if (!sale) return res.status(404).json({ error: 'Order not found' });
+        if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
 
-        sale.kitchenStatus = 'ready';
-        sale.kitchenCompletedAt = new Date();
-        await sale.save();
+        await prisma.sale.update({
+            where: { id },
+            data: {
+                kitchenStatus: 'ready',
+                kitchenCompletedAt: new Date()
+            }
+        });
 
         res.json({ success: true });
     } catch (err) {
@@ -507,37 +553,19 @@ router.post('/kitchen/complete/:id', async (req, res) => {
     }
 });
 
-async function deductStock(tenantId, branchId, productId, qty) {
-    try {
-        let stock = await ProductStock.findOne({ tenantId, branchId, productId });
-        if (!stock) {
-            stock = new ProductStock({ tenantId, branchId, productId, qty: 0 });
-        }
-        stock.qty -= qty;
-        await stock.save();
-    } catch (e) {
-        console.error(`Stock update failed for ${productId}:`, e);
-    }
-}
+// === INVENTORY MANAGEMENT ===
 
-// Set Stock (Absolute)
+// 1. Set Stock (Absolute)
 router.post('/inventory/set', async (req, res) => {
     try {
         const { productId, qty } = req.body;
         if (!productId || qty === undefined) return res.status(400).json({ error: 'Missing Data' });
 
-        let stock = await ProductStock.findOne({ tenantId: req.tenantId, branchId: req.branchId, productId: productId.toString() });
-        if (!stock) {
-            stock = new ProductStock({
-                tenantId: req.tenantId,
-                branchId: req.branchId,
-                productId: productId.toString(),
-                qty: parseFloat(qty)
-            });
-        } else {
-            stock.qty = parseFloat(qty);
-        }
-        await stock.save();
+        await prisma.productStock.upsert({
+            where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(productId) } },
+            update: { qty: parseFloat(qty) },
+            create: { tenantId: req.tenantId, branchId: req.branchId, productId: String(productId), qty: parseFloat(qty) }
+        });
         res.json({ success: true });
     } catch (err) {
         console.error('Inventory Set Error:', err);
@@ -545,10 +573,133 @@ router.post('/inventory/set', async (req, res) => {
     }
 });
 
-// === Utilities ===
-router.post('/utils/ensure-data-dir', async (req, res) => {
-    await storage.ensureDataDir();
-    res.json(true);
+// 2. Adjust Inventory (Waste, Damage, Audit, Transfer)
+router.post('/inventory/adjust', async (req, res) => {
+    try {
+        const { itemId, type, qty, unitCost, reason } = req.body;
+
+        if (!itemId || !type || qty === undefined || unitCost === undefined) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const adjustmentQty = parseFloat(qty);
+        const adjustmentUnitCost = parseFloat(unitCost);
+        const totalCost = adjustmentQty * adjustmentUnitCost;
+
+        await prisma.$transaction(async (tx) => {
+            await tx.inventoryAdjustment.create({
+                data: {
+                    tenantId: req.tenantId,
+                    branchId: req.branchId,
+                    itemId: String(itemId),
+                    type,
+                    qty: adjustmentQty,
+                    unitCost: adjustmentUnitCost,
+                    totalCost,
+                    reason,
+                    createdBy: req.userId
+                }
+            });
+
+            await tx.productStock.upsert({
+                where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(itemId) } },
+                update: { qty: { increment: adjustmentQty } },
+                create: { tenantId: req.tenantId, branchId: req.branchId, productId: String(itemId), qty: adjustmentQty }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    tenantId: req.tenantId,
+                    branchId: req.branchId,
+                    userId: req.userId,
+                    action: 'INVENTORY_ADJUST',
+                    details: { itemId, type, qty: adjustmentQty, reason },
+                    ipAddress: req.ip
+                }
+            });
+        });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Inventory Adjustment Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. Transfer Inventory
+router.post('/inventory/transfer', async (req, res) => {
+    try {
+        const { itemId, targetBranchId, qty, unitCost = 0 } = req.body;
+
+        if (!itemId || !targetBranchId || !qty || qty <= 0) {
+            return res.status(400).json({ error: "Invalid transfer parameters" });
+        }
+
+        if (String(req.branchId) === String(targetBranchId)) {
+            return res.status(400).json({ error: "Cannot transfer to same branch" });
+        }
+
+        const transferQty = parseFloat(qty);
+        const transferUnitCost = parseFloat(unitCost);
+        const totalCost = transferQty * transferUnitCost;
+        const referenceId = `TRF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        await prisma.$transaction(async (tx) => {
+            // Check Source Stock
+            const sourceStock = await tx.productStock.findUnique({
+                where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(itemId) } }
+            });
+            if (!sourceStock || sourceStock.qty < transferQty) {
+                throw new Error("Insufficient stock for transfer");
+            }
+
+            // Adjust Source
+            await tx.inventoryAdjustment.create({
+                data: {
+                    tenantId: req.tenantId,
+                    branchId: req.branchId,
+                    itemId: String(itemId),
+                    type: 'TRANSFER_OUT',
+                    qty: -transferQty,
+                    unitCost: transferUnitCost,
+                    totalCost,
+                    reason: `Transfer to Branch ${targetBranchId}`,
+                    referenceId,
+                    createdBy: req.userId
+                }
+            });
+            await tx.productStock.update({
+                where: { id: sourceStock.id },
+                data: { qty: { decrement: transferQty } }
+            });
+
+            // Adjust Target
+            await tx.inventoryAdjustment.create({
+                data: {
+                    tenantId: req.tenantId,
+                    branchId: targetBranchId,
+                    itemId: String(itemId),
+                    type: 'TRANSFER_IN',
+                    qty: transferQty,
+                    unitCost: transferUnitCost,
+                    totalCost,
+                    reason: `Transfer from Branch ${req.branchId}`,
+                    referenceId,
+                    createdBy: req.userId
+                }
+            });
+            await tx.productStock.upsert({
+                where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: targetBranchId, productId: String(itemId) } },
+                update: { qty: { increment: transferQty } },
+                create: { tenantId: req.tenantId, branchId: targetBranchId, productId: String(itemId), qty: transferQty }
+            });
+        });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Transfer Error:', err);
+        res.status(400).json({ error: err.message });
+    }
 });
 
 // === Reporting Endpoints ===
@@ -560,35 +711,32 @@ router.get('/reports/live', async (req, res) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const stats = await Sale.aggregate([
-            { $match: { tenantId, branchId, date: { $gte: today }, status: 'finished' } },
-            {
-                $group: {
-                    _id: null,
-                    totalRevenue: { $sum: "$total" },
-                    orderCount: { $sum: 1 },
-                    avgTicket: { $avg: "$total" }
-                }
-            }
-        ]);
+        const stats = await prisma.sale.aggregate({
+            where: { tenantId, branchId, date: { gte: today }, status: 'finished' },
+            _sum: { total: true },
+            _count: { id: true },
+            _avg: { total: true }
+        });
 
-        const recentOrders = await Sale.find({ tenantId, branchId, date: { $gte: today } })
-            .sort({ date: -1 })
-            .limit(10);
+        const recentOrders = await prisma.sale.findMany({
+            where: { tenantId, branchId, date: { gte: today } },
+            orderBy: { date: 'desc' },
+            take: 10
+        });
 
-        const currentShift = await Shift.findOne({
-            tenantId,
-            branchId,
-            cashierId: req.userId,
-            status: 'open'
+        const currentShift = await prisma.shift.findFirst({
+            where: { tenantId, branchId, cashierId: req.userId, status: 'open' }
         });
 
         res.json({
-            stats: stats[0] || { totalRevenue: 0, orderCount: 0, avgTicket: 0 },
+            stats: {
+                totalRevenue: stats._sum.total || 0,
+                orderCount: stats._count.id || 0,
+                avgTicket: stats._avg.total || 0
+            },
             recentOrders,
-            currentShift: currentShift || null
+            currentShift
         });
-
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -598,235 +746,83 @@ router.get('/reports/live', async (req, res) => {
 router.get('/reports/history', async (req, res) => {
     try {
         const { branchId, tenantId } = req;
-        const { page = 1, limit = 50, from, to, cashier, status } = req.query;
+        let { page = 1, limit = 50, from, to, cashier, status } = req.query;
+        page = parseInt(page);
+        limit = parseInt(limit);
 
         const filter = { tenantId, branchId };
 
-        console.log('📜 History Request:', { branchId, query: req.query });
-
         if (from || to) {
             filter.date = {};
-            if (from) {
-                const f = !isNaN(from) ? parseInt(from) : from;
-                const d = new Date(f);
-                if (!isNaN(d.getTime())) filter.date.$gte = d;
-            }
-            if (to) {
-                const t = !isNaN(to) ? parseInt(to) : to;
-                const d = new Date(t);
-                if (!isNaN(d.getTime())) {
-                    d.setHours(23, 59, 59, 999);
-                    filter.date.$lte = d;
-                }
-            }
+            if (from) filter.date.gte = new Date(parseInt(from) || from);
+            if (to) filter.date.lte = new Date(parseInt(to) || to);
         }
-
         if (cashier) filter.cashierId = cashier;
         if (status) filter.status = status;
 
-        const total = await Sale.countDocuments(filter);
+        const total = await prisma.sale.count({ where: filter });
 
-        const summary = await Sale.aggregate([
-            { $match: filter },
-            {
-                $group: {
-                    _id: null,
-                    totalCash: { $sum: { $cond: [{ $eq: ["$method", "cash"] }, "$total", 0] } },
-                    totalCard: { $sum: { $cond: [{ $eq: ["$method", "card"] }, "$total", 0] } },
-                    totalMobile: { $sum: { $cond: [{ $eq: ["$method", "mobile"] }, "$total", 0] } },
-                    totalDiscount: { $sum: { $ifNull: ["$discount", 0] } }
-                }
-            }
-        ]);
+        const summaryData = await prisma.sale.groupBy({
+            by: ['method'],
+            where: filter,
+            _sum: { total: true, discount: true }
+        });
 
-        const sales = await Sale.find(filter)
-            .sort({ date: -1 })
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit));
+        const summary = { totalCash: 0, totalCard: 0, totalMobile: 0, totalDiscount: 0 };
+        summaryData.forEach(s => {
+            if (s.method === 'cash') summary.totalCash = s._sum.total || 0;
+            if (s.method === 'card') summary.totalCard = s._sum.total || 0;
+            if (s.method === 'mobile') summary.totalMobile = s._sum.total || 0;
+            summary.totalDiscount += (s._sum.discount || 0);
+        });
+
+        const sales = await prisma.sale.findMany({
+            where: filter,
+            orderBy: { date: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit,
+            include: { items: true }
+        });
 
         res.json({
             total,
-            page: parseInt(page),
+            page,
             pages: Math.ceil(total / limit),
-            summary: summary[0] || { totalCash: 0, totalCard: 0, totalMobile: 0, totalDiscount: 0 },
+            summary,
             sales
         });
-
     } catch (err) {
         console.error('History Report Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// 2b. Get Single Sale by ID (for receipt printing)
+// 3. Get Single Sale
 router.get('/sales/:id', async (req, res) => {
     try {
-        const { tenantId, branchId } = req;
-        const sale = await Sale.findOne({ _id: req.params.id, tenantId, branchId });
-        if (!sale) return res.status(404).json({ error: 'Receipt not found' });
+        const sale = await prisma.sale.findUnique({
+            where: { id: req.params.id },
+            include: { items: true }
+        });
+        if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Receipt not found' });
         res.json(sale);
     } catch (err) {
-        console.error('Get Sale Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// === INVENTORY MANAGEMENT ===
-
-const InventoryAdjustment = require('../models/InventoryAdjustment');
-
-// 1. Adjust Inventory (Waste, Damage, Audit, Transfer)
-router.post('/inventory/adjust', async (req, res) => {
-    try {
-        const { itemId, type, qty, unitCost, reason } = req.body;
-        // req.user, req.tenantId, req.branchId are set by auth/branchScope middleware
-        // verify req.userId is available -> auth middleware sets req.userId
-
-        if (!itemId || !type || qty === undefined || unitCost === undefined) {
-            return res.status(400).json({ error: "Missing required fields" });
-        }
-
-        const adjustmentQty = parseFloat(qty);
-        const adjustmentUnitCost = parseFloat(unitCost);
-        const totalCost = adjustmentQty * adjustmentUnitCost;
-
-        // 1. Create Adjustment Record
-        const adjustment = new InventoryAdjustment({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            itemId: String(itemId),
-            type,
-            qty: adjustmentQty,
-            unitCost: adjustmentUnitCost,
-            totalCost,
-            reason,
-            createdBy: req.userId
-        });
-        await adjustment.save();
-
-        // 2. Update Stock
-        await ProductStock.findOneAndUpdate(
-            { tenantId: req.tenantId, branchId: req.branchId, productId: String(itemId) },
-            { $inc: { qty: adjustmentQty } },
-            { upsert: true, new: true }
-        );
-
-        // 3. Audit Log
-        await AuditLog.create({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            userId: req.userId,
-            action: 'INVENTORY_ADJUST',
-            details: { itemId, type, qty: adjustmentQty, reason },
-            ipAddress: req.ip
-        });
-
-        res.json({ success: true, id: adjustment._id });
-
-    } catch (err) {
-        console.error('Inventory Adjustment Error:', err);
-        res.status(500).json({ error: err.message });
-    }
+// === Utilities ===
+router.post('/utils/ensure-data-dir', async (req, res) => {
+    res.json(true); 
 });
 
-// 2. Transfer Inventory (Branch to Branch)
-router.post('/inventory/transfer', async (req, res) => {
-    try {
-        const { itemId, targetBranchId, qty } = req.body;
-        // req.tenantId, req.branchId (source) from middleware
-
-        if (!itemId || !targetBranchId || !qty || qty <= 0) {
-            return res.status(400).json({ error: "Invalid transfer parameters" });
-        }
-
-        if (String(req.branchId) === String(targetBranchId)) {
-            return res.status(400).json({ error: "Cannot transfer to same branch" });
-        }
-
-        const transferQty = parseFloat(qty);
-
-        // 1. Check Source Stock
-        const sourceStock = await ProductStock.findOne({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            productId: String(itemId)
-        });
-
-        if (!sourceStock || sourceStock.qty < transferQty) {
-            return res.status(400).json({ error: "Insufficient stock for transfer" });
-        }
-
-        // 2. Get Product Cost (from source) - In real app, might query Product definition
-        // For now, we use a weighted average if available, or 0. 
-        // We'll trust the frontend to send unitCost for now, OR fetch from DB. 
-        // Better: Fetch from DB. But DB structure for "Product" cost is in local `ingredients` or `spare_parts` JSON. 
-        // We can't easily access that here without reading the big JSON blob.
-        // Let's accept unitCost from frontend for simplicity in this phase, validated by user permission.
-        const unitCost = req.body.unitCost || 0;
-        const totalCost = transferQty * unitCost;
-
-        const referenceId = `TRF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-        // 3. Create TRANSFER_OUT Record (Source)
-        const outAdj = new InventoryAdjustment({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            itemId: String(itemId),
-            type: 'TRANSFER_OUT',
-            qty: -transferQty, // OUT is negative
-            unitCost,
-            totalCost,
-            reason: `Transfer to Branch ${targetBranchId}`,
-            referenceId,
-            createdBy: req.userId
-        });
-        await outAdj.save();
-
-        // 4. Create TRANSFER_IN Record (Target)
-        const inAdj = new InventoryAdjustment({
-            tenantId: req.tenantId,
-            branchId: targetBranchId,
-            itemId: String(itemId),
-            type: 'TRANSFER_IN',
-            qty: transferQty, // IN is positive
-            unitCost,
-            totalCost,
-            reason: `Transfer from Branch ${req.branchId}`,
-            referenceId,
-            createdBy: req.userId
-        });
-        await inAdj.save();
-
-        // 5. Update Stocks (Atomic-ish)
-        // Source: Decrement
-        await ProductStock.findOneAndUpdate(
-            { tenantId: req.tenantId, branchId: req.branchId, productId: String(itemId) },
-            { $inc: { qty: -transferQty } }
-        );
-
-        // Target: Increment
-        await ProductStock.findOneAndUpdate(
-            { tenantId: req.tenantId, branchId: targetBranchId, productId: String(itemId) },
-            { $inc: { qty: transferQty } },
-            { upsert: true, new: true }
-        );
-
-        // 6. Audit Log
-        await AuditLog.create({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            userId: req.userId,
-            action: 'INVENTORY_TRANSFER',
-            details: { itemId, targetBranchId, qty: transferQty, referenceId },
-            ipAddress: req.ip
-        });
-
-        res.json({ success: true, referenceId });
-
-    } catch (err) {
-        console.error('Transfer Error:', err);
-        res.status(500).json({ error: err.message });
-    }
+router.post('/file/exists', async (req, res) => {
+    const { filename } = req.body;
+    // Check if filename exists in our Data model as a key
+    const exists = await prisma.data.findUnique({
+        where: { key_tenantId: { key: filename, tenantId: req.tenantId || 'global' } }
+    });
+    res.json(!!exists);
 });
 
 module.exports = router;

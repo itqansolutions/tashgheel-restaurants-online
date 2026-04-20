@@ -1,61 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { getTenantDB } = require('../utils/storage');
-// Note: We don't have Mongoose models for Vendors/Customers yet in this plan, 
-// but we need to read/write them. 
-// Options:
-// 1. Create Models (Best)
-// 2. Read from JSON/File (Legacy) -> BUT we want to migrate to DB.
-// Let's create Schemas on the fly or improved generic handler?
-// Given constraints, I will create simple Mongoose models for them to ensure migration.
-
-const mongoose = require('mongoose');
-
-// --- SCHEMAS ---
-const vendorSchema = new mongoose.Schema({
-    name: String,
-    mobile: String,
-    address: String,
-    credit: { type: Number, default: 0 },
-    tenantId: String,
-    branchId: String,
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: Date
-});
-
-const customerAddressSchema = new mongoose.Schema({
-    id: mongoose.Schema.Types.Mixed,  // Date.now() from frontend
-    area: String,
-    street: String,
-    building: String,
-    floor: String,
-    apt: String,
-    extra: String           // Landmark / Directions
-}, { _id: false });
-
-const customerSchema = new mongoose.Schema({
-    name: String,
-    mobile: String,
-    notes: String,
-    addresses: [customerAddressSchema],  // Array of delivery addresses
-    loyaltyPoints: { type: Number, default: 0 },
-    tenantId: String,
-    branchId: String,
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: Date
-});
-
-// Helper to get Models safely
-// They might be defined elsewhere, but if not:
-const Vendor = mongoose.models.Vendor || mongoose.model('Vendor', vendorSchema);
-const Customer = mongoose.models.Customer || mongoose.model('Customer', customerSchema);
-
+const prisma = require('../prisma');
 
 // --- VENDORS ROUTES ---
 router.get('/vendors', async (req, res) => {
     try {
         const { tenantId } = req;
-        const vendors = await Vendor.find({ tenantId });
+        const vendors = await prisma.vendor.findMany({
+            where: { tenantId }
+        });
         res.json(vendors);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -64,17 +17,40 @@ router.post('/vendors', async (req, res) => {
     try {
         const { tenantId, branchId } = req;
         const data = req.body;
+        const id = data.id || data._id;
 
         let vendor;
-        if (data._id || data.id) {
-            vendor = await Vendor.findOneAndUpdate(
-                { _id: data._id || data.id, tenantId },
-                { ...data, updatedAt: new Date() },
-                { new: true, upsert: true } // Upsert for migration
-            );
+        if (id) {
+            vendor = await prisma.vendor.upsert({
+                where: { id },
+                update: {
+                    name: data.name,
+                    mobile: data.mobile,
+                    address: data.address,
+                    credit: parseFloat(data.credit) || 0,
+                    updatedAt: new Date()
+                },
+                create: {
+                    id: id.length === 36 ? id : undefined, // Ensure it's a UUID if provided, else let Prisma generate
+                    name: data.name,
+                    mobile: data.mobile,
+                    address: data.address,
+                    credit: parseFloat(data.credit) || 0,
+                    tenantId,
+                    branchId
+                }
+            });
         } else {
-            vendor = new Vendor({ ...data, tenantId, branchId });
-            await vendor.save();
+            vendor = await prisma.vendor.create({
+                data: {
+                    name: data.name,
+                    mobile: data.mobile,
+                    address: data.address,
+                    credit: parseFloat(data.credit) || 0,
+                    tenantId,
+                    branchId
+                }
+            });
         }
         res.json(vendor);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -82,7 +58,9 @@ router.post('/vendors', async (req, res) => {
 
 router.delete('/vendors/:id', async (req, res) => {
     try {
-        await Vendor.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
+        await prisma.vendor.deleteMany({
+            where: { id: req.params.id, tenantId: req.tenantId }
+        });
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -92,7 +70,9 @@ router.delete('/vendors/:id', async (req, res) => {
 router.get('/customers', async (req, res) => {
     try {
         const { tenantId } = req;
-        const customers = await Customer.find({ tenantId });
+        const customers = await prisma.customer.findMany({
+            where: { tenantId }
+        });
         res.json(customers);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -101,20 +81,43 @@ router.post('/customers', async (req, res) => {
     try {
         const { tenantId, branchId } = req;
         const data = req.body;
+        const id = data.id || data._id;
 
         let customer;
-        // Search by ID or Mobile to prevent dupes?
-        // Prioritize ID if update
-        if (data._id || data.id) {
-            customer = await Customer.findOneAndUpdate(
-                { _id: data._id || data.id, tenantId },
-                { ...data, updatedAt: new Date() },
-                { new: true, upsert: true }
-            );
+        if (id) {
+            customer = await prisma.customer.upsert({
+                where: { id },
+                update: {
+                    name: data.name,
+                    mobile: data.mobile,
+                    notes: data.notes,
+                    addresses: data.addresses,
+                    loyaltyPoints: parseInt(data.loyaltyPoints) || 0,
+                    updatedAt: new Date()
+                },
+                create: {
+                    id: id.length === 36 ? id : undefined,
+                    name: data.name,
+                    mobile: data.mobile,
+                    notes: data.notes,
+                    addresses: data.addresses,
+                    loyaltyPoints: parseInt(data.loyaltyPoints) || 0,
+                    tenantId,
+                    branchId
+                }
+            });
         } else {
-            // New
-            customer = new Customer({ ...data, tenantId, branchId });
-            await customer.save();
+            customer = await prisma.customer.create({
+                data: {
+                    name: data.name,
+                    mobile: data.mobile,
+                    notes: data.notes,
+                    addresses: data.addresses,
+                    loyaltyPoints: parseInt(data.loyaltyPoints) || 0,
+                    tenantId,
+                    branchId
+                }
+            });
         }
         res.json(customer);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -122,9 +125,13 @@ router.post('/customers', async (req, res) => {
 
 router.delete('/customers/:id', async (req, res) => {
     try {
-        await Customer.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
+        await prisma.customer.deleteMany({
+            where: { id: req.params.id, tenantId: req.tenantId }
+        });
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+module.exports = router;
 
 module.exports = router;

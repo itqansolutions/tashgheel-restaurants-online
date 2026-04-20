@@ -10,8 +10,7 @@
  * Frees the table so it shows as available again.
  */
 
-const Order = require('../models/Order');
-const Table = require('../models/Table');
+const prisma = require('../prisma');
 
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const JOB_INTERVAL_MS = 10 * 60 * 1000;        // Run every 10 minutes
@@ -20,14 +19,16 @@ async function runCleanup() {
     try {
         const cutoff = new Date(Date.now() - INACTIVITY_TIMEOUT_MS);
 
-        // Uses the compound index: { status, isLocked, hasActiveKitchenItems, lastActivityAt }
-        // isLocked: false is a CRITICAL safety guard — never cancel an order the cashier is closing right now
-        const ghostOrders = await Order.find({
-            status: 'open',
-            isLocked: false,                   // ⚠️ Safety guard: never touch orders being closed by cashier
-            hasActiveKitchenItems: false,       // No sent/preparing items
-            lastActivityAt: { $lt: cutoff }
-        }).select('_id tableId tenantId branchId tableName').lean();
+        // Finds ghost orders: open, not locked, no active kitchen items
+        const ghostOrders = await prisma.order.findMany({
+            where: {
+                status: 'open',
+                isLocked: false,
+                hasActiveKitchenItems: false,
+                lastActivityAt: { lt: cutoff }
+            },
+            select: { id: true, tableId: true, tenantId: true, branchId: true, tableName: true }
+        });
 
         if (ghostOrders.length === 0) return;
 
@@ -35,27 +36,29 @@ async function runCleanup() {
 
         for (const order of ghostOrders) {
             try {
-                // Cancel the order (double-check status to prevent TOCTOU race)
-                const result = await Order.updateOne(
-                    { _id: order._id, status: 'open', isLocked: false },
-                    { status: 'cancelled', closedAt: new Date() }
-                );
+                // Cancel the order. If TOCTOU happens, it might fail if updated meanwhile.
+                // We double-check in where clause.
+                const updatedOrder = await prisma.order.updateMany({
+                    where: { id: order.id, status: 'open', isLocked: false },
+                    data: { status: 'cancelled', closedAt: new Date() }
+                });
 
-                if (result.modifiedCount === 0) {
-                    // Was already closed/locked between our find and this update — skip safely
-                    console.log(`[DINE_IN] CLEANUP_SKIP orderId=${order._id} reason=already_closed_or_locked`);
+                if (updatedOrder.count === 0) {
+                    console.log(`[DINE_IN] CLEANUP_SKIP orderId=${order.id} reason=already_closed_or_locked`);
                     continue;
                 }
 
                 // Free the table
-                await Table.updateOne(
-                    { _id: order.tableId, activeOrderId: order._id },
-                    { status: 'available', activeOrderId: null }
-                );
+                if (order.tableId) {
+                    await prisma.table.updateMany({
+                        where: { id: order.tableId, activeOrderId: order.id },
+                        data: { status: 'available', activeOrderId: null }
+                    });
+                }
 
-                console.log(`[DINE_IN] CLEANUP_CANCEL orderId=${order._id} table=${order.tableName || order.tableId}`);
+                console.log(`[DINE_IN] CLEANUP_CANCEL orderId=${order.id} table=${order.tableName || order.tableId}`);
             } catch (e) {
-                console.error(`[DINE_IN] CLEANUP_ERROR orderId=${order._id}`, e.message);
+                console.error(`[DINE_IN] CLEANUP_ERROR orderId=${order.id}`, e.message);
             }
         }
     } catch (err) {

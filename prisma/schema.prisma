@@ -1,0 +1,420 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id                   String   @id @default(uuid())
+  businessName         String
+  email                String   @unique
+  phone                String
+  trialEndsAt          DateTime
+  subscriptionEndsAt   DateTime?
+  isSubscribed         Boolean  @default(false)
+  subscriptionStartedAt DateTime?
+  status               String   @default("active") // active, on_hold, suspended
+  subscriptionPlan     String   @default("free_trial")
+  createdAt            DateTime @default(now())
+  settings             Json?    // shopName, shopAddress, shopLogo, footerMessage, taxRate, taxName
+
+  branches             Branch[]
+  users                User[]
+  orders               Order[]
+  sales                Sale[]
+  tables               Table[]
+  shifts               Shift[]
+  dailySummaries       DailySummary[]
+  deliveryZones        DeliveryZone[]
+  aggregatorOrders     AggregatorOrder[]
+  auditLogs            AuditLog[]
+  productStocks        ProductStock[]
+  inventoryAdjustments InventoryAdjustment[]
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  code      String
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  settings  Json?    // taxRate, currency, openingHours, timezone
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                User[]                @relation("UserBranches")
+  defaultUsers         User[]                @relation("DefaultBranch")
+  orders               Order[]
+  sales                Sale[]
+  tables               Table[]
+  shifts               Shift[]
+  dailySummaries       DailySummary[]
+  deliveryZones        DeliveryZone[]
+  aggregatorOrders     AggregatorOrder[]
+  auditLogs            AuditLog[]
+  productStocks        ProductStock[]
+  inventoryAdjustments InventoryAdjustment[]
+
+  @@unique([tenantId, code])
+}
+
+model User {
+  id              String   @id @default(uuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  username        String
+  passwordHash    String
+  role            String   @default("cashier")
+  fullName        String
+  allowedPages    Json?    // Array of strings
+  active          Boolean  @default(true)
+  
+  // Multi-Branch Support
+  branches        Branch[] @relation("UserBranches")
+  defaultBranchId String?
+  defaultBranch   Branch?  @relation("DefaultBranch", fields: [defaultBranchId], references: [id])
+  
+  lastLogin       DateTime?
+  createdAt       DateTime  @default(now())
+  createdBy       String?
+
+  shifts          Shift[]       @relation("Cashier")
+  forcedShifts   Shift[]       @relation("ForcedBy")
+  auditLogs       AuditLog[]
+  inventoryAdjustments InventoryAdjustment[]
+
+  @@unique([tenantId, username])
+}
+
+model Table {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  name          String
+  code          String
+  capacity      Int      @default(4)
+  status        String   @default("available") // available, occupied
+  activeOrderId String?
+  qrSecret      String   @default(dbgenerated("gen_random_uuid()")) // Or handle in code
+  isActive      Boolean  @default(true)
+  isArchived    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders        Order[]
+
+  @@unique([tenantId, code])
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  tableId       String
+  table         Table    @relation(fields: [tableId], references: [id])
+  tableName     String?
+  status        String   @default("open") // open, closed, cancelled
+  isLocked      Boolean  @default(false)
+  version       Int      @default(0)
+  hasActiveKitchenItems Boolean @default(false)
+  currentBatch  Int      @default(0)
+  discountType  String   @default("none") // percent, value, none
+  discountValue Float    @default(0)
+  openedBy      String   @default("waiter")
+  openedAt      DateTime @default(now())
+  closedAt      DateTime?
+  lastActivityAt DateTime @default(now())
+  requestedBillAt DateTime?
+  note          String?
+  mappedSaleId  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id             String   @id @default(uuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id])
+  lineId         String   // UUID from client
+  productId      String?
+  productCode    String?
+  name           String
+  qty            Float
+  price          Float
+  cost           Float    @default(0)
+  note           String?
+  modifiers      Json?    // Array of {name, price}
+  addedBy        String   @default("waiter")
+  batchNo        Int      @default(0)
+  kitchenStatus  String   @default("pending") // pending, sent, preparing, ready, cancelled
+  approvalStatus String   @default("auto-approved")
+  sentAt         DateTime?
+  preparingAt    DateTime?
+  readyAt        DateTime?
+  cancelledAt    DateTime?
+}
+
+model Sale {
+  id                String   @id // Invoice # (e.g. REC-123)
+  receiptNo         String?
+  note              String?
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  branchId          String
+  branch            Branch   @relation(fields: [branchId], references: [id])
+  cashier           String   @default("Unknown")
+  salesman          String?
+  shiftId           String?
+  shift             Shift?   @relation(fields: [shiftId], references: [id])
+  total             Float
+  subtotal          Float?
+  discount          Float    @default(0)
+  deliveryFee       Float    @default(0)
+  tax               Float    @default(0)
+  status            String   @default("finished") // finished, void, refunded, pending
+  kitchenStatus     String   @default("pending")
+  method            String   @default("cash")
+  orderType         String   @default("take_away")
+  tableId           String?
+  tableName         String?
+  customer          Json?    // id, name, mobile, address
+  source            String   @default("pos")
+  aggregatorOrderId String?
+  date              DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  items             SaleItem[]
+}
+
+model SaleItem {
+  id            String   @id @default(uuid())
+  saleId        String
+  sale          Sale     @relation(fields: [saleId], references: [id])
+  productId     String?
+  productCode   String?
+  name          String
+  qty           Float
+  price         Float
+  cost          Float
+  note          String?
+  discountType  String   @default("none")
+  discountValue Float    @default(0)
+}
+
+model Shift {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  cashierId     String
+  cashier       User     @relation("Cashier", fields: [cashierId], references: [id])
+  cashiers      Json?    // Array of user IDs
+  openedAt      DateTime @default(now())
+  closedAt      DateTime?
+  openingCash   Float    @default(0)
+  closingCash   Float    @default(0)
+  expectedCash  Float    @default(0)
+  difference    Float    @default(0)
+  status        String   @default("open") // open, closed, force-closed
+  forcedById    String?
+  forcedBy      User?    @relation("ForcedBy", fields: [forcedById], references: [id])
+  notes         String?
+  totals        Json?    // cashTotal, cardTotal, mobileTotal, totalSales, voidsCount, voidsValue
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sales         Sale[]
+}
+
+model DailySummary {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  date          String   // YYYY-MM-DD
+  totalRevenue  Float    @default(0)
+  totalOrders   Int      @default(0)
+  totalDiscount Float    @default(0)
+  totalTax      Float    @default(0)
+  totalCost     Float    @default(0)
+  grossProfit   Float    @default(0)
+  voidsCount    Int      @default(0)
+  voidsValue    Float    @default(0)
+  cashTotal     Float    @default(0)
+  cardTotal     Float    @default(0)
+  mobileTotal   Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, branchId, date])
+}
+
+model Data {
+  id        String   @id @default(uuid())
+  key       String
+  tenantId  String   @default("global")
+  value     Json
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([key, tenantId])
+}
+
+model Tax {
+  id          String   @id @default(uuid())
+  name        String
+  percentage  Float
+  enabled     Boolean  @default(true)
+  orderTypes  Json?    // Array of strings
+  branchId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  description String
+  amount      Float
+  date        String   // YYYY-MM-DD
+  seller      String?
+  category    String   @default("General")
+  method      String   @default("cash")
+  type        String   @default("expense")
+  notes       String?
+  tenantId    String
+  branchId    String
+  createdBy   String?
+  createdAt   DateTime @default(now())
+}
+
+model DeliveryZone {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  name      String
+  fee       Float    @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, branchId, name])
+}
+
+model AggregatorOrder {
+  id                String   @id @default(uuid())
+  provider          String
+  providerOrderId   String
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  branchId          String
+  branch            Branch   @relation(fields: [branchId], references: [id])
+  status            String   @default("pending")
+  statusHistory     Json?    // Array of {status, at, note}
+  rawPayload        Json?
+  mappedSaleId      String?
+  customer          Json?    // name, phone, address
+  items             Json?    // Array of items
+  financials        Json?    // total, vat, currency, fees
+  paymentMethod     String   @default("online")
+  retryCount        Int      @default(0)
+  lastError         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([provider, providerOrderId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userRole  String?
+  action    String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  status    String   @default("SUCCESS")
+  timestamp DateTime @default(now())
+}
+
+model ProductStock {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  productId String
+  qty       Float    @default(0)
+  minStock  Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, branchId, productId])
+}
+
+model InventoryAdjustment {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  itemId      String
+  type        String   // WASTE, DAMAGE, EXPIRED, AUDIT, TRANSFER_IN, TRANSFER_OUT
+  qty         Float
+  unitCost    Float
+  totalCost   Float
+  reason      String?
+  referenceId String?
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model Vendor {
+  id        String   @id @default(uuid())
+  name      String
+  mobile    String?
+  address   String?
+  credit    Float    @default(0)
+  tenantId  String
+  branchId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  name          String
+  mobile        String?
+  notes         String?
+  addresses     Json?    // Array of {area, street, building, floor, apt, extra}
+  loyaltyPoints Int      @default(0)
+  tenantId      String
+  branchId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, mobile])
+}

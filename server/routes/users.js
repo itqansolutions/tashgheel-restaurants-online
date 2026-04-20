@@ -1,24 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const storage = require('../utils/storage');
+const prisma = require('../prisma');
 const auth = require('../middleware/auth'); // Ensure user is authenticated
 
 // @route   GET /api/users
-// @desc    Get all users for tenant
 router.get('/', async (req, res) => {
     try {
-        const users = await storage.find('users', { tenantId: req.tenantId });
+        const users = await prisma.user.findMany({
+            where: { tenantId: req.tenantId },
+            include: {
+                branches: { select: { id: true } }
+            }
+        });
 
-        // Return without passwordHash
         const safeUsers = users.map(u => ({
-            id: u._id,
+            id: u.id,
             username: u.username,
             fullName: u.fullName,
             role: u.role,
             active: u.active,
             lastLogin: u.lastLogin,
-            branchIds: u.branchIds || [],
+            branchIds: u.branches.map(b => b.id),
             defaultBranchId: u.defaultBranchId,
             allowedPages: u.allowedPages || []
         }));
@@ -31,9 +34,7 @@ router.get('/', async (req, res) => {
 });
 
 // @route   POST /api/users
-// @desc    Add a new user
 router.post('/', async (req, res) => {
-    // Only Admin/Manager can add users
     if (req.user.role !== 'admin' && req.user.role !== 'manager') {
         return res.status(403).json({ msg: 'Not authorized' });
     }
@@ -45,8 +46,9 @@ router.post('/', async (req, res) => {
     }
 
     try {
-        // Check duplicate
-        const existing = await storage.findOne('users', { tenantId: req.tenantId, username });
+        const existing = await prisma.user.findFirst({
+            where: { tenantId: req.tenantId, username }
+        });
         if (existing) {
             return res.status(400).json({ msg: 'Username already exists' });
         }
@@ -54,25 +56,25 @@ router.post('/', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        const newUser = {
-            tenantId: req.tenantId,
-            username,
-            passwordHash,
-            fullName,
-            role,
-            branchIds: branchIds || [],
-            defaultBranchId: defaultBranchId || null,
-            allowedPages: allowedPages || [],
-            active: true,
-            createdAt: new Date(),
-            createdBy: req.user.id
-        };
+        const user = await prisma.user.create({
+            data: {
+                tenantId: req.tenantId,
+                username,
+                passwordHash,
+                fullName,
+                role,
+                active: true,
+                createdBy: req.user.id,
+                defaultBranchId: defaultBranchId || null,
+                allowedPages: allowedPages || [],
+                branches: branchIds ? {
+                    connect: branchIds.map(id => ({ id }))
+                } : undefined
+            }
+        });
 
-        const user = await storage.insert('users', newUser);
-
-        // Return safe user
         res.json({
-            id: user._id,
+            id: user.id,
             username: user.username,
             fullName: user.fullName,
             role: user.role,
@@ -85,9 +87,7 @@ router.post('/', async (req, res) => {
 });
 
 // @route   PUT /api/users/:id
-// @desc    Update user
 router.put('/:id', async (req, res) => {
-    // Only Admin can edit users (or manager editing cashier?)
     if (req.user.role !== 'admin' && req.user.role !== 'manager') {
         return res.status(403).json({ msg: 'Not authorized' });
     }
@@ -95,24 +95,36 @@ router.put('/:id', async (req, res) => {
     const { username, password, fullName, role, branchIds, defaultBranchId, allowedPages } = req.body;
 
     try {
-        const user = await storage.findOne('users', { _id: req.params.id, tenantId: req.tenantId });
-        if (!user) return res.status(404).json({ msg: 'User not found' });
-
-        // Update fields
-        if (username) user.username = username;
-        if (fullName) user.fullName = fullName;
-        if (role) user.role = role;
-        if (branchIds) user.branchIds = branchIds;
-        if (defaultBranchId) user.defaultBranchId = defaultBranchId;
-        if (allowedPages) user.allowedPages = allowedPages;
-
-        // Update password if provided
-        if (password) {
-            const salt = await bcrypt.genSalt(10);
-            user.passwordHash = await bcrypt.hash(password, salt);
+        const user = await prisma.user.findUnique({
+            where: { id: req.params.id }
+        });
+        
+        if (!user || user.tenantId !== req.tenantId) {
+            return res.status(404).json({ msg: 'User not found' });
         }
 
-        await storage.update('users', req.params.id, user);
+        const updateData = {};
+        if (username) updateData.username = username;
+        if (fullName) updateData.fullName = fullName;
+        if (role) updateData.role = role;
+        if (defaultBranchId !== undefined) updateData.defaultBranchId = defaultBranchId;
+        if (allowedPages) updateData.allowedPages = allowedPages;
+
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            updateData.passwordHash = await bcrypt.hash(password, salt);
+        }
+
+        if (branchIds) {
+            updateData.branches = {
+                set: branchIds.map(id => ({ id }))
+            };
+        }
+
+        await prisma.user.update({
+            where: { id: req.params.id },
+            data: updateData
+        });
 
         res.json({ msg: 'User updated successfully' });
     } catch (err) {
@@ -122,22 +134,27 @@ router.put('/:id', async (req, res) => {
 });
 
 // @route   DELETE /api/users/:id
-// @desc    Delete user
 router.delete('/:id', async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ msg: 'Not authorized' });
     }
     try {
-        // Prevent deleting self?
         if (req.params.id === req.user.id) {
             return res.status(400).json({ msg: 'Cannot delete yourself' });
         }
 
-        // Check if user exists and belongs to tenant
-        const user = await storage.findOne('users', { _id: req.params.id, tenantId: req.tenantId });
-        if (!user) return res.status(404).json({ msg: 'User not found' });
+        const user = await prisma.user.findUnique({
+            where: { id: req.params.id }
+        });
+        
+        if (!user || user.tenantId !== req.tenantId) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
 
-        await storage.remove('users', req.params.id);
+        await prisma.user.delete({
+            where: { id: req.params.id }
+        });
+        
         res.json({ msg: 'User removed' });
     } catch (err) {
         console.error(err.message);

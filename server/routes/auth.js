@@ -2,10 +2,9 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const storage = require('../utils/storage');
+const prisma = require('../prisma');
 const { authLimiter } = require('../middleware/limiter');
 const auth = require('../middleware/auth');
-const Branch = require('../models/Branch');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret123';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || 'refreshSecret123';
@@ -13,18 +12,23 @@ const REFRESH_SECRET = process.env.REFRESH_SECRET || 'refreshSecret123';
 // Helper: Get Branch Details
 async function getBranchDetails(user) {
     try {
-        let query = {};
+        let branches;
         if (user.role === 'admin') {
             // Admins get all branches of their tenant
-            query = { tenantId: user.tenantId };
+            branches = await prisma.branch.findMany({
+                where: { tenantId: user.tenantId },
+                select: { id: true, name: true, code: true }
+            });
         } else {
             // Others only get specific ones
-            if (!user.branchIds || user.branchIds.length === 0) return [];
-            query = { _id: { $in: user.branchIds } };
+            // In Prisma, we use the relations setup in the schema
+            const dbUser = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { branches: { select: { id: true, name: true, code: true } } }
+            });
+            branches = dbUser ? dbUser.branches : [];
         }
-
-        const branches = await Branch.find(query).select('name code');
-        return branches.map(b => ({ id: b._id, name: b.name, code: b.code }));
+        return branches.map(b => ({ id: b.id, name: b.name, code: b.code }));
     } catch (e) { return []; }
 }
 
@@ -32,11 +36,11 @@ async function getBranchDetails(user) {
 const generateTokens = (user, tenantId) => {
     const payload = {
         user: {
-            id: user._id,
+            id: user.id,
             tenantId: tenantId,
             role: user.role,
             username: user.username,
-            branchIds: user.branchIds || [],
+            // branchIds: user.branches ? user.branches.map(b => b.id) : [],
             defaultBranchId: user.defaultBranchId
         }
     };
@@ -47,107 +51,95 @@ const generateTokens = (user, tenantId) => {
     return { accessToken, refreshToken };
 };
 
-// Helper: Set Cookies
+// ... setCookies stays the same ...
 const setCookies = (res, accessToken, refreshToken) => {
-    // Railway (and most proxies) set x-forwarded-proto
-    // We treat it as secure if we are in production OR if the request came via HTTPS
     const isProd = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_NAME === 'production';
-
-    // Auto-detect secure connection (best for Railway/Heroku/Vercel)
-    // Note: 'res.cookie' options property 'secure' doesn't auto-read req, we must pass it.
-    // However, we don't have 'req' here. We passed 'res'.
-    // Let's change signature to (req, res, ...) or just rely on env vars + sensible defaults.
-    // Safest bet for modern HTTPS deployments: secure=true if on HTTPS.
-    // But we don't have req.
-
-    // Let's make it always secure if we are on the cloud (Railway).
-    // The previous check was: process.env.RAILWAY_ENVIRONMENT_NAME === 'production'
-    // User URL confirms it IS production.
-
-    // Is it possible the variable name is wrong?
-    // Let's trust 'NODE_ENV' too.
     const isSecure = isProd || process.env.Manual_Secure === 'true';
 
     res.cookie('token', accessToken, {
         httpOnly: true,
-        secure: true, // FORCE SECURE for Railway HTTPS (It's 2026, HTTPS is standard)
-        sameSite: 'lax', // Strict Same-Origin
-        maxAge: 15 * 60 * 1000 // 15 mins
+        secure: true, 
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000 
     });
 
     res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: true, // FORCE SECURE
+        secure: true,
         sameSite: 'lax',
         path: '/api/auth/refresh',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000
     });
 };
 
 // @route   POST /api/auth/register
-// @desc    Register a new tenant (business) and admin user
 router.post('/register', authLimiter, async (req, res) => {
     const { businessName, email, phone, username, password } = req.body;
 
     try {
-        // 1. Check if Tenant exists
-        const existingTenant = await storage.findOne('tenants', { email });
+        const existingTenant = await prisma.tenant.findUnique({ where: { email } });
         if (existingTenant) {
             return res.status(400).json({ msg: 'Email already registered' });
         }
 
-        // 2. Create Tenant (7 days trial)
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + 3);
 
-        const tenant = await storage.insert('tenants', {
-            businessName,
-            email,
-            phone,
-            trialEndsAt: trialEndsAt.toISOString(),
-            status: 'active', // active during trial
-            isSubscribed: false,
-            subscriptionPlan: 'free_trial'
+        // Transaction to ensure atomic registration
+        const result = await prisma.$transaction(async (tx) => {
+            const tenant = await tx.tenant.create({
+                data: {
+                    businessName,
+                    email,
+                    phone,
+                    trialEndsAt,
+                    status: 'active',
+                    isSubscribed: false,
+                    subscriptionPlan: 'free_trial'
+                }
+            });
+
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(password, salt);
+
+            const user = await tx.user.create({
+                data: {
+                    tenantId: tenant.id,
+                    username,
+                    passwordHash,
+                    fullName: 'System Administrator',
+                    role: 'admin',
+                    active: true
+                }
+            });
+
+            const mainBranch = await tx.branch.create({
+                data: {
+                    tenantId: tenant.id,
+                    name: 'Main Branch',
+                    code: 'MAIN',
+                    isActive: true
+                }
+            });
+
+            return { tenant, user, mainBranch };
         });
 
-        // 3. Create Admin User
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const { tenant, user } = result;
 
-        const user = await storage.insert('users', {
-            tenantId: tenant._id,
-            username,
-            passwordHash,
-            fullName: 'System Administrator',
-            role: 'admin',
-            active: true
-        });
-
-        // 4. Create Default Main Branch
-        const mainBranch = new Branch({
-            tenantId: tenant._id,
-            name: 'Main Branch',
-            code: 'MAIN',
-            isActive: true
-        });
-        await mainBranch.save();
-
-        // Send Email Notification (Async - don't block)
         sendRegistrationEmail(businessName, email, phone, username, trialEndsAt).catch(console.error);
 
-        // 4. Generate Tokens & Set Cookies
-        const { accessToken, refreshToken } = generateTokens(user, tenant._id);
+        const { accessToken, refreshToken } = generateTokens(user, tenant.id);
         setCookies(res, accessToken, refreshToken);
 
         res.json({
             msg: 'Registration successful',
             user: {
-                id: user._id,
+                id: user.id,
                 username: user.username,
                 role: user.role,
                 fullName: user.fullName,
-                tenantId: tenant._id,
-                branchIds: user.branchIds || [],
+                tenantId: tenant.id,
                 defaultBranchId: user.defaultBranchId
             }
         });
@@ -159,7 +151,6 @@ router.post('/register', authLimiter, async (req, res) => {
 });
 
 // @route   POST /api/auth/login
-// @desc    Authenticate user & get token
 router.post('/login', authLimiter, async (req, res) => {
     const { username, password, businessEmail } = req.body;
 
@@ -168,74 +159,66 @@ router.post('/login', authLimiter, async (req, res) => {
             return res.status(400).json({ msg: 'Business Email is required' });
         }
 
-        // 1. Find Tenant
-        const tenant = await storage.findOne('tenants', { email: businessEmail });
+        const tenant = await prisma.tenant.findUnique({ where: { email: businessEmail } });
         if (!tenant) {
             return res.status(400).json({ msg: 'Invalid Credentials' });
         }
 
-        // 2. Check Status (Strict)
         if (tenant.status !== 'active') {
             return res.status(403).json({ msg: 'Account is not active. Please contact support.' });
         }
 
-        // 3. Check Subscription / Trial Expiry
         const now = new Date();
-        let expiryDate;
-
+        let expiryDate = tenant.trialEndsAt;
         if (tenant.isSubscribed && tenant.subscriptionEndsAt) {
-            expiryDate = new Date(tenant.subscriptionEndsAt);
-        } else {
-            // Fallback to trial end if not subscribed
-            expiryDate = new Date(tenant.trialEndsAt);
+            expiryDate = tenant.subscriptionEndsAt;
         }
 
         if (expiryDate < now) {
             return res.status(403).json({ msg: 'Subscription or Trial has expired. Please renew to continue.' });
         }
 
-        // 4. Find User
-        const users = await storage.find('users', { tenantId: tenant._id, username: username });
-        const user = users[0];
+        const user = await prisma.user.findFirst({
+            where: { tenantId: tenant.id, username }
+        });
 
         if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-        // 5. Verify Password
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-        // 6. Generate Tokens & Set Cookies
-        const { accessToken, refreshToken } = generateTokens(user, tenant._id);
+        const { accessToken, refreshToken } = generateTokens(user, tenant.id);
         setCookies(res, accessToken, refreshToken);
 
-        // 7. Update Last Login
-        await storage.update('users', user._id, { lastLogin: new Date() });
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() }
+        });
 
-        // Fetch Branch Names
         let branches = await getBranchDetails(user);
 
-        // 🚀 Auto-migration for legacy tenants: Ensure at least one branch for admins
+        // Auto-migration check: Ensure at least one branch for admins
         if (user.role === 'admin' && branches.length === 0) {
-            const mainBranch = new Branch({
-                tenantId: tenant._id,
-                name: 'Main Branch',
-                code: 'MAIN',
-                isActive: true
+            const mainBranch = await prisma.branch.create({
+                data: {
+                    tenantId: tenant.id,
+                    name: 'Main Branch',
+                    code: 'MAIN',
+                    isActive: true
+                }
             });
-            await mainBranch.save();
-            branches = [{ id: mainBranch._id, name: mainBranch.name, code: mainBranch.code }];
+            branches = [{ id: mainBranch.id, name: mainBranch.name, code: mainBranch.code }];
         }
 
         res.json({
             msg: 'Login successful',
             user: {
-                id: user._id,
-                tenantId: tenant._id,
+                id: user.id,
+                tenantId: tenant.id,
                 username: user.username,
                 role: user.role,
                 fullName: user.fullName,
-                branchIds: user.branchIds || [],
-                branches: branches, // NEW
+                branches: branches,
                 defaultBranchId: user.defaultBranchId
             }
         });
@@ -247,7 +230,6 @@ router.post('/login', authLimiter, async (req, res) => {
 });
 
 // @route   POST /api/auth/logout
-// @desc    Clear cookies
 router.post('/logout', (req, res) => {
     res.clearCookie('token');
     res.clearCookie('refreshToken', { path: '/api/auth/refresh' });
@@ -255,7 +237,6 @@ router.post('/logout', (req, res) => {
 });
 
 // @route   GET /api/auth/refresh
-// @desc    Get new Access Token using Refresh Token
 router.get('/refresh', async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return res.status(401).json({ msg: 'No refresh token' });
@@ -263,18 +244,13 @@ router.get('/refresh', async (req, res) => {
     try {
         const decoded = jwt.verify(refreshToken, REFRESH_SECRET);
 
-        // Optionally verify user exists in DB logic here for extra security (Revocation check)
-        // const user = await storage.findOne('users', { _id: decoded.user.id });
-        // if (!user) return res.status(401).json({ msg: 'User revoked' });
-
-        // Issue new Access Token
         const payload = { user: decoded.user };
         const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' });
 
         const isProd = process.env.RAILWAY_ENVIRONMENT_NAME === 'production';
         res.cookie('token', accessToken, {
             httpOnly: true,
-            secure: isProd,
+            secure: true,
             sameSite: 'lax',
             maxAge: 15 * 60 * 1000
         });
@@ -288,24 +264,20 @@ router.get('/refresh', async (req, res) => {
 });
 
 // @route   GET /api/auth/me
-// @desc    Get current user data (replaces localStorage reliance)
 router.get('/me', auth, async (req, res) => {
     try {
-        // User is already attached by auth middleware
-        const user = await storage.findOne('users', { _id: req.user.id });
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } });
         if (!user) return res.status(404).json({ msg: 'User not found' });
 
-        // Fetch Branch Names
         const branches = await getBranchDetails(user);
 
         res.json({
-            id: user._id,
+            id: user.id,
             tenantId: user.tenantId,
             username: user.username,
             role: user.role,
             fullName: user.fullName,
-            branchIds: user.branchIds || [],
-            branches: branches, // NEW
+            branches: branches,
             defaultBranchId: user.defaultBranchId
         });
     } catch (err) {

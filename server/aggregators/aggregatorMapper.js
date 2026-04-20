@@ -5,7 +5,15 @@
  * Also maps products → provider catalog format.
  */
 
-const { AGGREGATOR_STATUSES } = require('../models/AggregatorOrder');
+const AGGREGATOR_STATUSES = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    PREPARING: 'preparing',
+    READY: 'ready',
+    DELIVERED: 'delivered',
+    REJECTED: 'rejected',
+    MAPPING_FAILED: 'mapping_failed'
+};
 
 /**
  * Map an AggregatorOrder to a Sale document
@@ -17,12 +25,12 @@ const { AGGREGATOR_STATUSES } = require('../models/AggregatorOrder');
 function mapToSale(aggOrder, branch, nextInvoiceId) {
     // Map items to Sale item format
     const saleItems = (aggOrder.items || []).map(item => ({
-        id: item.providerItemId || '',
+        productId: item.providerItemId || '',
         name: item.name,
-        qty: item.qty,
-        price: item.price,
-        cost: 0,  // Will be enriched with actual cost from ProductStock
-        discount: { type: 'none', value: 0 }
+        qty: parseFloat(item.qty || 1),
+        price: parseFloat(item.price || 0),
+        cost: 0,
+        note: item.notes || ''
     }));
 
     return {
@@ -32,19 +40,17 @@ function mapToSale(aggOrder, branch, nextInvoiceId) {
         cashier: 'Aggregator',
         salesman: aggOrder.provider,
 
-        total: aggOrder.financials?.total || 0,
-        subtotal: aggOrder.financials?.total - (aggOrder.financials?.vat || 0),
-        discount: 0,
-        deliveryFee: aggOrder.financials?.fees?.delivery || 0,
-        tax: aggOrder.financials?.vat || 0,
+        total: parseFloat(aggOrder.financials?.total || 0),
+        subtotal: parseFloat(aggOrder.financials?.total || 0) - parseFloat(aggOrder.financials?.vat || 0),
+        tax: parseFloat(aggOrder.financials?.vat || 0),
+        deliveryFee: parseFloat(aggOrder.financials?.fees?.delivery || 0),
 
         status: 'finished',
         method: aggOrder.paymentMethod === 'cod' ? 'cash' : 'online',
         orderType: 'delivery',
 
-        // Aggregator-specific fields
-        source: aggOrder.provider,
-        aggregatorOrderId: aggOrder._id.toString(),
+        source: 'aggregator',
+        aggregatorOrderId: aggOrder.id,
 
         items: saleItems,
         date: aggOrder.createdAt || new Date()
@@ -64,7 +70,7 @@ function enrichItemCosts(saleItems, products) {
     });
 
     return saleItems.map(item => {
-        const product = productMap[item.id];
+        const product = productMap[item.productId];
         if (product && product.cost) {
             item.cost = parseFloat(product.cost);
         }

@@ -5,15 +5,9 @@
  * Dynamically loads the correct adapter based on :provider param.
  */
 
-const express = require('express');
-const router = express.Router();
-const AggregatorOrder = require('../models/AggregatorOrder');
-const { AGGREGATOR_STATUSES } = require('../models/AggregatorOrder');
-const Sale = require('../models/Sale');
-const ProductStock = require('../models/ProductStock');
-const Branch = require('../models/Branch');
+const prisma = require('../prisma');
 const storage = require('../utils/storage');
-const { getAdapter, listProviders } = require('./adapters');
+const { getAdapter } = require('./adapters');
 const { mapToSale, enrichItemCosts } = require('./aggregatorMapper');
 const {
     encryptCredentials,
@@ -23,13 +17,41 @@ const {
     getAllDisplayInfo
 } = require('./aggregatorService');
 
-const auth = require('../middleware/auth');
-const branchScope = require('../middleware/branchScope');
+const AGGREGATOR_STATUSES = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    PREPARING: 'preparing',
+    READY: 'ready',
+    DELIVERED: 'delivered',
+    REJECTED: 'rejected',
+    MAPPING_FAILED: 'mapping_failed'
+};
 
-// ─── Helper: Load decrypted credentials for a provider from Branch config ───
+// ─── Helper: Status transition ───
+async function transitionOrder(orderId, newStatus, note) {
+    const order = await prisma.aggregatorOrder.findUnique({ where: { id: orderId } });
+    if (!order) return null;
+
+    const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+    const updatedHistory = [...history, { status: newStatus, at: new Date(), note }];
+
+    return await prisma.aggregatorOrder.update({
+        where: { id: orderId },
+        data: {
+            status: newStatus,
+            statusHistory: updatedHistory,
+            updatedAt: new Date()
+        }
+    });
+}
+
+// ─── Helper: Load decrypted credentials ───
 async function loadProviderCredentials(provider, branchId) {
-    const branch = await Branch.findById(branchId).lean();
-    const config = branch?.settings?.aggregators?.[provider];
+    const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+    const settings = branch?.settings || {};
+    const aggregators = settings.aggregators || {};
+    const config = aggregators[provider];
+    
     if (!config?.encryptedCredentials) return null;
     try {
         return decryptCredentials(config.encryptedCredentials, provider);
@@ -40,79 +62,71 @@ async function loadProviderCredentials(provider, branchId) {
 }
 
 // ═══════════════════════════════════════════════
-// WEBHOOK — Public (HMAC-verified, no JWT)
+// WEBHOOK — Public
 // ═══════════════════════════════════════════════
-
 router.post('/:provider/webhook', async (req, res) => {
     const { provider } = req.params;
     const adapter = getAdapter(provider);
     if (!adapter) return res.status(404).json({ error: 'Unknown provider' });
 
-    // Check capability
     if (!adapter.capabilities.webhook) {
         return res.status(400).json({ error: `${provider} does not support webhooks` });
     }
 
     try {
-        // Raw body for HMAC verification
-        const rawBody = req.body; // Will be a Buffer because of express.raw()
+        const rawBody = req.body;
         const signature = req.headers[adapter.getSignatureHeader()];
-        // Per-provider webhook secrets from environment
         const secretEnvKey = `${provider.toUpperCase()}_WEBHOOK_SECRET`;
         const webhookSecret = process.env[secretEnvKey];
 
-        // Verify signature
         if (webhookSecret && !adapter.verifySignature(rawBody, signature, webhookSecret)) {
-            console.warn(`⚠️ [Aggregator] Invalid ${provider} webhook signature`);
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
-        // Parse the raw body
         const payload = JSON.parse(rawBody.toString());
-
-        // Parse order using adapter
         const parsed = adapter.parseOrder(payload);
 
-        // Idempotency check
-        const existing = await AggregatorOrder.findOne({
-            provider,
-            providerOrderId: parsed.providerOrderId
+        // Idempotency
+        const existing = await prisma.aggregatorOrder.findUnique({
+            where: {
+                provider_providerOrderId: {
+                    provider,
+                    providerOrderId: parsed.providerOrderId
+                }
+            }
         });
 
-        if (existing) {
-            console.log(`ℹ️ [Aggregator] Duplicate ${provider} order ${parsed.providerOrderId}, skipping`);
-            return res.sendStatus(200);
-        }
+        if (existing) return res.sendStatus(200);
 
-        // Resolve tenant/branch from provider config (find first branch with this provider enabled)
-        const branch = await Branch.findOne({
-            [`settings.aggregators.${provider}.enabled`]: true
-        }).lean();
+        // Resolve branch - need to find a branch where this aggregator is enabled
+        // In PostgreSQL with Json, we might need a specific query
+        const branches = await prisma.branch.findMany({
+            where: { isActive: true }
+        });
+        
+        const branch = branches.find(b => b.settings?.aggregators?.[provider]?.enabled);
+
         if (!branch) {
-            console.warn(`⚠️ [Aggregator] No branch configured for provider: ${provider}`);
             return res.status(400).json({ error: `No branch configured for ${provider}` });
         }
-        const tenantId = branch.tenantId;
-        const branchId = branch._id;
 
-        // Save order
-        const aggOrder = new AggregatorOrder({
-            provider,
-            providerOrderId: parsed.providerOrderId,
-            tenantId,
-            branchId,
-            status: AGGREGATOR_STATUSES.PENDING,
-            statusHistory: [{ status: AGGREGATOR_STATUSES.PENDING, at: new Date() }],
-            rawPayload: payload,
-            customer: parsed.customer,
-            items: parsed.items,
-            financials: parsed.financials,
-            paymentMethod: parsed.paymentMethod
+        const aggOrder = await prisma.aggregatorOrder.create({
+            data: {
+                provider,
+                providerOrderId: parsed.providerOrderId,
+                tenantId: branch.tenantId,
+                branchId: branch.id,
+                status: AGGREGATOR_STATUSES.PENDING,
+                statusHistory: [{ status: AGGREGATOR_STATUSES.PENDING, at: new Date() }],
+                rawPayload: payload,
+                customer: parsed.customer,
+                items: parsed.items,
+                financials: parsed.financials,
+                paymentMethod: parsed.paymentMethod
+            }
         });
 
-        await aggOrder.save();
         console.log(`✅ [Aggregator] New ${provider} order ${parsed.providerOrderId} saved`);
-
         return res.sendStatus(200);
 
     } catch (err) {
@@ -121,32 +135,22 @@ router.post('/:provider/webhook', async (req, res) => {
     }
 });
 
-// ═══════════════════════════════════════════════
-// AUTHENTICATED ROUTES (JWT + Branch Scope)
-// ═══════════════════════════════════════════════
-router.use(auth);
-router.use(branchScope);
-
-// ─── Get Provider Info (for frontend rendering) ───
-router.get('/providers', (req, res) => {
-    res.json(getAllDisplayInfo());
-});
-
-// ─── List Orders for Current Branch ───
+// ─── List Orders ───
 router.get('/orders', async (req, res) => {
     try {
         const { provider, status, limit = 50 } = req.query;
-        const query = {
+        const filter = {
             tenantId: req.tenantId,
             branchId: req.branchId
         };
-        if (provider) query.provider = provider;
-        if (status) query.status = status;
+        if (provider) filter.provider = provider;
+        if (status) filter.status = status;
 
-        const orders = await AggregatorOrder.find(query)
-            .sort({ createdAt: -1 })
-            .limit(parseInt(limit))
-            .lean();
+        const orders = await prisma.aggregatorOrder.findMany({
+            where: filter,
+            orderBy: { createdAt: 'desc' },
+            take: parseInt(limit)
+        });
 
         res.json(orders);
     } catch (err) {
@@ -157,88 +161,108 @@ router.get('/orders', async (req, res) => {
 // ─── Accept Order → Create Sale ───
 router.post('/orders/:id/accept', async (req, res) => {
     try {
-        const order = await AggregatorOrder.findById(req.params.id);
+        const order = await prisma.aggregatorOrder.findUnique({ where: { id: req.params.id } });
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.status !== AGGREGATOR_STATUSES.PENDING) {
             return res.status(400).json({ error: `Cannot accept order in status: ${order.status}` });
         }
 
-        // Get branch for mapping
-        const branch = await Branch.findById(order.branchId);
+        const branch = await prisma.branch.findUnique({ where: { id: order.branchId } });
 
-        // Generate next invoice ID
-        // Query only aggregator sales to avoid ID collisions with POS receipts
-        const lastAggSale = await Sale.findOne({
-            tenantId: order.tenantId,
-            branchId: order.branchId,
-            source: { $exists: true }
-        }).sort({ date: -1 }).lean();
-        const lastNum = lastAggSale ? parseInt((lastAggSale.id || '').replace(/\D/g, '')) || 0 : 0;
+        // Generate Invoice ID
+        const lastAggSale = await prisma.sale.findFirst({
+            where: { tenantId: order.tenantId, branchId: order.branchId, source: 'aggregator' },
+            orderBy: { date: 'desc' }
+        });
+        const lastNum = lastAggSale ? parseInt(lastAggSale.id.replace(/\D/g, '')) || 0 : 0;
         const nextId = `AGG-${lastNum + 1}`;
 
         // Map to Sale
         const saleData = mapToSale(order, branch, nextId);
 
-        // Enrich costs from products
+        // Enrich costs
         try {
             const rawProducts = await storage.readData('spare_parts', order.tenantId);
             const products = JSON.parse(rawProducts || '[]');
             saleData.items = enrichItemCosts(saleData.items, products);
-        } catch (e) {
-            console.warn('⚠️ Could not enrich item costs:', e.message);
-        }
+        } catch (e) { }
 
-        // Save Sale
-        const newSale = new Sale(saleData);
-        await newSale.save();
+        // Atomic Transaction: Create Sale + Items + Deduct Stock + Update Aggregator Order
+        await prisma.$transaction(async (tx) => {
+            // Create Sale and SaleItems
+            await tx.sale.create({
+                data: {
+                    id: nextId,
+                    receiptNo: nextId.slice(-6),
+                    tenantId: order.tenantId,
+                    branchId: order.branchId,
+                    subtotal: saleData.subtotal,
+                    tax: saleData.tax,
+                    deliveryFee: saleData.deliveryFee,
+                    total: saleData.total,
+                    orderType: saleData.orderType,
+                    source: 'aggregator',
+                    status: 'finished',
+                    kitchenStatus: 'pending',
+                    method: saleData.method,
+                    date: new Date(),
+                    customer: saleData.customer,
+                    items: {
+                        create: saleData.items.map(i => ({
+                            productId: i.productId,
+                            productCode: i.productCode,
+                            name: i.name,
+                            qty: i.qty,
+                            price: i.price,
+                            cost: i.cost,
+                            note: i.note
+                        }))
+                    }
+                }
+            });
 
-        // Deduct inventory
-        try {
+            // Stock Deduction
             for (const item of saleData.items) {
-                if (item.id) {
-                    await ProductStock.findOneAndUpdate(
-                        { tenantId: order.tenantId, branchId: order.branchId, productId: item.id },
-                        { $inc: { qty: -item.qty } }
-                    );
+                if (item.productId) {
+                    await tx.productStock.updateMany({
+                        where: {
+                            tenantId: order.tenantId,
+                            branchId: order.branchId,
+                            productId: item.productId
+                        },
+                        data: { qty: { decrement: item.qty } }
+                    });
                 }
             }
-        } catch (e) {
-            console.warn('⚠️ Stock deduction partial failure:', e.message);
-        }
 
-        // Update aggregator order
-        order.transitionTo(AGGREGATOR_STATUSES.ACCEPTED, `Mapped to Sale ${nextId}`);
-        order.mappedSaleId = nextId;
-        await order.save();
+            // Update Aggregator Order Status
+            const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+            await tx.aggregatorOrder.update({
+                where: { id: order.id },
+                data: {
+                    status: AGGREGATOR_STATUSES.ACCEPTED,
+                    statusHistory: [...history, { status: AGGREGATOR_STATUSES.ACCEPTED, at: new Date(), note: `Mapped to Sale ${nextId}` }],
+                    mappedSaleId: nextId
+                }
+            });
+        });
 
-        // Push status to provider
+        // Push status to provider (Non-blocking)
         try {
             const adapter = getAdapter(order.provider);
             if (adapter.capabilities.pushStatus) {
                 const credentials = await loadProviderCredentials(order.provider, order.branchId);
-                if (credentials) {
-                    await adapter.pushStatus(order.providerOrderId, 'accepted', credentials);
-                }
+                if (credentials) await adapter.pushStatus(order.providerOrderId, 'accepted', credentials);
             }
-        } catch (e) {
-            console.warn(`⚠️ Could not push status to ${order.provider}:`, e.message);
-        }
+        } catch (e) { }
 
-        res.json({ success: true, saleId: nextId, order });
+        res.json({ success: true, saleId: nextId });
 
     } catch (err) {
-        // Handle mapping failure gracefully
+        console.error('Accept Order Error:', err);
         try {
-            const order = await AggregatorOrder.findById(req.params.id);
-            if (order) {
-                order.transitionTo(AGGREGATOR_STATUSES.MAPPING_FAILED, err.message);
-                order.retryCount += 1;
-                order.lastError = err.message;
-                await order.save();
-            }
-        } catch (saveErr) {
-            console.error('❌ Could not save failure state:', saveErr.message);
-        }
+            await transitionOrder(req.params.id, AGGREGATOR_STATUSES.MAPPING_FAILED, err.message);
+        } catch (e) { }
         res.status(500).json({ error: err.message });
     }
 });
@@ -247,24 +271,16 @@ router.post('/orders/:id/accept', async (req, res) => {
 router.post('/orders/:id/reject', async (req, res) => {
     try {
         const { reason } = req.body;
-        const order = await AggregatorOrder.findById(req.params.id);
+        const order = await transitionOrder(req.params.id, AGGREGATOR_STATUSES.REJECTED, reason || 'Rejected by staff');
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
-        order.transitionTo(AGGREGATOR_STATUSES.REJECTED, reason || 'Rejected by staff');
-        await order.save();
-
-        // Notify provider
         try {
             const adapter = getAdapter(order.provider);
             if (adapter.capabilities.pushStatus) {
                 const credentials = await loadProviderCredentials(order.provider, order.branchId);
-                if (credentials) {
-                    await adapter.pushStatus(order.providerOrderId, 'rejected', credentials);
-                }
+                if (credentials) await adapter.pushStatus(order.providerOrderId, 'rejected', credentials);
             }
-        } catch (e) {
-            console.warn(`⚠️ Could not push rejection to ${order.provider}:`, e.message);
-        }
+        } catch (e) { }
 
         res.json({ success: true, order });
     } catch (err) {
@@ -275,23 +291,16 @@ router.post('/orders/:id/reject', async (req, res) => {
 // ─── Mark Ready ───
 router.post('/orders/:id/ready', async (req, res) => {
     try {
-        const order = await AggregatorOrder.findById(req.params.id);
+        const order = await transitionOrder(req.params.id, AGGREGATOR_STATUSES.READY, 'Marked ready for pickup');
         if (!order) return res.status(404).json({ error: 'Order not found' });
-
-        order.transitionTo(AGGREGATOR_STATUSES.READY, 'Marked ready for pickup');
-        await order.save();
 
         try {
             const adapter = getAdapter(order.provider);
             if (adapter.capabilities.pushStatus) {
                 const credentials = await loadProviderCredentials(order.provider, order.branchId);
-                if (credentials) {
-                    await adapter.pushStatus(order.providerOrderId, 'ready', credentials);
-                }
+                if (credentials) await adapter.pushStatus(order.providerOrderId, 'ready', credentials);
             }
-        } catch (e) {
-            console.warn(`⚠️ Could not push ready status to ${order.provider}:`, e.message);
-        }
+        } catch (e) { }
 
         res.json({ success: true, order });
     } catch (err) {
@@ -302,19 +311,17 @@ router.post('/orders/:id/ready', async (req, res) => {
 // ─── Retry Failed Mapping ───
 router.post('/orders/:id/retry', async (req, res) => {
     try {
-        const order = await AggregatorOrder.findById(req.params.id);
+        const order = await prisma.aggregatorOrder.findUnique({ where: { id: req.params.id } });
         if (!order) return res.status(404).json({ error: 'Order not found' });
-        if (order.status !== AGGREGATOR_STATUSES.MAPPING_FAILED) {
-            return res.status(400).json({ error: 'Order is not in failed state' });
-        }
+        if (order.status !== AGGREGATOR_STATUSES.MAPPING_FAILED) return res.status(400).json({ error: 'Order is not in failed state' });
 
-        // Reset to pending for re-processing
-        order.transitionTo(AGGREGATOR_STATUSES.PENDING, `Retry #${order.retryCount + 1}`);
-        order.retryCount += 1;
-        order.lastError = null;
-        await order.save();
+        await transitionOrder(order.id, AGGREGATOR_STATUSES.PENDING, `Retry #${order.retryCount + 1}`);
+        await prisma.aggregatorOrder.update({
+            where: { id: order.id },
+            data: { retryCount: { increment: 1 }, lastError: null }
+        });
 
-        res.json({ success: true, message: 'Order queued for retry. Accept it again to process.' });
+        res.json({ success: true, message: 'Order queued for retry.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -324,34 +331,27 @@ router.post('/orders/:id/retry', async (req, res) => {
 router.post('/menu/:provider/sync', async (req, res) => {
     const { provider } = req.params;
     const adapter = getAdapter(provider);
-    if (!adapter) return res.status(404).json({ error: 'Unknown provider' });
-    if (!adapter.capabilities.syncMenu) {
-        return res.status(400).json({ error: `${provider} does not support menu sync` });
-    }
+    if (!adapter || !adapter.capabilities.syncMenu) return res.status(400).json({ error: 'Sync not supported' });
 
     try {
         const rawProducts = await storage.readData('spare_parts', req.tenantId);
         const products = JSON.parse(rawProducts || '[]');
 
         const credentials = await loadProviderCredentials(provider, req.branchId);
-        if (!credentials) {
-            return res.status(400).json({ error: `No credentials configured for ${provider}` });
-        }
+        if (!credentials) return res.status(400).json({ error: 'Credentials missing' });
+        
         const result = await adapter.syncMenu(products, credentials);
-
-        res.json({ success: true, message: `Menu sync to ${provider} completed`, itemCount: products.length, result });
+        res.json({ success: true, result });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// ─── Config (Per-Provider Per-Branch) ───
+// ─── Config ───
 router.get('/config/:provider', async (req, res) => {
     try {
-        const { provider } = req.params;
-        const branch = await Branch.findById(req.branchId);
-        const config = branch?.settings?.aggregators?.[provider] || {};
-        // Don't send encrypted credentials back — just flags
+        const branch = await prisma.branch.findUnique({ where: { id: req.branchId } });
+        const config = branch?.settings?.aggregators?.[req.params.provider] || {};
         res.json({
             enabled: config.enabled || false,
             hasCredentials: !!config.encryptedCredentials,
@@ -367,21 +367,31 @@ router.put('/config/:provider', async (req, res) => {
         const { provider } = req.params;
         const { apiKey, clientId, clientSecret, enabled } = req.body;
 
-        const update = {};
-        if (typeof enabled === 'boolean') {
-            update[`settings.aggregators.${provider}.enabled`] = enabled;
-        }
+        const branch = await prisma.branch.findUnique({ where: { id: req.branchId } });
+        const settings = branch.settings || {};
+        const aggregators = settings.aggregators || {};
+        const config = aggregators[provider] || {};
+
+        if (typeof enabled === 'boolean') config.enabled = enabled;
         if (apiKey && clientId && clientSecret) {
-            const encrypted = encryptCredentials({ apiKey, clientId, clientSecret }, provider);
-            update[`settings.aggregators.${provider}.encryptedCredentials`] = encrypted;
+            config.encryptedCredentials = encryptCredentials({ apiKey, clientId, clientSecret }, provider);
         }
 
-        await Branch.findByIdAndUpdate(req.branchId, { $set: update });
+        aggregators[provider] = config;
+        settings.aggregators = aggregators;
+
+        await prisma.branch.update({
+            where: { id: req.branchId },
+            data: { settings }
+        });
+
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
+module.exports = router;
 
 // ─── Health Check ───
 router.get('/health/:provider', async (req, res) => {

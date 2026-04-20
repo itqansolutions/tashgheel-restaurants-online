@@ -1,5 +1,4 @@
-const jwt = require('jsonwebtoken');
-const storage = require('../utils/storage');
+const prisma = require('../prisma');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret123';
 
@@ -18,7 +17,7 @@ module.exports = async function (req, res, next) {
         req.tenantId = decoded.user.tenantId;
 
         // Check subscription/trial status
-        const tenant = await storage.findOne('tenants', { _id: req.tenantId });
+        const tenant = await prisma.tenant.findUnique({ where: { id: req.tenantId } });
         if (!tenant) return res.status(401).json({ msg: 'Tenant not found' });
 
         const now = new Date();

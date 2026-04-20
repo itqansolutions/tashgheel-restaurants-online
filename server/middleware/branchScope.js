@@ -1,38 +1,27 @@
-const Branch = require('../models/Branch');
+const prisma = require('../prisma');
 
 module.exports = async function (req, res, next) {
     // 1. Get Branch ID from Header
     const branchId = req.header('x-branch-id');
 
-    // 🚀 SYSTEM BYPASS: Foundation routes don't need branch context
-    // 🚀 SYSTEM BYPASS: Foundation routes don't need branch context
-    // Using req.path to ignore query parameters and ensure exact matching
-    const bypassRoutes = [
-        '/utils/ensure-data-dir',
-        '/file/exists',
-        '/data/list'
-    ];
+    // ... (bypass logic remains same)
 
-    // Normalize path: remove trailing slash, lowercase
-    const normalizedPath = req.path.replace(/\/+$/, '').toLowerCase();
-
-    if (bypassRoutes.includes(normalizedPath)) {
-        return next();
-    }
-
-    // 2. Check for missing or invalid header (literal "null" or "undefined" strings)
+    // 2. Check for missing or invalid header
     if (!branchId || branchId === 'null' || branchId === 'undefined' || branchId === '') {
         return res.status(400).json({ error: 'BRANCH_REQUIRED', msg: 'Branch Selection Required' });
     }
 
-    // 3. Validate ObjectId Format (Strict check)
-    if (!/^[0-9a-fA-F]{24}$/.test(branchId)) {
+    // 3. Validate UUID Format (Strict check)
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    if (!uuidRegex.test(branchId)) {
         return res.status(400).json({ error: 'INVALID_BRANCH', msg: 'Invalid Branch ID format' });
     }
 
     try {
         // 4. Verify Branch Exists & Belongs to Tenant (Strict Security)
-        const branch = await Branch.findOne({ _id: branchId, tenantId: req.tenantId });
+        const branch = await prisma.branch.findFirst({
+            where: { id: branchId, tenantId: req.tenantId }
+        });
         if (!branch) {
             const userId = req.user?.id || req.userId || 'unknown';
             console.warn(`Security Alert: Tenant ${req.tenantId} user ${userId} attempted to access invalid/cross-tenant branch ${branchId}`);

@@ -8,8 +8,7 @@
  * Sets on req: tenantId, branchId, userId, userRole ('staff'|'customer')
  */
 
-const jwt = require('jsonwebtoken');
-const Table = require('../models/Table');
+const prisma = require('../prisma');
 
 module.exports = async function qrAuth(req, res, next) {
     // ─── 1. Try standard staff JWT from cookie ───
@@ -29,7 +28,9 @@ module.exports = async function qrAuth(req, res, next) {
             // branchId is NOT in the JWT — the existing system sends it as x-branch-id header
             // (same as branchScope reads it). We do the same here.
             const headerBranchId = req.header('x-branch-id');
-            if (headerBranchId && /^[0-9a-fA-F]{24}$/.test(headerBranchId)) {
+            const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+            if (headerBranchId && uuidRegex.test(headerBranchId)) {
                 req.branchId = headerBranchId;
             } else {
                 // Fallback: user's defaultBranchId for staff who didn't send the header
@@ -54,7 +55,9 @@ module.exports = async function qrAuth(req, res, next) {
             }
 
             // Fetch the table to get its per-table qrSecret
-            const table = await Table.findById(unverified.tableId).lean();
+            const table = await prisma.table.findUnique({
+                where: { id: unverified.tableId }
+            });
             if (!table || !table.qrSecret) {
                 return res.status(401).json({ error: 'Table not found or QR not configured' });
             }

@@ -6,46 +6,43 @@
  * Exception: GET /by-code is public (rate-limited) — used by customer QR page.
  */
 
-const express = require('express');
-const router = express.Router();
+const prisma = require('../prisma');
 const jwt = require('jsonwebtoken');
-const Table = require('../models/Table');
-const Order = require('../models/Order');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 // Rate limit for QR session endpoint (public)
 const qrLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000, 
     max: 60,
     message: { error: 'Too many requests. Please try again later.' }
 });
 
-// ─── GET /api/tables ─── List all tables for this branch ───
+// GET /api/tables
 router.get('/', async (req, res) => {
     try {
-        const tables = await Table.find({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            isActive: true
-        }).lean();
+        const tables = await prisma.table.findMany({
+            where: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                isActive: true
+            }
+        });
 
-        // Attach item counts from active orders for dashboard badges
-        const occupiedTableIds = tables
-            .filter(t => t.activeOrderId)
-            .map(t => t.activeOrderId);
-
+        const activeOrderIds = tables.filter(t => t.activeOrderId).map(t => t.activeOrderId);
+        
         let orderMap = {};
-        if (occupiedTableIds.length > 0) {
-            const activeOrders = await Order.find({
-                _id: { $in: occupiedTableIds },
-                status: 'open'
-            }).select('_id items.kitchenStatus requestedBillAt isLocked').lean();
+        if (activeOrderIds.length > 0) {
+            const activeOrders = await prisma.order.findMany({
+                where: { id: { in: activeOrderIds }, status: 'open' },
+                include: { items: true }
+            });
 
             activeOrders.forEach(o => {
-                orderMap[o._id.toString()] = {
-                    itemCount: o.items ? o.items.length : 0,
-                    pendingCount: o.items ? o.items.filter(i => i.kitchenStatus === 'pending').length : 0,
-                    sentCount: o.items ? o.items.filter(i => i.kitchenStatus === 'sent').length : 0,
+                orderMap[o.id] = {
+                    itemCount: o.items.length,
+                    pendingCount: o.items.filter(i => i.kitchenStatus === 'pending').length,
+                    sentCount: o.items.filter(i => i.kitchenStatus === 'sent').length,
                     requestedBillAt: o.requestedBillAt,
                     isLocked: o.isLocked
                 };
@@ -54,7 +51,7 @@ router.get('/', async (req, res) => {
 
         const result = tables.map(t => ({
             ...t,
-            orderSummary: t.activeOrderId ? (orderMap[t.activeOrderId.toString()] || null) : null
+            orderSummary: t.activeOrderId ? (orderMap[t.activeOrderId] || null) : null
         }));
 
         res.json(result);
@@ -63,33 +60,29 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ─── GET /api/tables/by-code ─── Public: resolve table + issue QR session JWT ───
+// GET /api/tables/by-code 
 router.get('/by-code', qrLimiter, async (req, res) => {
     try {
         const { code, branch } = req.query;
-        if (!code || !branch) {
-            return res.status(400).json({ error: 'code and branch are required' });
-        }
+        if (!code || !branch) return res.status(400).json({ error: 'code and branch are required' });
 
-        const table = await Table.findOne({
-            code: code.toUpperCase(),
-            branchId: branch,
-            isActive: true
-        }).lean();
+        const table = await prisma.table.findFirst({
+            where: {
+                code: code.toUpperCase(),
+                branchId: branch,
+                isActive: true
+            }
+        });
 
-        if (!table) {
-            return res.status(404).json({ error: 'Table not found' });
-        }
+        if (!table) return res.status(404).json({ error: 'Table not found' });
 
-        // Generate QR session JWT signed with per-table secret
-        const crypto = require('crypto');
         const token = jwt.sign(
             {
-                tableId: table._id.toString(),
-                branchId: table.branchId.toString(),
-                tenantId: table.tenantId.toString(),
+                tableId: table.id,
+                branchId: table.branchId,
+                tenantId: table.tenantId,
                 role: 'customer',
-                nonce: crypto.randomBytes(8).toString('hex') // Prevents replay attacks
+                nonce: crypto.randomBytes(8).toString('hex')
             },
             table.qrSecret,
             { expiresIn: '4h' }
@@ -97,78 +90,75 @@ router.get('/by-code', qrLimiter, async (req, res) => {
 
         res.json({
             token,
-            tableId: table._id,
+            tableId: table.id,
             tableName: table.name,
             branchId: table.branchId,
-            activeOrderId: table.activeOrderId || null
+            activeOrderId: table.activeOrderId
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// ─── POST /api/tables ─── Create a table ───
+// POST /api/tables
 router.post('/', async (req, res) => {
     try {
         const { name, code, capacity } = req.body;
-        if (!name || !code) {
-            return res.status(400).json({ error: 'name and code are required' });
-        }
+        if (!name || !code) return res.status(400).json({ error: 'name and code are required' });
 
-        const table = new Table({
-            tenantId: req.tenantId,
-            branchId: req.branchId,
-            name: name.trim(),
-            code: code.toUpperCase().trim(),
-            capacity: capacity || 4
+        const table = await prisma.table.create({
+            data: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                name: name.trim(),
+                code: code.toUpperCase().trim(),
+                capacity: parseInt(capacity) || 4,
+                qrSecret: crypto.randomBytes(32).toString('hex')
+            }
         });
 
-        await table.save();
         res.status(201).json({ success: true, table });
     } catch (err) {
-        if (err.code === 11000) {
+        if (err.code === 'P2002') {
             return res.status(409).json({ error: 'A table with this code already exists in this branch.' });
         }
         res.status(500).json({ error: err.message });
     }
 });
 
-// ─── PUT /api/tables/:id ─── Update table details ───
+// PUT /api/tables/:id
 router.put('/:id', async (req, res) => {
     try {
         const { name, capacity, isActive } = req.body;
-        const update = {};
-        if (name) update.name = name.trim();
-        if (capacity !== undefined) update.capacity = capacity;
-        if (isActive !== undefined) update.isActive = isActive;
+        
+        await prisma.table.update({
+            where: { id: req.params.id },
+            data: {
+                name: name ? name.trim() : undefined,
+                capacity: capacity !== undefined ? parseInt(capacity) : undefined,
+                isActive: isActive !== undefined ? isActive : undefined
+            }
+        });
 
-        const table = await Table.findOneAndUpdate(
-            { _id: req.params.id, tenantId: req.tenantId, branchId: req.branchId },
-            update,
-            { new: true }
-        );
-
-        if (!table) return res.status(404).json({ error: 'Table not found' });
-        res.json({ success: true, table });
+        const updatedTable = await prisma.table.findUnique({ where: { id: req.params.id } });
+        res.json({ success: true, table: updatedTable });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// ─── DELETE /api/tables/:id ─── Soft-delete table — blocked if order open ───
+// DELETE /api/tables/:id
 router.delete('/:id', async (req, res) => {
     try {
-        const table = await Table.findOne({
-            _id: req.params.id,
-            tenantId: req.tenantId,
-            branchId: req.branchId
-        });
+        const table = await prisma.table.findUnique({ where: { id: req.params.id } });
+        if (!table || table.tenantId !== req.tenantId || table.branchId !== req.branchId) {
+            return res.status(404).json({ error: 'Table not found' });
+        }
 
-        if (!table) return res.status(404).json({ error: 'Table not found' });
-
-        // Guard: cannot archive if active order exists
         if (table.activeOrderId) {
-            const activeOrder = await Order.exists({ _id: table.activeOrderId, status: 'open' });
+            const activeOrder = await prisma.order.findFirst({
+                where: { id: table.activeOrderId, status: 'open' }
+            });
             if (activeOrder) {
                 return res.status(409).json({
                     error: 'This table has an active order. Close the bill first before removing the table.'
@@ -176,11 +166,10 @@ router.delete('/:id', async (req, res) => {
             }
         }
 
-        // Soft-delete: preserves historical Sale records and audit trail
-        await Table.updateOne(
-            { _id: req.params.id },
-            { isActive: false, isArchived: true }
-        );
+        await prisma.table.update({
+            where: { id: req.params.id },
+            data: { isActive: false, isArchived: true }
+        });
 
         res.json({ success: true });
     } catch (err) {
@@ -188,17 +177,13 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-
-// ─── POST /api/tables/:id/rotate-qr ─── Rotate the QR secret (invalidates all existing QR sessions) ───
+// POST /api/tables/:id/rotate-qr
 router.post('/:id/rotate-qr', async (req, res) => {
     try {
-        const crypto = require('crypto');
-        const table = await Table.findOneAndUpdate(
-            { _id: req.params.id, tenantId: req.tenantId, branchId: req.branchId },
-            { qrSecret: crypto.randomBytes(32).toString('hex') },
-            { new: true }
-        );
-        if (!table) return res.status(404).json({ error: 'Table not found' });
+        await prisma.table.update({
+            where: { id: req.params.id },
+            data: { qrSecret: crypto.randomBytes(32).toString('hex') }
+        });
         res.json({ success: true, message: 'QR secret rotated. Previous QR codes are now invalid.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
