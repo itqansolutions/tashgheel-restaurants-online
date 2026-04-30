@@ -1028,7 +1028,16 @@ async function login(username, password) {
 
     } catch (err) {
         console.error('Login system error:', err);
-        alert('System Error during login');
+        // Parse the real server error message instead of showing a generic popup
+        let errMsg = 'Login failed. Please check your credentials.';
+        try {
+            const parsed = JSON.parse(err.message);
+            errMsg = parsed.msg || parsed.error || err.message;
+        } catch (e) {
+            errMsg = err.message || errMsg;
+        }
+        const errorDiv = document.getElementById('loginError');
+        if (errorDiv) errorDiv.textContent = errMsg;
         return false;
     }
 }
