@@ -277,16 +277,10 @@ function openProductModal(product) {
     document.getElementById('modalNote').value = '';
 
     // --- SIZE SELECTOR ---
-    const sizesContainer = document.getElementById('modalSizes') || (() => {
-        const div = document.createElement('div');
-        div.id = 'modalSizes';
-        document.getElementById('modalNote').parentElement.insertBefore(div, document.getElementById('modalNote'));
-        return div;
-    })();
-
+    const sizesContainer = document.getElementById('modalSizes');
     sizesContainer.innerHTML = '';
     if (product.hasSizes && product.sizes && product.sizes.length > 0) {
-        sizesContainer.innerHTML = `<p class="text-sm font-bold text-slate-700 mb-2 mt-3">Choose Size:</p>`;
+        sizesContainer.innerHTML = `<p class="text-sm font-bold text-slate-700 mb-2 mt-1">Choose Size:</p>`;
         product.sizes.forEach((size, idx) => {
             const id = `size_${size.id || idx}`;
             sizesContainer.innerHTML += `
@@ -298,9 +292,7 @@ function openProductModal(product) {
                     <span class="text-blue-600 font-bold">${size.price} EGP</span>
                 </label>`;
         });
-        // Set initial price from first size
         document.getElementById('modalPrice').textContent = `${product.sizes[0].price} EGP`;
-        // Update price on size change
         sizesContainer.querySelectorAll('input[name="productSize"]').forEach(radio => {
             radio.addEventListener('change', () => {
                 const sel = product.sizes[parseInt(radio.value)];
@@ -312,13 +304,7 @@ function openProductModal(product) {
     }
 
     // --- ADD-ONS ---
-    const addonsContainer = document.getElementById('modalAddons') || (() => {
-        const div = document.createElement('div');
-        div.id = 'modalAddons';
-        sizesContainer.parentElement.insertBefore(div, sizesContainer.nextSibling);
-        return div;
-    })();
-
+    const addonsContainer = document.getElementById('modalAddons');
     addonsContainer.innerHTML = '';
     const addons = product.allowedAddons || [];
     if (addons.length > 0) {
@@ -334,7 +320,6 @@ function openProductModal(product) {
                     <span class="text-slate-500 text-sm">${addon.price > 0 ? '+' + addon.price + ' EGP' : 'Free'}</span>
                 </label>`;
         });
-        // Recalc total when add-ons change
         addonsContainer.querySelectorAll('.addon-check').forEach(cb => {
             cb.addEventListener('change', updateModalQty);
         });

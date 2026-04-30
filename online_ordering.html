@@ -183,9 +183,15 @@
                     <span id="modalPrice"
                         class="text-lg font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg"></span>
                 </div>
-                <p id="modalDesc" class="text-slate-500 text-sm leading-relaxed mb-6"></p>
+                <p id="modalDesc" class="text-slate-500 text-sm leading-relaxed mb-4"></p>
 
-                <div class="space-y-4">
+                <!-- Size options — populated by JS -->
+                <div id="modalSizes"></div>
+
+                <!-- Add-on options — populated by JS -->
+                <div id="modalAddons"></div>
+
+                <div class="space-y-4 mt-4">
                     <label class="block text-sm font-bold text-slate-700">Special Instructions</label>
                     <textarea id="modalNote" rows="2"
                         class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
