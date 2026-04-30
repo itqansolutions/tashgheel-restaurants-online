@@ -64,7 +64,7 @@ async function checkBranchSelection() {
             return;
         }
         updateUIForBranch();
-        loadMenu(state.branch._id);
+        loadMenu(state.branch.id || state.branch._id);
     } else {
         openBranchModal();
         fetchBranches();
@@ -119,8 +119,8 @@ function selectBranch(branch) {
     sessionStorage.setItem('online_branch', JSON.stringify(branch));
     toggleBranchModal(false);
     updateUIForBranch();
-    loadMenu(branch._id);
-    loadDeliveryZones(branch._id);
+    loadMenu(branch.id || branch._id);
+    loadDeliveryZones(branch.id || branch._id);
 
     // Clear cart if branch changes? Optional. For now, we clear to avoid price mismatch.
     if (state.cart.length > 0) {
@@ -157,8 +157,18 @@ async function loadMenu(branchId) {
         const data = await res.json(); // { categories, products }
 
         state.menu = data;
-        renderCategories();
-        renderProducts();
+        
+        if (state.menu && Array.isArray(state.menu.categories)) {
+            renderCategories();
+        } else {
+            document.getElementById('categoriesContainer').innerHTML = '<div class="text-red-500">No categories found.</div>';
+        }
+        
+        if (state.menu && Array.isArray(state.menu.products)) {
+            renderProducts();
+        } else {
+            document.getElementById('productsGrid').innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">No products found.</div>';
+        }
 
     } catch (e) {
         console.error(e);
@@ -183,7 +193,7 @@ function renderCategories() {
                 el.className = 'cat-pill px-5 py-2 rounded-full bg-white text-slate-600 border border-slate-200 text-sm font-bold whitespace-nowrap hover:border-slate-300 hover:bg-slate-50 transition-all';
             });
             e.target.className = 'cat-pill active px-5 py-2 rounded-full bg-slate-900 text-white text-sm font-bold whitespace-nowrap shadow-md transition-transform hover:scale-105';
-            filterCategory(c._id);
+            filterCategory(c.id || c._id);
         };
         container.appendChild(btn);
     });
@@ -276,13 +286,14 @@ function updateModalQty() {
 function addToCart() {
     if (!currentProduct) return;
 
-    const existingIndex = state.cart.findIndex(i => i.id === currentProduct._id && i.note === document.getElementById('modalNote').value);
+    const productId = currentProduct.id || currentProduct._id;
+    const existingIndex = state.cart.findIndex(i => i.id === productId && i.note === document.getElementById('modalNote').value);
 
     if (existingIndex > -1) {
         state.cart[existingIndex].qty += currentQty;
     } else {
         state.cart.push({
-            id: currentProduct._id,
+            id: productId,
             name: currentProduct.name,
             price: currentProduct.price,
             qty: currentQty,
@@ -418,7 +429,7 @@ function openCheckout() {
     select.innerHTML = '<option value="">Select Area...</option>';
     state.zones.forEach(z => {
         const opt = document.createElement('option');
-        opt.value = z._id;
+        opt.value = z.id || z._id;
         opt.textContent = `${z.name} - ${z.fee} EGP Delivery`;
         select.appendChild(opt);
     });
@@ -460,7 +471,7 @@ function toggleDeliveryFields() {
 
 document.getElementById('deliveryZone').addEventListener('change', (e) => {
     const zoneId = e.target.value;
-    state.deliveryZone = state.zones.find(z => z._id === zoneId);
+    state.deliveryZone = state.zones.find(z => (z.id || z._id) === zoneId);
     updateCheckoutSummary();
 });
 
@@ -502,11 +513,11 @@ async function submitOrder(e) {
     };
 
     const payload = {
-        branchId: state.branch._id,
+        branchId: state.branch.id || state.branch._id,
         cart: state.cart,
         customer,
         orderType,
-        deliveryZoneId: state.deliveryZone?._id
+        deliveryZoneId: state.deliveryZone ? (state.deliveryZone.id || state.deliveryZone._id) : null
     };
 
     try {

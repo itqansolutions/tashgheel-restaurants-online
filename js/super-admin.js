@@ -109,7 +109,7 @@ document.getElementById('createTenantForm').addEventListener('submit', async (e)
 function openEditModal(tenantStr) {
     const tenant = JSON.parse(decodeURIComponent(tenantStr));
 
-    document.getElementById('editId').value = tenant._id;
+    document.getElementById('editId').value = tenant.id || tenant._id;
     document.getElementById('editName').value = tenant.businessName;
     document.getElementById('editEmail').value = tenant.email;
     document.getElementById('editPhone').value = tenant.phone;
@@ -195,7 +195,7 @@ function renderTenantsTable(tenants) {
         tr.innerHTML = `
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 text-base">${tenant.businessName}</div>
-                <div class="text-xs font-mono text-slate-400 mt-0.5">ID: ${tenant._id}</div>
+                <div class="text-xs font-mono text-slate-400 mt-0.5">ID: ${tenant.id || tenant._id}</div>
                 <div class="mt-2 flex gap-2 text-xs">
                     <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100" title="Total Users">
                         users: <b>${tenant.usersCount || 0}</b>
@@ -244,21 +244,21 @@ function renderTenantsTable(tenants) {
                         <span class="material-symbols-outlined text-[18px]">edit_square</span>
                     </button>
 
-                    <button onclick="updateStatus('${tenant._id}', '${tenant.status === 'active' ? 'on_hold' : 'active'}')" 
+                    <button onclick="updateStatus('${tenant.id || tenant._id}', '${tenant.status === 'active' ? 'on_hold' : 'active'}')" 
                             class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors border ${tenant.status === 'active' ? 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100' : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'}"
                             title="${tenant.status === 'active' ? 'Suspend' : 'Activate'}">
                         <span class="material-symbols-outlined text-[18px]">${tenant.status === 'active' ? 'pause' : 'play_arrow'}</span>
                     </button>
                     
-                    <button onclick="openExtendModal('${tenant._id}', '${tenant.businessName}')" class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100" title="Extend Subscription">
+                    <button onclick="openExtendModal('${tenant.id || tenant._id}', '${tenant.businessName}')" class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100" title="Extend Subscription">
                         <span class="material-symbols-outlined text-[18px]">update</span>
                     </button>
                     
-                    <button onclick="openPasswordModal('${tenant._id}', '${tenant.businessName}')" class="w-8 h-8 flex items-center justify-center bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors border border-purple-100" title="Reset Password">
+                    <button onclick="openPasswordModal('${tenant.id || tenant._id}', '${tenant.businessName}')" class="w-8 h-8 flex items-center justify-center bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors border border-purple-100" title="Reset Password">
                         <span class="material-symbols-outlined text-[18px]">key</span>
                     </button>
                     
-                    <button onclick="terminateTenant('${tenant._id}')" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete Tenant">
+                    <button onclick="terminateTenant('${tenant.id || tenant._id}')" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete Tenant">
                         <span class="material-symbols-outlined text-[18px]">delete</span>
                     </button>
                 </div>

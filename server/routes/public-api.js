@@ -23,6 +23,7 @@ router.get('/branches', async (req, res) => {
             where: { tenantId, isActive: true },
             select: {
                 id: true,
+                tenantId: true,
                 name: true,
                 code: true,
                 phone: true,
