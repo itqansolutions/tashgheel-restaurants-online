@@ -20,6 +20,7 @@ let filteredProducts = [];
 let cart = [];
 let currentDiscountIndex = null;
 let currentShift = null;
+let currentOnlineOrderId = null;
 
 // Translation Helper using global translations
 const t = (key) => {
@@ -66,8 +67,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   updateCartSummary();
   loadTables();
-  toggleOrderType(); // Set initial state
-
   // 🚀 Shift Check (Mandatory for SaaS)
   checkShift();
 
@@ -79,6 +78,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (nameEl) nameEl.textContent = user.username;
     }
   }
+
+  // ☁️ Online Orders Polling
+  setInterval(fetchOnlineOrders, 30000);
+  fetchOnlineOrders();
 });
 
 function bindSearchOnce() {
@@ -1476,7 +1479,29 @@ function processSale(method) {
 
 
   // Save Sale
-  window.DB.saveSale(sale);
+  if (currentOnlineOrderId) {
+    // ☁️ Update Existing Online Order
+    window.apiFetch(`/sales/${currentOnlineOrderId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+            status: 'finished',
+            kitchenStatus: 'completed',
+            method: method,
+            shiftId: currentShift ? currentShift._id : null,
+            cashier: cashierName,
+            salesman: salesman,
+            appliedTaxes: appliedTaxes,
+            date: new Date().toISOString()
+        })
+    }).then(res => {
+        if (res.success) {
+            currentOnlineOrderId = null;
+            fetchOnlineOrders();
+        }
+    }).catch(e => console.error('Failed to update online order', e));
+  } else {
+    window.DB.saveSale(sale);
+  }
 
   // Cache receipt for printing
   localStorage.setItem(sale.id, JSON.stringify(sale));
@@ -1940,3 +1965,147 @@ window.startNewShift = function (silent = false) {
     window.showToast(t('shift_started') || 'New Shift Started! Receipt # reset to 001.', 'success');
   }
 };
+
+// ===================== ONLINE ORDERS & PREVIEW =====================
+
+async function fetchOnlineOrders() {
+    try {
+        const orders = await window.apiFetch('/kitchen/online-pending');
+        const badge = document.getElementById('online-orders-badge');
+        if (badge) {
+            if (orders && orders.length > 0) {
+                badge.textContent = orders.length;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        window.latestOnlineOrders = orders || [];
+    } catch (e) {
+        console.warn('Failed to fetch online orders', e);
+    }
+}
+
+function openOnlineOrders() {
+    const modal = document.getElementById('onlineOrdersModal');
+    const list = document.getElementById('onlineOrdersList');
+    modal.style.display = 'flex';
+    
+    if (!window.latestOnlineOrders || window.latestOnlineOrders.length === 0) {
+        list.innerHTML = `<p class="text-slate-400 text-sm py-10 text-center">No pending online orders.</p>`;
+        return;
+    }
+
+    list.innerHTML = window.latestOnlineOrders.map(order => `
+        <div class="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 flex justify-between items-center group">
+            <div>
+                <div class="font-bold text-sm">#${order.receiptNo} — ${order.customer?.name || 'Guest'}</div>
+                <div class="text-[10px] text-slate-500">${order.orderType.toUpperCase()} | ${new Date(order.date).toLocaleTimeString()}</div>
+                <div class="text-[11px] font-bold text-success mt-1">${order.total.toFixed(2)} EGP</div>
+            </div>
+            <button onclick="resumeOnlineOrder('${order.id}')" 
+                class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                Resume
+            </button>
+        </div>
+    `).join('');
+}
+
+function resumeOnlineOrder(orderId) {
+    const order = window.latestOnlineOrders.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (cart.length > 0 && !confirm('Resume online order? Current cart will be cleared.')) return;
+
+    cart = order.items.map(i => ({
+        product_id: i.productId,
+        code: i.productCode,
+        name: i.name,
+        sizeName: i.sizeName || '',
+        price: i.price,
+        qty: i.qty,
+        cost: i.cost || 0,
+        note: i.note || '',
+        addons: i.addons || []
+    }));
+
+    currentOnlineOrderId = order.id;
+    
+    // Set Order Type
+    const radios = document.querySelectorAll('input[name="orderType"]');
+    radios.forEach(r => {
+        if (r.value === order.orderType) r.checked = true;
+    });
+    if (typeof toggleOrderType === 'function') toggleOrderType();
+
+    // Set Customer Info if Delivery
+    if (order.orderType === 'delivery' && order.customer) {
+        // Mocking selection for simplicity
+        currentCustomer = { 
+            id: order.customer.mobile, 
+            name: order.customer.name, 
+            mobile: order.customer.mobile 
+        };
+        selectedAddress = order.customer.address;
+        const selDisp = document.getElementById('selectedCustomerDisplay');
+        if (selDisp) {
+            selDisp.style.display = 'block';
+            document.getElementById('selCustName').textContent = currentCustomer.name;
+            document.getElementById('selCustMobile').textContent = currentCustomer.mobile;
+        }
+    }
+
+    updateCartDisplay();
+    document.getElementById('onlineOrdersModal').style.display = 'none';
+}
+
+function printReceiptPreview() {
+    if (cart.length === 0) return alert('Cart is empty');
+
+    // Simple temporary object for printing
+    const previewSale = {
+        receiptNo: 'PREVIEW',
+        date: new Date().toISOString(),
+        items: cart,
+        total: parseFloat(document.getElementById('cartTotal').textContent.split(': ')[1]) || 0,
+        subtotal: parseFloat(document.getElementById('cartSubtotal').textContent) || 0,
+        discount: parseFloat(document.getElementById('cartDiscount').textContent.replace('- ', '')) || 0,
+        cashier: (window.getCurrentUser ? window.getCurrentUser().username : 'Staff'),
+        orderType: document.querySelector('input[name="orderType"]:checked')?.value || 'take_away'
+    };
+
+    // Use existing print stored receipt if possible
+    const tempId = 'preview_receipt';
+    localStorage.setItem(tempId, JSON.stringify(previewSale));
+    
+    if (typeof window.printStoredReceipt === 'function') {
+        window.printStoredReceipt(tempId);
+    } else {
+        alert('Print engine not found.');
+    }
+}
+
+async function sendToKitchen() {
+    if (cart.length === 0) return alert('Cart is empty');
+
+    if (currentOnlineOrderId) {
+        try {
+            const res = await window.apiFetch(`/kitchen/preparing/${currentOnlineOrderId}`, {
+                method: 'POST'
+            });
+            if (res.success) {
+                window.showToast('Order sent to kitchen!', 'success');
+            }
+        } catch (e) {
+            alert('Failed to send to kitchen: ' + e.message);
+        }
+    } else {
+        alert('Independent KOT for regular orders is coming soon. Please use Hold for now.');
+    }
+}
+
+window.openOnlineOrders = openOnlineOrders;
+window.resumeOnlineOrder = resumeOnlineOrder;
+window.printReceiptPreview = printReceiptPreview;
+window.sendToKitchen = sendToKitchen;
+window.fetchOnlineOrders = fetchOnlineOrders;

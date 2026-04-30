@@ -485,6 +485,35 @@ router.post('/sales/refund/:id', async (req, res) => {
     }
 });
 
+// Update Sale (Used for finalizing online orders or updating notes/payment)
+router.patch('/sales/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        const sale = await prisma.sale.findUnique({
+            where: { id }
+        });
+
+        if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Sale not found' });
+
+        // Merge existing items if necessary or replace?
+        // For online order finalization, we usually just update status, method, shiftId, etc.
+        const updated = await prisma.sale.update({
+            where: { id },
+            data: {
+                ...updateData,
+                date: updateData.date ? new Date(updateData.date) : undefined
+            }
+        });
+
+        res.json({ success: true, sale: updated });
+    } catch (err) {
+        console.error('Sale Update Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 async function updateDailySummary(req, result) {
     try {
         const branch = await prisma.branch.findUnique({ where: { id: req.branchId } });
@@ -536,7 +565,7 @@ router.get('/kitchen/orders', async (req, res) => {
             where: {
                 tenantId: req.tenantId,
                 branchId: req.branchId,
-                kitchenStatus: 'pending',
+                kitchenStatus: { in: ['pending', 'preparing'] },
                 status: { notIn: ['void', 'refunded'] }
             },
             include: { items: true },
@@ -548,8 +577,52 @@ router.get('/kitchen/orders', async (req, res) => {
     }
 });
 
-// 2. Mark Order as Complete
+// 1.1 Get Pending Online Orders (For POS)
+router.get('/kitchen/online-pending', async (req, res) => {
+    try {
+        const orders = await prisma.sale.findMany({
+            where: {
+                tenantId: req.tenantId,
+                branchId: req.branchId,
+                source: 'online_store',
+                status: 'pending'
+            },
+            include: { items: true },
+            orderBy: { date: 'desc' }
+        });
+        res.json(orders);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. Mark Order as Complete (Ready/Out for Delivery)
 router.post('/kitchen/complete/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const sale = await prisma.sale.findUnique({
+            where: { id }
+        });
+
+        if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
+
+        const newKitchenStatus = sale.source === 'online_store' ? 'out_for_delivery' : 'ready';
+
+        await prisma.sale.update({
+            where: { id },
+            data: {
+                kitchenStatus: newKitchenStatus
+            }
+        });
+
+        res.json({ success: true, status: newKitchenStatus });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. Mark Order as Preparing
+router.post('/kitchen/preparing/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const sale = await prisma.sale.findUnique({
@@ -561,7 +634,7 @@ router.post('/kitchen/complete/:id', async (req, res) => {
         await prisma.sale.update({
             where: { id },
             data: {
-                kitchenStatus: 'ready'
+                kitchenStatus: 'preparing'
             }
         });
 

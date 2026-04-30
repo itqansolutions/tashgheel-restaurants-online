@@ -58,6 +58,10 @@ async function loadKitchenOrders() {
             // Timer Badge
             const timerHtml = `<div class="absolute top-2 right-2 text-xs font-mono font-bold ${timeColor} bg-slate-900/80 px-2 py-1 rounded backdrop-blur-sm border border-slate-700">${minutesAgo}m</div>`;
 
+            // Preparing Status Badge
+            const isPreparing = sale.kitchenStatus === 'preparing';
+            const statusBadge = isPreparing ? `<div class="absolute top-10 right-2 text-[10px] font-bold bg-blue-500 text-white px-2 py-0.5 rounded shadow-sm animate-pulse">PREPARING</div>` : '';
+
             card.innerHTML = `
             <div class="bg-slate-750 px-4 py-3 border-b border-slate-700">
                 <div class="flex items-center gap-2 mb-1">
@@ -67,6 +71,7 @@ async function loadKitchenOrders() {
                 ${tableInfo}
                 ${sale.note ? `<div class="mt-2 p-2 bg-red-900/30 border border-red-800 rounded text-xs text-red-200 font-bold italic">Note: ${sale.note}</div>` : ''}
                 ${timerHtml}
+                ${statusBadge}
                 <div class="text-[10px] text-slate-500 mt-1">${time}</div>
             </div>
             
@@ -124,9 +129,12 @@ window.completeOrder = async function (saleId) {
             setTimeout(loadKitchenOrders, 500);
 
             // Toast
+            const isDelivery = result.status === 'out_for_delivery';
             const toast = document.createElement('div');
             toast.className = 'fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 font-bold flex items-center gap-2';
-            toast.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Order Completed';
+            toast.innerHTML = isDelivery 
+                ? '<span class="material-symbols-outlined">local_shipping</span> Order Out for Delivery'
+                : '<span class="material-symbols-outlined">check_circle</span> Order Ready';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2000);
         } else {
