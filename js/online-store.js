@@ -193,20 +193,40 @@ function renderCategories() {
                 el.className = 'cat-pill px-5 py-2 rounded-full bg-white text-slate-600 border border-slate-200 text-sm font-bold whitespace-nowrap hover:border-slate-300 hover:bg-slate-50 transition-all';
             });
             e.target.className = 'cat-pill active px-5 py-2 rounded-full bg-slate-900 text-white text-sm font-bold whitespace-nowrap shadow-md transition-transform hover:scale-105';
-            filterCategory(c.id || c._id);
+            filterCategory(c.name);
         };
         container.appendChild(btn);
+    });
+
+    // Also add categories derived from products (in case stored categories differ)
+    const productCats = [...new Set(
+        state.menu.products.filter(p => !p.isService).map(p => p.category).filter(Boolean)
+    )];
+    productCats.forEach(catName => {
+        if (!state.menu.categories.find(c => c.name === catName)) {
+            const btn = document.createElement('button');
+            btn.className = 'cat-pill px-5 py-2 rounded-full bg-white text-slate-600 border border-slate-200 text-sm font-bold whitespace-nowrap hover:border-slate-300 hover:bg-slate-50 transition-all';
+            btn.textContent = catName;
+            btn.onclick = (e) => {
+                document.querySelectorAll('.cat-pill').forEach(el => {
+                    el.className = 'cat-pill px-5 py-2 rounded-full bg-white text-slate-600 border border-slate-200 text-sm font-bold whitespace-nowrap hover:border-slate-300 hover:bg-slate-50 transition-all';
+                });
+                e.target.className = 'cat-pill active px-5 py-2 rounded-full bg-slate-900 text-white text-sm font-bold whitespace-nowrap shadow-md transition-transform hover:scale-105';
+                filterCategory(catName);
+            };
+            container.appendChild(btn);
+        }
     });
 }
 
 function filterCategory(catId) {
     const products = catId === 'all'
-        ? state.menu.products
-        : state.menu.products.filter(p => p.category === catId);
+        ? state.menu.products.filter(p => !p.isService)
+        : state.menu.products.filter(p => !p.isService && p.category === catId);
     renderProducts(products);
 }
 
-function renderProducts(products = state.menu.products) {
+function renderProducts(products = state.menu.products.filter(p => !p.isService)) {
     const grid = document.getElementById('productsGrid');
     grid.innerHTML = '';
 
@@ -253,9 +273,72 @@ function openProductModal(product) {
 
     document.getElementById('modalTitle').textContent = product.name;
     document.getElementById('modalDesc').textContent = product.description || '';
-    document.getElementById('modalPrice').textContent = `${product.price} EGP`;
-    document.getElementById('modalImg').src = product.image || 'https://placehold.co/400x300/f1f5f9/94a3b8?text=No+Image';
+    document.getElementById('modalImg').src = product.image && product.image.trim() ? product.image : 'https://placehold.co/400x300/f1f5f9/94a3b8?text=No+Image';
     document.getElementById('modalNote').value = '';
+
+    // --- SIZE SELECTOR ---
+    const sizesContainer = document.getElementById('modalSizes') || (() => {
+        const div = document.createElement('div');
+        div.id = 'modalSizes';
+        document.getElementById('modalNote').parentElement.insertBefore(div, document.getElementById('modalNote'));
+        return div;
+    })();
+
+    sizesContainer.innerHTML = '';
+    if (product.hasSizes && product.sizes && product.sizes.length > 0) {
+        sizesContainer.innerHTML = `<p class="text-sm font-bold text-slate-700 mb-2 mt-3">Choose Size:</p>`;
+        product.sizes.forEach((size, idx) => {
+            const id = `size_${size.id || idx}`;
+            sizesContainer.innerHTML += `
+                <label for="${id}" class="flex items-center justify-between p-3 mb-2 border rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                    <span class="flex items-center gap-3">
+                        <input type="radio" name="productSize" id="${id}" value="${idx}" ${idx === 0 ? 'checked' : ''} class="accent-blue-600">
+                        <span class="font-semibold text-slate-800">${size.name}</span>
+                    </span>
+                    <span class="text-blue-600 font-bold">${size.price} EGP</span>
+                </label>`;
+        });
+        // Set initial price from first size
+        document.getElementById('modalPrice').textContent = `${product.sizes[0].price} EGP`;
+        // Update price on size change
+        sizesContainer.querySelectorAll('input[name="productSize"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const sel = product.sizes[parseInt(radio.value)];
+                if (sel) { document.getElementById('modalPrice').textContent = `${sel.price} EGP`; updateModalQty(); }
+            });
+        });
+    } else {
+        document.getElementById('modalPrice').textContent = `${product.price} EGP`;
+    }
+
+    // --- ADD-ONS ---
+    const addonsContainer = document.getElementById('modalAddons') || (() => {
+        const div = document.createElement('div');
+        div.id = 'modalAddons';
+        sizesContainer.parentElement.insertBefore(div, sizesContainer.nextSibling);
+        return div;
+    })();
+
+    addonsContainer.innerHTML = '';
+    const addons = product.allowedAddons || [];
+    if (addons.length > 0) {
+        addonsContainer.innerHTML = `<p class="text-sm font-bold text-slate-700 mb-2 mt-3">Add-ons / Extras:</p>`;
+        addons.forEach(addon => {
+            const id = `addon_${addon.id}`;
+            addonsContainer.innerHTML += `
+                <label for="${id}" class="flex items-center justify-between p-3 mb-1 border rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                    <span class="flex items-center gap-3">
+                        <input type="checkbox" id="${id}" value="${addon.id}" data-name="${addon.name}" data-price="${addon.price || 0}" class="addon-check accent-blue-600 w-4 h-4">
+                        <span class="font-medium text-slate-700">${addon.name}</span>
+                    </span>
+                    <span class="text-slate-500 text-sm">${addon.price > 0 ? '+' + addon.price + ' EGP' : 'Free'}</span>
+                </label>`;
+        });
+        // Recalc total when add-ons change
+        addonsContainer.querySelectorAll('.addon-check').forEach(cb => {
+            cb.addEventListener('change', updateModalQty);
+        });
+    }
 
     updateModalQty();
 
@@ -279,31 +362,70 @@ function adjustQty(delta) {
 
 function updateModalQty() {
     document.getElementById('modalQty').textContent = currentQty;
-    const total = (currentProduct.price * currentQty).toFixed(2);
+    // Get base price from selected size or product
+    let basePrice = currentProduct.price;
+    if (currentProduct.hasSizes && currentProduct.sizes && currentProduct.sizes.length > 0) {
+        const sizeRadio = document.querySelector('input[name="productSize"]:checked');
+        if (sizeRadio) {
+            const sel = currentProduct.sizes[parseInt(sizeRadio.value)];
+            if (sel) basePrice = sel.price;
+        }
+    }
+    // Add selected add-ons price
+    let addonsTotal = 0;
+    document.querySelectorAll('.addon-check:checked').forEach(cb => {
+        addonsTotal += parseFloat(cb.dataset.price || 0);
+    });
+    const total = ((basePrice + addonsTotal) * currentQty).toFixed(2);
     document.getElementById('modalBtnTotal').textContent = `${total} EGP`;
 }
 
 function addToCart() {
     if (!currentProduct) return;
 
+    // Resolve selected size
+    let selectedSize = null;
+    if (currentProduct.hasSizes && currentProduct.sizes && currentProduct.sizes.length > 0) {
+        const sizeRadio = document.querySelector('input[name="productSize"]:checked');
+        if (sizeRadio) selectedSize = currentProduct.sizes[parseInt(sizeRadio.value)];
+        else selectedSize = currentProduct.sizes[0];
+    }
+
+    // Resolve checked add-ons
+    const selectedAddons = [];
+    document.querySelectorAll('.addon-check:checked').forEach(cb => {
+        selectedAddons.push({ id: cb.value, name: cb.dataset.name, price: parseFloat(cb.dataset.price || 0) });
+    });
+
     const productId = currentProduct.id || currentProduct._id;
-    const existingIndex = state.cart.findIndex(i => i.id === productId && i.note === document.getElementById('modalNote').value);
+    const itemPrice = selectedSize ? selectedSize.price : currentProduct.price;
+    const addonsPrice = selectedAddons.reduce((sum, a) => sum + a.price, 0);
+    const note = document.getElementById('modalNote').value;
+
+    // Unique key: product id + size id + note (add-ons are always stacked, not merged)
+    const sizeId = selectedSize ? String(selectedSize.id || selectedSize.name) : null;
+    const existingIndex = state.cart.findIndex(i =>
+        i.id === productId && i.sizeId === sizeId && i.note === note && JSON.stringify(i.addons) === JSON.stringify(selectedAddons)
+    );
 
     if (existingIndex > -1) {
         state.cart[existingIndex].qty += currentQty;
     } else {
         state.cart.push({
             id: productId,
-            name: currentProduct.name,
-            price: currentProduct.price,
+            name: currentProduct.name + (selectedSize && selectedSize.name !== currentProduct.name ? ` (${selectedSize.name})` : ''),
+            price: itemPrice + addonsPrice,
             qty: currentQty,
-            note: document.getElementById('modalNote').value
+            sizeId: sizeId,
+            sizeName: selectedSize ? selectedSize.name : null,
+            addons: selectedAddons,
+            note: note
         });
     }
 
     saveCart();
     closeProductModal();
-    openCart(); // Auto open cart for feedback
+    openCart();
 }
 
 // --- CART LOGIC ---

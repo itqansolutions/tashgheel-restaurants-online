@@ -82,6 +82,9 @@ router.get('/menu/:branchId', async (req, res) => {
         let products = [];
         try { products = JSON.parse(productsRaw || '[]'); } catch (e) { }
 
+        // Build a map of all products so we can resolve add-on details
+        const productMap = new Map(products.map(p => [String(p.id), p]));
+
         products = products.filter(p => p.isActive !== false)
             .map(p => ({
                 id: p.id,
@@ -91,7 +94,17 @@ router.get('/menu/:branchId', async (req, res) => {
                 price: p.price,
                 category: p.category,
                 image: p.image,
-                taxRate: p.taxRate
+                taxRate: p.taxRate,
+                hasSizes: !!p.hasSizes,
+                sizes: Array.isArray(p.sizes) ? p.sizes : [],
+                isService: !!p.isService,
+                allowAllAddons: !!p.allowAllAddons,
+                allowedAddons: Array.isArray(p.allowedAddons)
+                    ? p.allowedAddons.map(addonId => {
+                        const addon = productMap.get(String(addonId));
+                        return addon ? { id: String(addonId), name: addon.name, price: addon.price || 0 } : null;
+                    }).filter(Boolean)
+                    : []
             }));
 
         res.json({ categories, products });
