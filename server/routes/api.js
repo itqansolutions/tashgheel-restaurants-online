@@ -26,6 +26,20 @@ router.post('/data/save', async (req, res) => {
     }
 });
 
+// List Data Keys
+router.get('/data/list', async (req, res) => {
+    try {
+        const tid = req.tenantId || 'global';
+        const docs = await prisma.data.findMany({
+            where: { tenantId: tid },
+            select: { key: true }
+        });
+        res.json(docs.map(d => d.key));
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Read Data
 router.get('/data/read/:key', async (req, res) => {
     const { key } = req.params;

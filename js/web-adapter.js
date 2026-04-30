@@ -297,16 +297,20 @@
             }
 
             try {
-                // apiFetch auto-injects branchId from localStorage.
-                // Note: user snippet ignored `branchIdOverride` and just used `localStorage`.
-                // I will continue to support `branchIdOverride` by... wait, new apiFetch reads from localStorage ONLY.
-                // If I want to support override, I'd need to modify apiFetch or temporarily set localStorage?
-                // Actually, in the SaaS app, we only ever list files for the ACTIVE branch.
-                // So relying on `localStorage` inside `apiFetch` is consistent with the "Session" concept.
-                // I will discard branchIdOverride support here to match the strict session design.
-                return await apiFetch(`/data/list`);
+                // Query which keys exist for this tenant so auth.js can load them
+                const result = await apiFetch(`/data/list`);
+                // Ensure we return plain strings only (guard against object responses)
+                if (Array.isArray(result)) {
+                    return result.map(item => {
+                        if (typeof item === 'string') return item;
+                        if (item && typeof item === 'object' && item.key) return String(item.key);
+                        return null;
+                    }).filter(Boolean);
+                }
+                // Endpoint missing or returned unexpected format — return empty so auth.js uses defaults
+                return [];
             } catch (e) {
-                console.error("listDataFiles exception:", e);
+                // Endpoint not implemented — silently return empty, auth.js has hardcoded defaults
                 return [];
             }
         },
