@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
+const storage = require('../utils/storage');
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
@@ -11,20 +12,18 @@ const path = require('path');
 router.post('/data/save', async (req, res) => {
     const { key, value } = req.body;
     if (!key) return res.status(400).json({ success: false, error: 'Key is required' });
-
     try {
         const tid = req.tenantId || 'global';
-        await prisma.data.upsert({
-            where: { key_tenantId: { key, tenantId: tid } },
-            update: { value, updatedAt: new Date() },
-            create: { key, tenantId: tid, value }
-        });
+        // Use storage.saveData so values are always serialized as strings,
+        // consistent with how public-api.js reads them via storage.readData
+        await storage.saveData(key, value, tid);
         res.json({ success: true });
     } catch (err) {
         console.error(`Error saving ${key}:`, err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
 
 // List Data Keys
 router.get('/data/list', async (req, res) => {
