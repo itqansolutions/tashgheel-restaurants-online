@@ -250,6 +250,7 @@ function handleSaveMaterial(e) {
     const name = document.getElementById('material-name').value.trim();
     const unit = document.getElementById('material-unit').value.trim();
     const cost = parseFloat(document.getElementById('material-cost').value);
+    const stock = parseFloat(document.getElementById('material-stock').value || 0);
     const vendorId = document.getElementById('material-vendor').value;
     const minStock = parseFloat(document.getElementById('material-min').value);
     const expDate = document.getElementById('material-exp').value;
@@ -264,7 +265,7 @@ function handleSaveMaterial(e) {
         name,
         unit,
         cost,
-        stock: id ? window.DB.getIngredient(id).stock : 0, // Preserve stock on edit
+        stock: id ? (window.DB.getIngredient(id)?.stock || 0) : (isNaN(stock) ? 0 : stock),
         vendorId,
         minStock: isNaN(minStock) ? 5 : minStock,
         expirationDate: expDate || null
