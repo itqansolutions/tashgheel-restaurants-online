@@ -346,7 +346,14 @@ router.post('/:id/unlock', async (req, res) => {
 router.post('/:id/close', async (req, res) => {
     if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });
 
-    const { method = 'cash', discount = 0, discountType = 'none', closeOverride = false } = req.body;
+    const { 
+        method = 'cash', 
+        discount = 0, 
+        discountType = 'none', 
+        closeOverride = false,
+        shiftId = null,
+        tax = 0
+    } = req.body;
 
     try {
         const order = await prisma.order.findUnique({
@@ -367,7 +374,9 @@ router.post('/:id/close', async (req, res) => {
         let discountAmt = 0;
         if (discountType === 'percent') discountAmt = subtotal * (discount / 100);
         else if (discountType === 'value') discountAmt = discount;
-        const total = Math.max(0, subtotal - discountAmt);
+        
+        const taxAmt = parseFloat(tax) || 0;
+        const total = Math.max(0, subtotal - discountAmt + taxAmt);
 
         const lastSale = await prisma.sale.findFirst({
             where: { tenantId: order.tenantId, branchId: order.branchId },
@@ -390,8 +399,10 @@ router.post('/:id/close', async (req, res) => {
                     tableName: order.tableName,
                     subtotal,
                     discount: discountAmt,
+                    tax: taxAmt,
                     total,
                     method,
+                    shiftId: shiftId || undefined,
                     status: 'finished',
                     source: 'pos',
                     date: new Date(),

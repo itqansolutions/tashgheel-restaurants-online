@@ -21,6 +21,7 @@ let cart = [];
 let currentDiscountIndex = null;
 let currentShift = null;
 let currentOnlineOrderId = null;
+let currentDineInOrder = null;
 
 // Translation Helper using global translations
 const t = (key) => {
@@ -538,18 +539,93 @@ function loadSalesmen(roleOrRoles) {
   });
 }
 
-function loadTables() {
-  const tables = window.DB.getTables();
-  const select = document.getElementById("tableSelection")?.querySelector("select");
+async function loadTables() {
+  const select = document.getElementById("tableSelect");
   if (!select) return;
   select.innerHTML = `<option value="">-- ${t('select_table') || 'Select Table'} --</option>`;
-  tables.forEach(table => {
-    const opt = document.createElement("option");
-    opt.value = table.id;
-    opt.textContent = table.name;
-    select.appendChild(opt);
-  });
+  try {
+    const tables = await window.apiFetch('/tables') || [];
+    tables.forEach(table => {
+      const opt = document.createElement("option");
+      opt.value = table.id || table._id;
+      opt.textContent = table.name;
+      opt.dataset.activeOrderId = table.activeOrderId || '';
+      select.appendChild(opt);
+    });
+  } catch (e) {
+    console.error('Failed to load tables from API:', e);
+  }
 }
+
+window.handleTableChange = async function() {
+  const tableSelect = document.getElementById('tableSelect');
+  const tableId = tableSelect?.value;
+  
+  if (!tableId) {
+    currentDineInOrder = null;
+    cart = [];
+    updateCartDisplay();
+    return;
+  }
+
+  const selectedOpt = tableSelect.options[tableSelect.selectedIndex];
+  const activeOrderId = selectedOpt.dataset.activeOrderId;
+
+  if (!activeOrderId) {
+    currentDineInOrder = null;
+    cart = [];
+    updateCartDisplay();
+    alert('This table has no active order. Please open the table and add items in Dine-In Management page first.');
+    tableSelect.value = '';
+    return;
+  }
+
+  try {
+    const order = await window.apiFetch(`/orders/${activeOrderId}`);
+    if (!order) {
+      alert('Active order not found.');
+      return;
+    }
+
+    currentDineInOrder = order;
+
+    cart = (order.items || []).filter(item => item.kitchenStatus !== 'cancelled').map(item => {
+      const product = window.DB.getPart(item.productId);
+      return {
+        product_id: item.productId,
+        code: item.productCode || (product ? product.partNumber : ''),
+        name: item.name,
+        qty: item.qty,
+        price: item.price,
+        basePrice: item.price,
+        cost: item.cost,
+        discount: { type: 'none', value: 0 },
+        addons: [],
+        addonSignature: '',
+        sizeSignature: 'single',
+        sizeId: null,
+        note: item.note || '',
+        lineId: item.lineId
+      };
+    });
+
+    updateCartDisplay();
+  } catch (e) {
+    console.error('Failed to load table order:', e);
+    alert('Failed to load table order: ' + e.message);
+  }
+};
+
+window.clearCart = function() {
+  if (confirm(t('confirm_clear_cart') || 'Are you sure you want to clear the cart?')) {
+    cart = [];
+    currentDineInOrder = null;
+    clearSelectedCustomer();
+    const tableSelect = document.getElementById('tableSelect');
+    if (tableSelect) tableSelect.value = '';
+    updateCartDisplay();
+  }
+};
 
 window.toggleOrderType = function () {
   const type = document.querySelector('input[name="orderType"]:checked')?.value;
@@ -562,16 +638,27 @@ window.toggleOrderType = function () {
     if (salesmanDiv) salesmanDiv.style.display = 'block';
     if (salesmanLabel) salesmanLabel.textContent = t('waiter') || 'Waiter:';
     loadSalesmen('waiter');
-  } else if (type === 'delivery') {
-    tableDiv.style.display = 'none';
-    if (salesmanDiv) salesmanDiv.style.display = 'block';
-    if (salesmanLabel) salesmanLabel.textContent = t('delivery_man') || 'Delivery Man:';
-    loadSalesmen('delivery');
+    loadTables();
   } else {
-    // Take Away
-    tableDiv.style.display = 'none';
-    if (salesmanDiv) salesmanDiv.style.display = 'none';
-    loadSalesmen([]);
+    if (currentDineInOrder) {
+      currentDineInOrder = null;
+      cart = [];
+      updateCartDisplay();
+    }
+    const tableSelect = document.getElementById('tableSelect');
+    if (tableSelect) tableSelect.value = '';
+
+    if (type === 'delivery') {
+      tableDiv.style.display = 'none';
+      if (salesmanDiv) salesmanDiv.style.display = 'block';
+      if (salesmanLabel) salesmanLabel.textContent = t('delivery_man') || 'Delivery Man:';
+      loadSalesmen('delivery');
+    } else {
+      // Take Away
+      tableDiv.style.display = 'none';
+      if (salesmanDiv) salesmanDiv.style.display = 'none';
+      loadSalesmen([]);
+    }
   }
 
   // Recalculate Prices in Cart
@@ -1485,7 +1572,7 @@ function validateIngredientStock() {
   return shortages;
 }
 
-function processSale(method) {
+async function processSale(method) {
   if (cart.length === 0) return;
 
   if (!currentShift) {
@@ -1625,7 +1712,36 @@ function processSale(method) {
 
 
   // Save Sale
-  if (currentOnlineOrderId) {
+  if (currentDineInOrder) {
+    try {
+      const res = await window.apiFetch(`/orders/${currentDineInOrder.id || currentDineInOrder._id}/close`, {
+        method: 'POST',
+        body: JSON.stringify({
+          method: method,
+          discount: parseFloat(discountTotal) || 0,
+          discountType: 'value',
+          shiftId: currentShift ? (currentShift.id || currentShift._id) : null,
+          tax: parseFloat(taxTotal) || 0,
+          closeOverride: true
+        })
+      });
+      if (res && res.success) {
+        sale.id = res.saleId;
+        sale.receiptNo = res.receiptNo;
+        currentDineInOrder = null;
+        const tableSelect = document.getElementById('tableSelect');
+        if (tableSelect) tableSelect.value = '';
+        loadTables();
+      } else {
+        alert('Failed to close dine-in order.');
+        return;
+      }
+    } catch (e) {
+      console.error('Failed to close dine-in order:', e);
+      alert('Failed to close dine-in order: ' + e.message);
+      return;
+    }
+  } else if (currentOnlineOrderId) {
     // ☁️ Update Existing Online Order
     window.apiFetch(`/sales/${currentOnlineOrderId}`, {
         method: 'PATCH',
