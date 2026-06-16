@@ -194,10 +194,9 @@ function promptDiffShift(activeShifts) {
         </div>
         <h2 class="text-2xl font-bold mb-2 dark:text-white" data-i18n-key="active_shifts_found">Active Shifts Found</h2>
         <p class="text-slate-500 mb-6" data-i18n-key="join_shift_desc">There are active shifts in this branch. You can join one or start a new one.</p>
-        
         <div class="space-y-3 mb-6 max-h-[200px] overflow-y-auto">
             ${activeShifts.map(s => `
-                <button onclick="joinExistingShift('${s._id}')" 
+                <button onclick="joinExistingShift('${s.id || s._id}')" 
                     class="w-full flex items-center justify-between p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
@@ -347,7 +346,7 @@ async function confirmCloseShift() {
   const closingCash = parseFloat(closingCashInput?.value || 0);
   const notes = closingNotesInput?.value || "";
 
-  const result = await window.electronAPI.closeShift(currentShift._id, closingCash, notes);
+  const result = await window.electronAPI.closeShift(currentShift.id || currentShift._id, closingCash, notes);
 
   if (result && result.success) {
     alert(`${t('shift_closed_success')}${result.shift.difference.toFixed(2)}`);
@@ -1534,7 +1533,7 @@ function processSale(method) {
   const sale = {
     id: "REC-" + Date.now(),
     receiptNo: receiptNo || String(Date.now()).slice(-4),
-    shiftId: currentShift ? currentShift._id : null, // 🟢 Fix: Link Sale to Shift
+    shiftId: currentShift ? (currentShift.id || currentShift._id) : null, // 🟢 Fix: Link Sale to Shift
     date: new Date().toISOString(),
     method: method,
     orderType: orderType,
@@ -1595,7 +1594,7 @@ function processSale(method) {
             status: 'finished',
             kitchenStatus: 'completed',
             method: method,
-            shiftId: currentShift ? currentShift._id : null,
+            shiftId: currentShift ? (currentShift.id || currentShift._id) : null,
             cashier: cashierName,
             salesman: salesman,
             appliedTaxes: appliedTaxes,

@@ -154,6 +154,35 @@ router.get('/shifts/current', async (req, res) => {
                 ]
             }
         });
+        if (shift) {
+            // Real-time calculations of totals for active shift display (prior to closing)
+            const salesByMethod = await prisma.sale.groupBy({
+                by: ['method'],
+                where: { shiftId: shift.id, status: 'finished' },
+                _sum: { total: true }
+            });
+            const stats = { cashTotal: 0, cardTotal: 0, mobileTotal: 0, totalSales: 0 };
+            salesByMethod.forEach(m => {
+                if (m.method === 'cash') stats.cashTotal = m._sum.total || 0;
+                if (m.method === 'card') stats.cardTotal = m._sum.total || 0;
+                if (m.method === 'mobile') stats.mobileTotal = m._sum.total || 0;
+            });
+            stats.totalSales = (stats.cashTotal + stats.cardTotal + stats.mobileTotal);
+
+            const voidsCount = await prisma.sale.count({
+                where: { shiftId: shift.id, status: 'void' }
+            });
+            const voidsSum = await prisma.sale.aggregate({
+                where: { shiftId: shift.id, status: 'void' },
+                _sum: { total: true }
+            });
+
+            shift.totals = {
+                ...stats,
+                voidsCount,
+                voidsValue: voidsSum._sum.total || 0
+            };
+        }
         res.json({ shift });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -251,7 +280,7 @@ router.post('/shifts/close', async (req, res) => {
 
         // Prisma Aggregate for stats
         const aggregations = await prisma.sale.aggregate({
-            _where: { shiftId: shift.id, status: 'finished' },
+            where: { shiftId: shift.id, status: 'finished' },
             _sum: { total: true },
         });
         
