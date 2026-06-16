@@ -32,7 +32,6 @@ async function getBranchDetails(user) {
     } catch (e) { return []; }
 }
 
-// Helper: Generate Tokens
 const generateTokens = (user, tenantId) => {
     const payload = {
         user: {
@@ -40,7 +39,7 @@ const generateTokens = (user, tenantId) => {
             tenantId: tenantId,
             role: user.role,
             username: user.username,
-            // branchIds: user.branches ? user.branches.map(b => b.id) : [],
+            branchIds: user.branches ? user.branches.map(b => b.id) : [],
             defaultBranchId: user.defaultBranchId
         }
     };
@@ -179,7 +178,8 @@ router.post('/login', authLimiter, async (req, res) => {
         }
 
         const user = await prisma.user.findFirst({
-            where: { tenantId: tenant.id, username }
+            where: { tenantId: tenant.id, username },
+            include: { branches: true }
         });
 
         if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });

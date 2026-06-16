@@ -231,8 +231,8 @@
 
   <!-- Right Sidebar (Cart) -->
   <aside id="cartSidebar"
-    class="hidden md:flex w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex-col shrink-0 transition-all duration-300 z-50">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-800">
+    class="hidden md:flex w-96 h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex-col shrink-0 transition-all duration-300 z-50">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
       <h2 class="text-base font-black flex items-center gap-2">
         <button onclick="toggleCart()" class="md:hidden mr-2 text-slate-500 hover:text-slate-800">
           <span class="material-symbols-outlined">arrow_back</span>
@@ -240,91 +240,92 @@
         <span class="material-symbols-outlined text-xl">shopping_basket</span>
         <span id="cartTitle" data-i18n-key="cart_title">Current Order</span>
       </h2>
-      <button class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded"
+      <button class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded flex items-center gap-1"
         onclick="openPendingOrders()">
         ⏳ <span id="pendingOrdersBtn">0</span>
       </button>
     </div>
 
-    <!-- Order Type -->
-    <div class="flex gap-2">
-      <label class="flex-1 cursor-pointer">
-        <input checked="" class="hidden peer" name="orderType" value="dine_in" type="radio"
-          onchange="toggleOrderType()" />
-        <div
-          class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
-          <span class="material-symbols-outlined text-base">restaurant</span>
-          <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="dine_in">Dine In</span>
+    <!-- Scrollable Cart Area (Order settings, note, and items list) -->
+    <div class="flex-1 overflow-y-auto min-h-0 p-4 space-y-4 flex flex-col">
+      <!-- Order Type -->
+      <div class="flex gap-2 shrink-0">
+        <label class="flex-1 cursor-pointer">
+          <input checked="" class="hidden peer" name="orderType" value="dine_in" type="radio"
+            onchange="toggleOrderType()" />
+          <div
+            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+            <span class="material-symbols-outlined text-base">restaurant</span>
+            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="dine_in">Dine In</span>
+          </div>
+        </label>
+        <label class="flex-1 cursor-pointer">
+          <input class="hidden peer" name="orderType" value="take_away" type="radio" onchange="toggleOrderType()" />
+          <div
+            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+            <span class="material-symbols-outlined text-base">takeout_dining</span>
+            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="take_away">Take Away</span>
+          </div>
+        </label>
+        <label class="flex-1 cursor-pointer">
+          <input class="hidden peer" name="orderType" value="delivery" type="radio" onchange="toggleOrderType()" />
+          <div
+            class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
+            <span class="material-symbols-outlined text-base">delivery_dining</span>
+            <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="delivery">Delivery</span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Conditional Inputs -->
+      <div id="tableSelection" class="shrink-0" style="display:none;">
+        <select id="tableSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs dark:bg-slate-800 dark:border-slate-700"></select>
+      </div>
+
+      <div id="salesmanSection" class="shrink-0">
+        <select id="salesmanSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs dark:bg-slate-800 dark:border-slate-700"></select>
+      </div>
+
+      <!-- Delivery Customer Section -->
+      <div id="deliverySection" class="p-2 bg-slate-50 border border-slate-200 rounded text-xs dark:bg-slate-800 dark:border-slate-700 shrink-0"
+        style="display:none;">
+        <div class="flex gap-1 mb-2">
+          <input type="text" id="custSearchPos" placeholder="Phone/Name..." class="flex-1 p-1 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+          <button onclick="searchCustomerPos()" class="bg-primary text-white p-1 rounded">🔍</button>
         </div>
-      </label>
-      <label class="flex-1 cursor-pointer">
-        <input class="hidden peer" name="orderType" value="take_away" type="radio" onchange="toggleOrderType()" />
-        <div
-          class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
-          <span class="material-symbols-outlined text-base">takeout_dining</span>
-          <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="take_away">Take Away</span>
+        <div id="selectedCustomerDisplay" style="display:none;"
+          class="mb-2 p-1 bg-blue-50 border border-blue-100 rounded dark:bg-blue-950/30 dark:border-blue-900/50">
+          <div class="flex justify-between font-bold"><span id="selCustName"></span> <button
+              onclick="clearSelectedCustomer()" class="text-red-500">x</button></div>
+          <div id="selCustMobile" class="text-[10px] text-gray-500 dark:text-gray-400"></div>
         </div>
-      </label>
-      <label class="flex-1 cursor-pointer">
-        <input class="hidden peer" name="orderType" value="delivery" type="radio" onchange="toggleOrderType()" />
-        <div
-          class="py-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center peer-checked:bg-primary peer-checked:text-white transition-all border border-transparent peer-checked:border-primary">
-          <span class="material-symbols-outlined text-base">delivery_dining</span>
-          <span class="text-[9px] font-bold uppercase mt-1" data-i18n-key="delivery">Delivery</span>
+        <div id="addressSection" style="display:none;">
+          <select id="custAddressSelect" class="w-full p-1 mb-1 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100"></select>
+          <button onclick="openAddAddressModal()" class="w-full text-[10px] text-blue-600 font-bold dark:text-blue-400">+ New
+            Address</button>
         </div>
-      </label>
-    </div>
-
-    <!-- Conditional Inputs -->
-    <div id="tableSelection" style="margin-top:10px; display:none;">
-      <select id="tableSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs"></select>
-    </div>
-
-    <div id="salesmanSection" style="margin-top:10px;">
-      <select id="salesmanSelect" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs"></select>
-    </div>
-
-    <!-- Delivery Customer Section -->
-    <div id="deliverySection" class="mt-2 p-2 bg-slate-50 border border-slate-200 rounded text-xs"
-      style="display:none;">
-      <div class="flex gap-1 mb-2">
-        <input type="text" id="custSearchPos" placeholder="Phone/Name..." class="flex-1 p-1 border rounded text-xs">
-        <button onclick="searchCustomerPos()" class="bg-primary text-white p-1 rounded">🔍</button>
+        <div id="newCustomerBtnArea" style="display:none; text-align:center;">
+          <button onclick="openQuickAddCustomer()"
+            class="text-xs bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400 px-2 py-1 rounded font-bold">+ New Customer</button>
+        </div>
       </div>
-      <div id="selectedCustomerDisplay" style="display:none;"
-        class="mb-2 p-1 bg-blue-50 border border-blue-100 rounded">
-        <div class="flex justify-between font-bold"><span id="selCustName"></span> <button
-            onclick="clearSelectedCustomer()" class="text-red-500">x</button></div>
-        <div id="selCustMobile" class="text-[10px] text-gray-500"></div>
-      </div>
-      <div id="addressSection" style="display:none;">
-        <select id="custAddressSelect" class="w-full p-1 mb-1 border rounded text-xs"></select>
-        <button onclick="openAddAddressModal()" class="w-full text-[10px] text-blue-600 font-bold">+ New
-          Address</button>
-      </div>
-      <div id="newCustomerBtnArea" style="display:none; text-align:center;">
-        <button onclick="openQuickAddCustomer()"
-          class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">+ New Customer</button>
-      </div>
-    </div>
 
-    <!-- Order Note -->
-    <div class="px-4 pt-2">
-      <textarea id="orderNoteInput" rows="1"
-        class="w-full p-2 text-xs border border-slate-200 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50"
-        placeholder="Order Note (Kitchen)..."></textarea>
-    </div>
+      <!-- Order Note -->
+      <div class="shrink-0">
+        <textarea id="orderNoteInput" rows="1"
+          class="w-full p-2 text-xs border border-slate-200 dark:border-slate-700 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+          placeholder="Order Note (Kitchen)..."></textarea>
+      </div>
 
-    </div>
-
-    <!-- Cart Items -->
-    <div id="cartItems" class="flex-1 overflow-y-auto p-4 space-y-3">
-      <p id="cartEmptyText" class="text-center text-slate-400 text-sm py-4" data-i18n-key="cart_empty">Your cart is
-        empty</p>
+      <!-- Cart Items -->
+      <div id="cartItems" class="space-y-3">
+        <p id="cartEmptyText" class="text-center text-slate-400 text-sm py-4" data-i18n-key="cart_empty">Your cart is
+          empty</p>
+      </div>
     </div>
 
     <!-- Totals & Actions -->
-    <div class="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 space-y-4">
+    <div class="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 space-y-4 shrink-0">
       <div class="space-y-2">
         <div class="flex justify-between text-[11px] font-medium text-slate-500">
           <span id="subtotalLabel" data-i18n-key="subtotal">Subtotal</span>

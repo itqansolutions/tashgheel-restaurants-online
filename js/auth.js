@@ -952,6 +952,7 @@ async function login(username, password) {
         };
 
         if (user.tenantId) localStorage.setItem('tenant_id', user.tenantId);
+        if (user.role) localStorage.setItem('role', user.role);
 
         // Persist session to file/storage
         await EnhancedSecurity.storeSecureData('session', sessionUser);
@@ -1048,6 +1049,7 @@ async function logout(force = false) {
         } catch (e) { console.error('Logout API failed', e); }
 
         await EnhancedSecurity.storeSecureData('session', null);
+        localStorage.removeItem('role');
         window.location.href = 'index.html';
     }
 }

@@ -118,9 +118,14 @@ window.closeDay = function () {
 
 // ===================== SHIFT MANAGEMENT =====================
 
+window.promptOpenShift = function() {
+  document.getElementById('openShiftModal').style.display = 'flex';
+};
+
 async function checkShift() {
   // 🔒 Kitchen Role Restriction
-  const userRole = localStorage.getItem('role');
+  const currentUser = getCurrentUser();
+  const userRole = currentUser?.role || localStorage.getItem('role');
   if (userRole === 'kitchen') {
     window.location.href = 'kitchen.html';
     return;
@@ -139,6 +144,27 @@ async function checkShift() {
     currentShift = result.shift;
     updateShiftUI();
   } else {
+    // If user is admin, allow bypass (do not show openShiftModal/joinShift prompting)
+    if (userRole === 'admin') {
+      console.log('👑 Admin detected: bypassing shift requirement (viewing mode)');
+      
+      const banner = document.getElementById('shiftBanner');
+      if (banner) {
+        if (!window.originalShiftBannerHTML) {
+          window.originalShiftBannerHTML = banner.innerHTML;
+        }
+        banner.innerHTML = `
+          <div class="flex items-center gap-2 text-yellow-600 dark:text-yellow-400 font-bold text-xs">
+            <span class="material-symbols-outlined text-sm">visibility</span>
+            <span>Viewing Mode</span>
+            <button type="button" onclick="promptOpenShift()" class="px-2 py-0.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-[10px] font-bold transition-colors ml-1">Open Shift</button>
+          </div>
+        `;
+        banner.style.display = 'block';
+      }
+      return;
+    }
+
     // Check for ANY active shifts in this branch (for Join functionality)
     if (window.electronAPI.getActiveBranchShifts) {
       const activeShifts = await window.electronAPI.getActiveBranchShifts();
@@ -223,6 +249,10 @@ function updateShiftUI() {
   if (!currentShift) return;
 
   const banner = document.getElementById('shiftBanner');
+  if (banner && window.originalShiftBannerHTML) {
+    banner.innerHTML = window.originalShiftBannerHTML;
+  }
+
   const timeEl = document.getElementById('shiftOpenTime');
   const cashEl = document.getElementById('shiftCashDisplay');
 
@@ -1419,6 +1449,11 @@ function validateIngredientStock() {
 
 function processSale(method) {
   if (cart.length === 0) return;
+
+  if (!currentShift) {
+    alert('You are currently in Viewing Mode. Please open or join a shift to complete a sale.');
+    return;
+  }
 
   // Validate Stock before proceeding
   const stockShortages = validateIngredientStock();
