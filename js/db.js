@@ -337,6 +337,15 @@ window.DB = window.DB || {
         if (index >= 0) {
             vendors[index].credit = (parseFloat(vendors[index].credit) || 0) + parseFloat(amount);
             vendors[index].updatedAt = new Date().toISOString();
+            
+            // Sync to backend if available
+            if (window.electronAPI && window.electronAPI.saveVendor) {
+                const vendorToSave = { ...vendors[index] };
+                window.electronAPI.saveVendor(vendorToSave).catch(err => {
+                    console.error('Failed to sync vendor credit to cloud:', err);
+                });
+            }
+
             return window.EnhancedSecurity.storeSecureData('vendors', vendors);
         }
         return false;

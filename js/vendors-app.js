@@ -60,6 +60,9 @@ async function renderVendors() {
     const vendors = await window.electronAPI.getVendors() || [];
     console.log('Vendors loaded:', vendors.length);
 
+    // Sync to local DB to ensure other parts (modals, reports) work with up-to-date vendor credit
+    window.EnhancedSecurity.storeSecureData('vendors', vendors);
+
     container.innerHTML = '';
 
     if (vendors.length === 0) {
@@ -195,7 +198,7 @@ function openPaymentModal(vendorId) {
 function handlePaymentSubmit(e) {
     e.preventDefault();
 
-    const vendorId = parseInt(document.getElementById('paymentVendorId').value);
+    const vendorId = document.getElementById('paymentVendorId').value;
     const amount = parseFloat(document.getElementById('paymentAmount').value);
     const notes = document.getElementById('paymentNotes').value.trim();
 
