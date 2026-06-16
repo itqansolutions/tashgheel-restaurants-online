@@ -9,6 +9,7 @@
  */
 
 const prisma = require('../prisma');
+const jwt = require('jsonwebtoken');
 
 module.exports = async function qrAuth(req, res, next) {
     // ─── 1. Try standard staff JWT from cookie ───
