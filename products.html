@@ -250,33 +250,48 @@
         </button>
       </div>
 
-      <!-- Tabs -->
-      <div class="px-6 pt-4 border-b border-slate-100 flex gap-6 modal-tabs">
-        <button
-          class="tab-btn pb-3 px-2 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-all active"
-          onclick="switchTab('basic')">📄 Basic Info</button>
-        <button
-          class="tab-btn pb-3 px-2 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-all"
-          onclick="switchTab('pricing')">💲 Pricing & Sizes</button>
-        <button
-          class="tab-btn pb-3 px-2 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-all"
-          onclick="switchTab('recipe')">👩‍🍳 Recipe & Cost</button>
-        <button
-          class="tab-btn pb-3 px-2 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-all"
-          onclick="switchTab('addons')">🧂 Add-ons</button>
+      <!-- Sticky Navigation Bar -->
+      <div class="px-6 py-3 border-b border-slate-100 flex gap-4 sticky top-0 bg-slate-50 z-10">
+        <button type="button" onclick="switchTab('basic')" class="tab-btn pb-1 px-2 text-xs font-semibold text-slate-500 hover:text-blue-600 border-b-2 border-transparent transition-all active">Basic Info</button>
+        <button type="button" id="tab-nav-inventory" onclick="switchTab('inventory')" class="tab-btn pb-1 px-2 text-xs font-semibold text-slate-500 hover:text-blue-600 border-b-2 border-transparent transition-all">Inventory</button>
+        <button type="button" onclick="switchTab('pricing')" class="tab-btn pb-1 px-2 text-xs font-semibold text-slate-500 hover:text-blue-600 border-b-2 border-transparent transition-all">Pricing & Sizes</button>
+        <button type="button" id="tab-nav-recipe" onclick="switchTab('recipe')" class="tab-btn pb-1 px-2 text-xs font-semibold text-slate-500 hover:text-blue-600 border-b-2 border-transparent transition-all">Recipe Ingredients</button>
+        <button type="button" onclick="switchTab('addons')" class="tab-btn pb-1 px-2 text-xs font-semibold text-slate-500 hover:text-blue-600 border-b-2 border-transparent transition-all">Add-ons</button>
       </div>
 
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-6 bg-white">
+      <!-- Scrollable Body -->
+      <div class="flex-1 overflow-y-auto p-6 bg-slate-50 space-y-6 scroll-smooth" id="modal-scroll-container">
         <form id="product-form" class="space-y-6">
           <input type="hidden" id="product-id">
 
-          <!-- TAB 1: BASIC INFO -->
-          <div id="tab-basic" class="tab-content active space-y-6">
+          <!-- SECTION 1: BASIC INFO -->
+          <div id="section-basic" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2">1. Basic Information</h4>
+            
+            <!-- Item Type Segmented Control -->
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-slate-700">Item Type</label>
+              <div class="grid grid-cols-3 gap-2 p-1 bg-slate-100 rounded-lg">
+                <button type="button" id="type-service-btn" onclick="setItemType('service')" class="py-2.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2">
+                  <span class="material-symbols-outlined text-lg">dry_cleaning</span>
+                  <span>Service</span>
+                </button>
+                <button type="button" id="type-simple-btn" onclick="setItemType('simple')" class="py-2.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2">
+                  <span class="material-symbols-outlined text-lg">package_2</span>
+                  <span>Simple Product</span>
+                </button>
+                <button type="button" id="type-recipe-btn" onclick="setItemType('recipe')" class="py-2.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2">
+                  <span class="material-symbols-outlined text-lg">restaurant</span>
+                  <span>Recipe Product</span>
+                </button>
+              </div>
+              <p id="item-type-hint" class="text-xs text-slate-500 mt-1"></p>
+              <input type="hidden" id="product-type" value="simple">
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
-                <label class="block text-sm font-medium text-slate-700">Product Name <span
-                    class="text-red-500">*</span></label>
+                <label class="block text-sm font-medium text-slate-700">Product Name <span class="text-red-500">*</span></label>
                 <input type="text" id="product-name" required
                   class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="e.g. Cheese Burger">
@@ -316,7 +331,11 @@
                   placeholder="https://...">
               </div>
             </div>
+          </div>
 
+          <!-- SECTION 2: INVENTORY & STOCK -->
+          <div id="section-inventory" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2">2. Inventory & Cost</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
                 <label class="block text-sm font-medium text-slate-700">Stock Qty (Direct Sales)</label>
@@ -324,11 +343,19 @@
                   class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="0">
               </div>
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-700">Direct Cost</label>
+                <input type="number" id="product-cost" step="0.01"
+                  class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="0.00">
+              </div>
             </div>
           </div>
 
-          <!-- TAB 2: PRICING -->
-          <div id="tab-pricing" class="tab-content space-y-6">
+          <!-- SECTION 3: PRICING & SIZES -->
+          <div id="section-pricing" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2">3. Pricing & Sizes</h4>
+            
             <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-3">
               <input type="checkbox" id="product-has-sizes" onchange="toggleSizesSection()"
                 class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
@@ -359,8 +386,8 @@
 
             <!-- Multi-Size Mode -->
             <div id="pricing-sizes-mode" style="display:none;" class="space-y-4">
-              <div class="border border-slate-200 rounded-lg overflow-hidden">
-                <table class="w-full text-left text-sm">
+              <div class="border border-slate-200 rounded-lg overflow-x-auto">
+                <table class="w-full text-left text-sm min-w-[600px]">
                   <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                     <tr>
                       <th class="px-4 py-3">Size Name</th>
@@ -368,24 +395,23 @@
                       <th class="px-4 py-3">Price</th>
                       <th class="px-4 py-3">Dine-In</th>
                       <th class="px-4 py-3">Delivery</th>
+                      <th class="px-4 py-3">Cost</th>
+                      <th class="px-4 py-3">Recipe</th>
                       <th class="px-4 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody id="sizes-table-body" class="divide-y divide-slate-100"></tbody>
-                  <tfoot class="bg-slate-50">
+                  <tfoot class="bg-slate-50 border-t border-slate-200">
                     <tr>
-                      <td class="p-2"><input type="text" id="size-name" class="w-full p-2 border rounded"
-                          placeholder="Name"></td>
-                      <td class="p-2"><input type="text" id="size-code" class="w-full p-2 border rounded"
-                          placeholder="Code"></td>
-                      <td class="p-2"><input type="number" id="size-price" class="w-full p-2 border rounded"
-                          placeholder="0.00"></td>
-                      <td class="p-2"><input type="number" id="size-price-dinein" class="w-full p-2 border rounded"
-                          placeholder="Opt"></td>
-                      <td class="p-2"><input type="number" id="size-price-delivery" class="w-full p-2 border rounded"
-                          placeholder="Opt"></td>
-                      <td class="p-2"><button type="button" onclick="addSizeVariant()"
-                          class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium">Add</button>
+                      <td class="p-2"><input type="text" id="size-name" class="w-full p-2 border rounded text-xs" placeholder="Name"></td>
+                      <td class="p-2"><input type="text" id="size-code" class="w-full p-2 border rounded text-xs" placeholder="Code"></td>
+                      <td class="p-2"><input type="number" id="size-price" step="0.01" class="w-full p-2 border rounded text-xs" placeholder="Price"></td>
+                      <td class="p-2"><input type="number" id="size-price-dinein" step="0.01" class="w-full p-2 border rounded text-xs" placeholder="Dine-In"></td>
+                      <td class="p-2"><input type="number" id="size-price-delivery" step="0.01" class="w-full p-2 border rounded text-xs" placeholder="Delivery"></td>
+                      <td class="p-2 text-slate-400 text-xs text-center">-</td>
+                      <td class="p-2 text-slate-400 text-xs text-center">-</td>
+                      <td class="p-2 text-center">
+                        <button type="button" onclick="addSizeVariant()" class="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors">Add</button>
                       </td>
                     </tr>
                   </tfoot>
@@ -394,8 +420,10 @@
             </div>
           </div>
 
-          <!-- TAB 3: RECIPE -->
-          <div id="tab-recipe" class="tab-content space-y-6">
+          <!-- SECTION 4: RECIPE & COST -->
+          <div id="section-recipe" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2">4. Recipe & Ingredient Costing</h4>
+            
             <div id="recipe-context-msg"
               class="p-4 bg-yellow-50 text-yellow-800 border-l-4 border-yellow-400 rounded-r font-medium"
               style="display:none;"></div>
@@ -403,7 +431,6 @@
             <div class="flex justify-between items-center p-4 bg-slate-50 border border-slate-200 rounded-xl">
               <span class="text-slate-600 font-medium">Total Cost: <span id="display-total-cost"
                   class="text-2xl font-bold text-slate-900 ml-2">0.00</span></span>
-              <input type="hidden" id="product-cost">
               <small class="text-slate-400">Calculated automatically</small>
             </div>
 
@@ -413,12 +440,12 @@
               <div class="flex flex-wrap items-end gap-4">
                 <div class="flex-1 min-w-[200px]">
                   <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Raw Material</label>
-                  <select id="single-recipe-ingredient" class="w-full p-2 border border-slate-300 rounded-lg"></select>
+                  <select id="single-recipe-ingredient" class="w-full p-2 border border-slate-300 rounded-lg bg-white"></select>
                 </div>
                 <div class="w-24">
                   <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Qty</label>
                   <input type="number" id="single-recipe-qty" placeholder="0"
-                    class="w-full p-2 border border-slate-300 rounded-lg">
+                    class="w-full p-2 border border-slate-300 rounded-lg bg-white">
                 </div>
                 <div class="w-24">
                   <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Unit</label>
@@ -428,11 +455,11 @@
                 <div class="w-24">
                   <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Waste %</label>
                   <input type="number" id="single-recipe-waste" placeholder="0"
-                    class="w-full p-2 border border-slate-300 rounded-lg">
+                    class="w-full p-2 border border-slate-300 rounded-lg bg-white">
                   <input type="hidden" id="single-recipe-waste-type" value="percent">
                 </div>
                 <button type="button" onclick="addIngredientToSingleRecipe()"
-                  class="h-[42px] px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-medium">Add</button>
+                  class="h-[42px] px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-medium transition-colors">Add</button>
               </div>
             </div>
 
@@ -453,21 +480,22 @@
             </div>
           </div>
 
-          <!-- TAB 4: ADDONS -->
-          <div id="tab-addons" class="tab-content space-y-6">
+          <!-- SECTION 5: ADDONS -->
+          <div id="section-addons" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2">5. Add-ons</h4>
+            
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center gap-3">
               <input type="checkbox" id="allow-all-addons" onchange="toggleAddonsContainer()"
                 class="w-5 h-5 text-blue-600 rounded">
-              <label for="allow-all-addons" class="font-semibold text-slate-700">Allow All Add-ons (No
-                restriction)</label>
+              <label for="allow-all-addons" class="font-semibold text-slate-700">Allow All Add-ons (No restriction)</label>
             </div>
 
             <div id="specific-addons-container" class="space-y-3">
               <label class="block text-sm font-medium text-slate-700">Select Specific Add-ons:</label>
               <div class="flex gap-2">
-                <select id="addon-select" class="flex-1 p-2 border border-slate-300 rounded-lg"></select>
+                <select id="addon-select" class="flex-1 p-2 border border-slate-300 rounded-lg bg-white"></select>
                 <button type="button" onclick="addAllowedAddon()"
-                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">+</button>
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">+</button>
               </div>
               <div id="allowed-addons-list"
                 class="border border-slate-200 rounded-lg p-2 min-h-[50px] space-y-1 bg-slate-50"></div>

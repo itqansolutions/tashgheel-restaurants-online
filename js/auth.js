@@ -256,7 +256,7 @@ async function initializeDataSystem() {
 
                 // 2. Fallback
                 if (!fileData) {
-                    const local = localStorage.getItem('pos_backup_' + key);
+                    const local = localStorage.getItem(EnhancedSecurity._getBackupKey(key));
                     if (local) { try { fileData = JSON.parse(local); } catch (e) { fileData = local; } }
                 }
 
@@ -311,9 +311,8 @@ async function initializeDataSystem() {
         window.dispatchEvent(new Event('SystemDataReady'));
         console.log('🚀 System Data Ready Event Dispatched');
 
-        // 🚀 Auto-Seed Defaults if missing (Critical for fresh SaaS deployments)
-        // DISABLED: Checking or Seeding defaults caused unexpected items for new users (2026-02-13)
-        // await seedDefaultsIfMissing();
+
+
     }
 }
 
@@ -523,20 +522,25 @@ var EnhancedSecurity = {
     }
     ,
 
+    // 🔐 Helper: Get the tenant-scoped localStorage backup key
+    _getBackupKey: function (key) {
+        // These keys are global (not tenant-specific)
+        const GLOBAL_KEYS = ['session', 'license'];
+        if (GLOBAL_KEYS.includes(key)) return 'pos_backup_' + key;
+        const tenantId = localStorage.getItem('tenant_id') || 'default';
+        return `pos_backup_${tenantId}_${key}`;
+    },
+
     // Store encrypted data
     storeSecureData: async function (key, data) {
-        // 🔍 DEBUG: Trace who is writing to session
-        if (key === 'session') {
-            console.warn(`💾 WRITING DATA to session:`, data);
-        }
-
         // 1. Update Memory Cache immediately
         if (!window.DataCache) window.DataCache = {};
         window.DataCache[key] = data;
 
-        // 2. Backup to LocalStorage (Redundancy)
+        // 2. Backup to LocalStorage — tenant-scoped to prevent cross-tenant data leaks
         try {
-            localStorage.setItem('pos_backup_' + key, JSON.stringify(data));
+            const backupKey = this._getBackupKey(key);
+            localStorage.setItem(backupKey, JSON.stringify(data));
         } catch (e) { console.warn('LocalStorage Quota Exceeded or Error:', e); }
 
         // 3. Async save to File (if available)
@@ -550,7 +554,6 @@ var EnhancedSecurity = {
                 return true;
             } catch (err) {
                 console.error('Electron Save Error:', err);
-                // We return true because LocalStorage presumably worked
                 return true;
             }
         } else {
@@ -571,16 +574,39 @@ var EnhancedSecurity = {
     },
 
     // Get encrypted data
-    getSecureData: function (key, skipCache = false) {
-        // Strict Mode: Only use memory cache (populated from file/LS at boot)
-        if (window.DataCache && window.DataCache[key]) {
+    getSecureData: function (key) {
+        // 1. Always prefer in-memory DataCache (populated from server at boot)
+        if (window.DataCache && window.DataCache[key] !== undefined) {
             return window.DataCache[key];
         }
-        // Fallback: Check LS directly if cache missed (emergency)
-        const local = localStorage.getItem('pos_backup_' + key);
-        if (local) {
-            try { return JSON.parse(local); } catch (e) { return null; }
+
+        // 2. Try tenant-scoped localStorage backup
+        const backupKey = this._getBackupKey(key);
+        const tenantScoped = localStorage.getItem(backupKey);
+        if (tenantScoped) {
+            try { return JSON.parse(tenantScoped); } catch (e) { }
         }
+
+        // 3. Legacy migration: check old unscoped key, migrate it, then remove it
+        const legacyKey = 'pos_backup_' + key;
+        if (backupKey !== legacyKey) {
+            const legacy = localStorage.getItem(legacyKey);
+            if (legacy) {
+                try {
+                    const parsed = JSON.parse(legacy);
+                    // Only migrate if DataCache is empty (i.e. server hasn't loaded yet)
+                    // Do NOT migrate products/spare_parts as they may be seeded defaults
+                    const DONT_MIGRATE = ['spare_parts', 'products', 'ingredients', 'vendors', 'customers'];
+                    if (!DONT_MIGRATE.includes(key)) {
+                        localStorage.setItem(backupKey, legacy);
+                    }
+                    // Remove legacy key to prevent future cross-tenant leaks
+                    localStorage.removeItem(legacyKey);
+                    if (!DONT_MIGRATE.includes(key)) return parsed;
+                } catch (e) { }
+            }
+        }
+
         return null;
     },
 
@@ -733,78 +759,7 @@ function initializeUsers() {
     }
 }
 
-// 🚀 Dedicated Seeding Function for Missing Data
-async function seedDefaultsIfMissing() {
-    console.log('🌱 Checking for missing default data...');
 
-    // 1. Check Products (Menu Items)
-    const products = EnhancedSecurity.getSecureData('spare_parts');
-    if (!products || products.length === 0) {
-        console.log('⚠️ No products found. Seeding defaults...');
-        const defaultProducts = [
-            {
-                id: 1,
-                name: 'Coca Cola 330ml',
-                nameEn: 'Coca Cola 330ml',
-                barcode: '1234567890123',
-                price: 5.00,
-                cost: 2.50,
-                stock: 100,
-                category: 'Beverages',
-                image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=100'
-            },
-            {
-                id: 2,
-                name: 'Chicken Burger',
-                nameEn: 'Chicken Burger',
-                barcode: '2345678901234',
-                price: 15.00,
-                cost: 8.00,
-                stock: 50,
-                category: 'Meals',
-                image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=100'
-            },
-            {
-                id: 3,
-                name: 'French Fries',
-                nameEn: 'French Fries',
-                barcode: '3456789012345',
-                price: 8.00,
-                cost: 3.00,
-                stock: 50,
-                category: 'Appetizers',
-                image: 'https://images.unsplash.com/photo-1630384060421-a43b35d259fb?w=100'
-            },
-            {
-                id: 4,
-                name: 'Espresso',
-                nameEn: 'Espresso',
-                barcode: '4567890123456',
-                price: 12.00,
-                cost: 4.00,
-                stock: 100,
-                category: 'Hot Drinks',
-                image: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=100'
-            }
-        ];
-        await EnhancedSecurity.storeSecureData('spare_parts', defaultProducts);
-    }
-
-    // 2. Check Ingredients (Raw Materials)
-    const ingredients = EnhancedSecurity.getSecureData('ingredients');
-    if (!ingredients || ingredients.length === 0) {
-        console.log('⚠️ No ingredients found. Seeding defaults...');
-        const defaultIngredients = [
-            { id: 101, name: 'Sugar', unit: 'kg', cost: 5.0, stock: 10, vendorId: null, lastRestockDate: new Date().toISOString() },
-            { id: 102, name: 'Coffee Beans', unit: 'kg', cost: 45.0, stock: 5, vendorId: null, lastRestockDate: new Date().toISOString() },
-            { id: 103, name: 'Milk', unit: 'l', cost: 4.0, stock: 20, vendorId: null, lastRestockDate: new Date().toISOString() },
-            { id: 104, name: 'Flour', unit: 'kg', cost: 3.5, stock: 15, vendorId: null, lastRestockDate: new Date().toISOString() },
-            { id: 105, name: 'Chicken Breast', unit: 'kg', cost: 25.0, stock: 20, vendorId: null, lastRestockDate: new Date().toISOString() },
-            { id: 106, name: 'Potato', unit: 'kg', cost: 2.0, stock: 50, vendorId: null, lastRestockDate: new Date().toISOString() }
-        ];
-        await EnhancedSecurity.storeSecureData('ingredients', defaultIngredients);
-    }
-}
 
 // Initialize default data after activation
 async function initializeDefaultData() {

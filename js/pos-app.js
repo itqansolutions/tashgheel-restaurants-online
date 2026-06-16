@@ -1351,8 +1351,81 @@ function getProductCost(code) {
   return product?.cost || 0;
 }
 
+function validateIngredientStock() {
+  const shortages = [];
+  const requiredIngredients = {}; // Map: ingredientId -> requiredQty
+
+  for (const item of cart) {
+    const product = window.DB.getPart(item.product_id);
+    if (!product) continue;
+
+    // Skip validation for service and simple items (only validate recipe items)
+    const itemType = product.itemType || product.type;
+    if (itemType === 'service' || itemType === 'simple') {
+      continue;
+    }
+
+    // Determine if it has a recipe
+    let recipeToUse = [];
+    if (item.sizeId && product.hasSizes) {
+      const size = product.sizes.find(s => s.id == item.sizeId);
+      recipeToUse = size ? (size.recipe || []) : [];
+    } else {
+      recipeToUse = product.recipe || [];
+    }
+
+    if (recipeToUse && recipeToUse.length > 0) {
+      // Recipe item: aggregate ingredient requirements
+      for (const ingItem of recipeToUse) {
+        const factor = ingItem.conversionFactor || 1;
+        let consumeQty = 0;
+
+        if (ingItem.wasteType === 'fixed') {
+          consumeQty = (parseFloat(ingItem.qty) + parseFloat(ingItem.wasteValue || 0)) * item.qty * factor;
+        } else {
+          const w = parseFloat(ingItem.wasteValue) || parseFloat(ingItem.wastePercent) || 0;
+          if (w < 100) {
+            const yieldPct = (100 - w) / 100;
+            const grossUsageQty = parseFloat(ingItem.qty) / yieldPct;
+            consumeQty = grossUsageQty * item.qty * factor;
+          } else {
+            consumeQty = parseFloat(ingItem.qty) * item.qty * factor;
+          }
+        }
+
+        const ingId = ingItem.ingredientId;
+        if (!requiredIngredients[ingId]) {
+          requiredIngredients[ingId] = 0;
+        }
+        requiredIngredients[ingId] += consumeQty;
+      }
+    }
+  }
+
+  // Check ingredient stock
+  for (const ingId in requiredIngredients) {
+    const ingredient = window.DB.getIngredient(parseInt(ingId));
+    const required = requiredIngredients[ingId];
+    const available = ingredient ? (parseFloat(ingredient.stock) || 0) : 0;
+    if (available < required) {
+      const name = ingredient ? ingredient.name : `Ingredient #${ingId}`;
+      const unit = ingredient ? (ingredient.unit || '') : '';
+      shortages.push(`${name}: Required ${required.toFixed(3)}${unit}, Available ${available.toFixed(3)}${unit} (Shortage: ${(required - available).toFixed(3)}${unit})`);
+    }
+  }
+
+  return shortages;
+}
+
 function processSale(method) {
   if (cart.length === 0) return;
+
+  // Validate Stock before proceeding
+  const stockShortages = validateIngredientStock();
+  if (stockShortages.length > 0) {
+    alert(`Insufficient Stock:\n\n${stockShortages.join('\n')}`);
+    return;
+  }
 
   const orderType = document.querySelector('input[name="orderType"]:checked')?.value || 'take_away';
   const salesmanSelect = document.getElementById('salesmanSelect');

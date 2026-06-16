@@ -13,14 +13,71 @@ const t = (key) => {
 window.currentPage = 'menu';
 
 window.switchTab = function (tabName) {
-  // Buttons
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  const btn = document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
-  if (btn) btn.classList.add('active');
+  // Update button active state
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active', 'text-blue-600', 'border-blue-600');
+    btn.classList.add('text-slate-500', 'border-transparent');
+  });
+  
+  // Find current button by its onclick attribute prefix or exactly
+  const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(`'${tabName}'`));
+  if (btn) {
+    btn.classList.add('active', 'text-blue-600', 'border-blue-600');
+    btn.classList.remove('text-slate-500', 'border-transparent');
+  }
 
-  // Content
-  document.querySelectorAll('.tab-content').forEach(d => d.classList.remove('active'));
-  document.getElementById(`tab-${tabName}`).classList.add('active');
+  // Scroll to section
+  const section = document.getElementById(`section-${tabName}`);
+  if (section) {
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Pulse animation/effect to draw attention
+    section.classList.add('ring-2', 'ring-blue-500/20');
+    setTimeout(() => {
+      section.classList.remove('ring-2', 'ring-blue-500/20');
+    }, 1500);
+  }
+}
+
+window.setItemType = function(type) {
+  document.getElementById('product-type').value = type;
+  
+  const btns = {
+    service: document.getElementById('type-service-btn'),
+    simple: document.getElementById('type-simple-btn'),
+    recipe: document.getElementById('type-recipe-btn')
+  };
+  
+  const hints = {
+    service: 'For services (e.g. delivery, setup). No recipe, no stock tracking.',
+    simple: 'For pre-packaged items (e.g. bottled water). Direct stock tracking, manual cost.',
+    recipe: 'For cooked/prepared items (e.g. burgers, coffee). Cost is calculated from recipe ingredients, stock is deduced from raw materials.'
+  };
+
+  Object.keys(btns).forEach(k => {
+    if (!btns[k]) return;
+    if (k === type) {
+      btns[k].className = 'py-2.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 bg-blue-600 text-white shadow-sm';
+    } else {
+      btns[k].className = 'py-2.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50';
+    }
+  });
+
+  const hintEl = document.getElementById('item-type-hint');
+  if (hintEl) hintEl.textContent = hints[type] || '';
+
+  // Show/Hide sections and update navigation tabs
+  const inventorySection = document.getElementById('section-inventory');
+  if (inventorySection) inventorySection.style.display = type === 'simple' ? 'block' : 'none';
+
+  const recipeSection = document.getElementById('section-recipe');
+  if (recipeSection) recipeSection.style.display = type === 'recipe' ? 'block' : 'none';
+  
+  const navInventory = document.getElementById('tab-nav-inventory');
+  if (navInventory) navInventory.style.display = type === 'simple' ? 'block' : 'none';
+
+  const navRecipe = document.getElementById('tab-nav-recipe');
+  if (navRecipe) navRecipe.style.display = type === 'recipe' ? 'block' : 'none';
 }
 
 window.editRecipeForSize = function (sizeId) {
@@ -209,6 +266,9 @@ function openProductModal() {
   document.getElementById('productModalTitle').textContent = t('add_product') || 'Add Product';
   document.getElementById('product-image').value = '';
 
+  // Set default Item Type to 'simple'
+  setItemType('simple');
+
   // Addons Reset
   allowedAddons = [];
   const allowAllMsg = document.getElementById('allow-all-addons');
@@ -230,6 +290,17 @@ function openProductModal() {
   renderSingleRecipeTable();
 
   document.getElementById('productModal').style.display = 'flex';
+  
+  // Reset navigation active tab highlight
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active', 'text-blue-600', 'border-blue-600');
+    btn.classList.add('text-slate-500', 'border-transparent');
+  });
+  const basicBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes("'basic'"));
+  if (basicBtn) {
+    basicBtn.classList.add('active', 'text-blue-600', 'border-blue-600');
+    basicBtn.classList.remove('text-slate-500', 'border-transparent');
+  }
 }
 
 function toggleSizesSection() {
@@ -330,16 +401,18 @@ function renderSizesTable() {
     const tr = document.createElement('tr');
     const recipeCount = (s.recipe || []).length;
     tr.innerHTML = `
-      <td>${s.name}</td>
-      <td>${s.code || '-'}</td>
-      <td>${s.price.toFixed(2)}</td>
-      <td id="size-cost-${s.id}">${(s.cost || 0).toFixed(2)}</td>
-      <td>
-        <button type="button" class="btn btn-sm btn-info" onclick="editRecipeForSize('${s.id}')">
+      <td class="px-4 py-3 font-medium text-slate-800">${s.name}</td>
+      <td class="px-4 py-3 text-slate-600">${s.code || '-'}</td>
+      <td class="px-4 py-3 font-semibold text-slate-800">${s.price.toFixed(2)}</td>
+      <td class="px-4 py-3 text-slate-600">${(s.priceDineIn !== undefined && s.priceDineIn !== null) ? s.priceDineIn.toFixed(2) : '-'}</td>
+      <td class="px-4 py-3 text-slate-600">${(s.priceDelivery !== undefined && s.priceDelivery !== null) ? s.priceDelivery.toFixed(2) : '-'}</td>
+      <td class="px-4 py-3 text-slate-600" id="size-cost-${s.id}">${(s.cost || 0).toFixed(2)}</td>
+      <td class="px-4 py-3">
+        <button type="button" class="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-xs font-semibold transition-colors" onclick="editRecipeForSize('${s.id}')">
           Edit Recipe${recipeCount > 0 ? ` (${recipeCount})` : ''}
         </button>
       </td>
-      <td><button onclick="removeSizeVariant(${idx})" class="btn btn-sm btn-danger">x</button></td>
+      <td class="px-4 py-3"><button type="button" onclick="removeSizeVariant(${idx})" class="text-red-500 hover:text-red-700 font-bold transition-colors">✕</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -440,6 +513,7 @@ function handleAddProduct(e) {
   const stock = parseFloat(document.getElementById("product-stock").value) || 0;
 
   const hasSizes = document.getElementById('product-has-sizes').checked;
+  const itemType = document.getElementById('product-type').value || 'simple';
 
   if (!name) return alert(t('fill_required_fields'));
 
@@ -458,29 +532,46 @@ function handleAddProduct(e) {
   if (hasSizes) {
     if (currentSizes.length === 0) return alert('Please add at least one Size Variant.');
     price = Math.min(...currentSizes.map(s => s.price));
-    // Use the lowest size cost (from recipe calculation)
+    // Use the lowest size cost (from recipe calculation or sizes themselves)
     cost = Math.min(...currentSizes.map(s => s.cost || 0));
   } else {
     // Single Product
     price = parseFloat(document.getElementById("product-price").value);
-    const priceDineIn = parseFloat(document.getElementById("product-price-dinein").value) || null;
-    const priceDelivery = parseFloat(document.getElementById("product-price-delivery").value) || null;
-
-    // Cost: prefer recipe-calculated cost if recipe exists
-    if (currentSingleRecipe.length > 0) {
-      const totalEl = document.getElementById('display-total-cost');
-      cost = totalEl ? (parseFloat(totalEl.textContent) || 0) : 0;
-    } else {
+    
+    if (itemType === 'recipe') {
+      // Cost: prefer recipe-calculated cost if recipe exists
+      if (currentSingleRecipe.length > 0) {
+        const totalEl = document.getElementById('display-total-cost');
+        cost = totalEl ? (parseFloat(totalEl.textContent) || 0) : 0;
+      } else {
+        cost = 0;
+      }
+    } else if (itemType === 'simple') {
       cost = parseFloat(document.getElementById("product-cost").value) || 0;
+    } else {
+      cost = 0;
     }
 
     if (isNaN(price)) return alert('Please enter Price.');
-
   }
 
   const allowAllAddons = document.getElementById('allow-all-addons').checked;
   const pDineIn = (!hasSizes) ? (parseFloat(document.getElementById("product-price-dinein").value) || undefined) : undefined;
   const pDelivery = (!hasSizes) ? (parseFloat(document.getElementById("product-price-delivery").value) || undefined) : undefined;
+
+  // Clear recipe arrays depending on itemType
+  const finalRecipe = (itemType === 'recipe') ? (hasSizes ? [] : currentSingleRecipe) : [];
+  
+  let finalSizes = currentSizes;
+  if (hasSizes) {
+    finalSizes = currentSizes.map(sz => {
+      return {
+        ...sz,
+        recipe: itemType === 'recipe' ? (sz.recipe || []) : [],
+        cost: itemType === 'recipe' ? (sz.cost || 0) : (sz.cost || 0)
+      };
+    });
+  }
 
   const newProduct = {
     id: id ? parseInt(id) : Date.now(),
@@ -492,16 +583,17 @@ function handleAddProduct(e) {
     priceDelivery: pDelivery,
     cost,
     image,
-    stock: stock,
+    stock: itemType === 'simple' ? stock : 0,
     allowAllAddons: allowAllAddons,
     allowedAddons: allowAllAddons ? [] : allowedAddons,
 
     // Recipe Logic
-    recipe: hasSizes ? [] : currentSingleRecipe,
-    type: (hasSizes || currentSingleRecipe.length > 0) ? 'composite' : 'simple',
+    recipe: finalRecipe,
+    type: itemType === 'recipe' ? 'composite' : (itemType === 'service' ? 'service' : 'simple'),
+    itemType: itemType, // Explicit save
 
     hasSizes: hasSizes,
-    sizes: hasSizes ? currentSizes : [],
+    sizes: hasSizes ? finalSizes : [],
     createdAt: id ? undefined : new Date().toISOString()
   };
 
@@ -527,8 +619,26 @@ window.editProduct = (id) => {
   document.getElementById("product-cost").value = product.cost || 0;
 
   document.getElementById("product-image").value = product.image || "";
-  document.getElementById("product-vendor").value = product.vendorId || "";
+  
+  const vendorEl = document.getElementById("product-vendor");
+  if (vendorEl) vendorEl.value = product.vendorId || "";
+  
   document.getElementById("product-stock").value = product.stock || 0;
+
+  // Load and apply Item Type (Service / Simple / Recipe)
+  let type = product.itemType || product.type;
+  if (type === 'composite') type = 'recipe'; // Map legacy composite to recipe
+  if (!type) {
+    // Infer for legacy products
+    if (product.recipe && product.recipe.length > 0) {
+      type = 'recipe';
+    } else if (product.sizes && product.sizes.some(s => s.recipe && s.recipe.length > 0)) {
+      type = 'recipe';
+    } else {
+      type = 'simple';
+    }
+  }
+  setItemType(type);
 
   // Load Add-ons state
   const allowAllCheck = document.getElementById('allow-all-addons');
@@ -546,7 +656,7 @@ window.editProduct = (id) => {
   renderSizesTable();
 
   // Load Single Recipe state
-  if (!product.hasSizes) {
+  if (type === 'recipe' && !product.hasSizes) {
     currentSingleRecipe = product.recipe || [];
     renderSingleRecipeTable();
   } else {
@@ -558,6 +668,17 @@ window.editProduct = (id) => {
 
   document.getElementById('productModalTitle').textContent = 'Edit Product';
   document.getElementById('productModal').style.display = 'flex';
+  
+  // Reset navigation active tab highlight
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active', 'text-blue-600', 'border-blue-600');
+    btn.classList.add('text-slate-500', 'border-transparent');
+  });
+  const basicBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes("'basic'"));
+  if (basicBtn) {
+    basicBtn.classList.add('active', 'text-blue-600', 'border-blue-600');
+    basicBtn.classList.remove('text-slate-500', 'border-transparent');
+  }
 };
 
 // ... Rest of CRUD ...
