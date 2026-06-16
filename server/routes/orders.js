@@ -132,9 +132,7 @@ router.post('/', async (req, res) => {
                             cost: i.cost,
                             note: i.note,
                             addedBy: i.addedBy,
-                            lineId: i.lineId,
-                            tenantId: req.tenantId,
-                            branchId: req.branchId
+                            lineId: i.lineId
                         }))
                     }
                 },
@@ -197,7 +195,7 @@ router.patch('/:id/items', async (req, res) => {
                         throw new Error(`Item "${existing.name}" cannot be edited — it has already been sent to the kitchen.`);
                     }
                     await tx.orderItem.update({
-                        where: { id: existing.id, tenantId: req.tenantId },
+                        where: { id: existing.id },
                         data: {
                             qty: item.qty,
                             price: item.price,
@@ -216,9 +214,7 @@ router.patch('/:id/items', async (req, res) => {
                             cost: item.cost,
                             note: item.note,
                             addedBy: item.addedBy,
-                            lineId: item.lineId,
-                            tenantId: req.tenantId,
-                            branchId: req.branchId
+                            lineId: item.lineId
                         }
                     });
                 }
@@ -261,7 +257,7 @@ router.delete('/:id/items/:lineId', async (req, res) => {
         }
 
         await prisma.orderItem.update({
-            where: { id: item.id, tenantId: req.tenantId },
+            where: { id: item.id },
             data: { kitchenStatus: 'cancelled', cancelledAt: new Date() }
         });
 
@@ -294,7 +290,7 @@ router.post('/:id/send', async (req, res) => {
 
         await prisma.$transaction([
             prisma.orderItem.updateMany({
-                where: { orderId: order.id, kitchenStatus: 'pending', tenantId: req.tenantId },
+                where: { orderId: order.id, kitchenStatus: 'pending' },
                 data: { kitchenStatus: 'sent', sentAt: now, batchNo }
             }),
             prisma.order.update({
