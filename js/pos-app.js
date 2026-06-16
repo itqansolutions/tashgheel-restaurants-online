@@ -623,13 +623,24 @@ let currentCustomer = null;
 let selectedAddress = null;
 let currentDeliveryFee = 0;
 
-function searchCustomerPos() {
+async function searchCustomerPos() {
   const q = document.getElementById('custSearchPos').value.trim().toLowerCase();
   if (!q) return;
 
-  const allCustomers = window.DB.getCustomers();
+  let allCustomers = [];
+  try {
+    if (window.electronAPI && window.electronAPI.getCustomers) {
+      allCustomers = await window.electronAPI.getCustomers();
+    } else {
+      allCustomers = window.DB.getCustomers();
+    }
+  } catch (e) {
+    console.error('Failed to fetch customers, falling back to local DB', e);
+    allCustomers = window.DB.getCustomers();
+  }
+
   // Fuzzy search
-  const found = allCustomers.find(c => c.mobile.includes(q) || c.name.toLowerCase().includes(q));
+  const found = allCustomers.find(c => (c.mobile && c.mobile.includes(q)) || (c.name && c.name.toLowerCase().includes(q)));
 
   if (found) {
     selectCustomer(found);
@@ -730,7 +741,7 @@ function openQuickAddCustomer() {
   document.getElementById('quickCustomerModal').style.display = 'flex';
 }
 
-function saveQuickCustomer() {
+async function saveQuickCustomer() {
   const name = document.getElementById('quickCustName').value.trim();
   const mobile = document.getElementById('quickCustMobile').value.trim();
   if (!name || !mobile) { alert('Name and Mobile required'); return; }
@@ -743,7 +754,6 @@ function saveQuickCustomer() {
   const extra = document.getElementById('quickCustExtra').value.trim();
 
   const newCust = {
-    id: Date.now(),
     name,
     mobile,
     createdAt: new Date().toISOString(),
@@ -762,9 +772,26 @@ function saveQuickCustomer() {
     });
   }
 
-  window.DB.saveCustomer(newCust); // Assumes DB.saveCustomer exists and works
+  let savedCustomer = null;
+  try {
+    if (window.electronAPI && window.electronAPI.saveCustomer) {
+      savedCustomer = await window.electronAPI.saveCustomer(newCust);
+    } else {
+      newCust.id = Date.now();
+      window.DB.saveCustomer(newCust);
+      savedCustomer = newCust;
+    }
+  } catch (e) {
+    console.error('Failed to save customer to cloud, saving locally', e);
+    newCust.id = Date.now();
+    window.DB.saveCustomer(newCust);
+    savedCustomer = newCust;
+  }
+
   document.getElementById('quickCustomerModal').style.display = 'none';
-  selectCustomer(newCust);
+  if (savedCustomer) {
+    selectCustomer(savedCustomer);
+  }
 }
 
 // ===================== HOLD / DRAFT LOGIC =====================
@@ -877,7 +904,7 @@ function openAddAddressModal() {
   ['addrArea', 'addrStreet', 'addrBuilding', 'addrFloor', 'addrApt', 'addrExtra'].forEach(id => document.getElementById(id).value = '');
 }
 
-function saveCheckCustomerAddress() {
+async function saveCheckCustomerAddress() {
   const addr = {
     area: document.getElementById('addrArea').value.trim(),
     street: document.getElementById('addrStreet').value.trim(),
@@ -893,7 +920,19 @@ function saveCheckCustomerAddress() {
   if (!currentCustomer.addresses) currentCustomer.addresses = [];
   currentCustomer.addresses.push(addr);
 
-  window.DB.saveCustomer(currentCustomer);
+  try {
+    if (window.electronAPI && window.electronAPI.saveCustomer) {
+      const result = await window.electronAPI.saveCustomer(currentCustomer);
+      if (result) {
+        currentCustomer = result;
+      }
+    } else {
+      window.DB.saveCustomer(currentCustomer);
+    }
+  } catch (e) {
+    console.error('Failed to sync customer address, saving locally', e);
+    window.DB.saveCustomer(currentCustomer);
+  }
 
   // Refresh list
   selectCustomer(currentCustomer);
