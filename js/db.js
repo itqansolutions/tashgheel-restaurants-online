@@ -4,6 +4,14 @@
  */
 
 window.DB = window.DB || {
+    // 🔐 Helper: Get Tenant-scoped prefix for localStorage keys
+    _getTenantPrefix: function () {
+        // tenantId is stored at login by auth.js line ~999
+        const tenantId = localStorage.getItem('tenant_id') ||
+            window.DataCache?.session?.tenantId || 'default';
+        return `tenant_${tenantId}_`;
+    },
+
     // ☁️ Helper: Sync to Cloud (Desktop Mode Only)
     _syncToCloud: async function (key, data) {
         // Only run if we are in Desktop Mode (electronAPI exists but NOT the Web Adapter)
@@ -235,13 +243,26 @@ window.DB = window.DB || {
     // === CATEGORIES ===
     getCategories: function () {
         try {
-            return JSON.parse(localStorage.getItem('categories') || '[]');
+            // 🔐 Use tenant-scoped key to prevent cross-tenant data leaks
+            const key = this._getTenantPrefix() + 'categories';
+            const data = localStorage.getItem(key);
+            if (data) return JSON.parse(data);
+            // Migrate legacy unscoped key if it exists (one-time migration)
+            const legacy = localStorage.getItem('categories');
+            if (legacy) {
+                const parsed = JSON.parse(legacy);
+                localStorage.setItem(key, legacy); // migrate
+                // Don't remove legacy yet to avoid breaking other tenants using it
+                return parsed;
+            }
+            return [];
         } catch (e) { return []; }
     },
 
     saveCategories: function (categories) {
-        localStorage.setItem('categories', JSON.stringify(categories));
-        // 🚀 SYNC TO SERVER
+        // 🔐 Use tenant-scoped key
+        const key = this._getTenantPrefix() + 'categories';
+        localStorage.setItem(key, JSON.stringify(categories));
         // 🚀 SYNC TO SERVER
         if (window.electronAPI && window.electronAPI.saveData) {
             window.electronAPI.saveData('categories', categories);

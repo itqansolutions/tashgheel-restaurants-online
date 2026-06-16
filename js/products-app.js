@@ -328,12 +328,17 @@ function renderSizesTable() {
 
   currentSizes.forEach((s, idx) => {
     const tr = document.createElement('tr');
+    const recipeCount = (s.recipe || []).length;
     tr.innerHTML = `
       <td>${s.name}</td>
       <td>${s.code || '-'}</td>
       <td>${s.price.toFixed(2)}</td>
-      <td>${(s.cost || 0).toFixed(2)}</td>
-      <td><button type="button" class="btn btn-sm btn-info" onclick="editRecipeForSize('${s.id}')">Edit Recipe</button></td>
+      <td id="size-cost-${s.id}">${(s.cost || 0).toFixed(2)}</td>
+      <td>
+        <button type="button" class="btn btn-sm btn-info" onclick="editRecipeForSize('${s.id}')">
+          Edit Recipe${recipeCount > 0 ? ` (${recipeCount})` : ''}
+        </button>
+      </td>
       <td><button onclick="removeSizeVariant(${idx})" class="btn btn-sm btn-danger">x</button></td>
     `;
     tbody.appendChild(tr);
@@ -438,20 +443,30 @@ function handleAddProduct(e) {
 
   if (!name) return alert(t('fill_required_fields'));
 
+  // 💾 Flush any in-progress size recipe edit before saving
+  if (hasSizes && currentEditingSizeId) {
+    const editingSize = currentSizes.find(sz => sz.id == currentEditingSizeId);
+    if (editingSize) {
+      editingSize.recipe = [...currentSingleRecipe];
+      // cost is already kept current by renderSingleRecipeTable
+    }
+  }
+
   let price = 0;
   let cost = 0;
 
   if (hasSizes) {
     if (currentSizes.length === 0) return alert('Please add at least one Size Variant.');
     price = Math.min(...currentSizes.map(s => s.price));
-    cost = Math.min(...currentSizes.map(s => s.cost));
+    // Use the lowest size cost (from recipe calculation)
+    cost = Math.min(...currentSizes.map(s => s.cost || 0));
   } else {
     // Single Product
     price = parseFloat(document.getElementById("product-price").value);
     const priceDineIn = parseFloat(document.getElementById("product-price-dinein").value) || null;
     const priceDelivery = parseFloat(document.getElementById("product-price-delivery").value) || null;
 
-    // ... cost logic
+    // Cost: prefer recipe-calculated cost if recipe exists
     if (currentSingleRecipe.length > 0) {
       const totalEl = document.getElementById('display-total-cost');
       cost = totalEl ? (parseFloat(totalEl.textContent) || 0) : 0;
@@ -493,6 +508,7 @@ function handleAddProduct(e) {
   window.DB.savePart(newProduct);
 
   e.target.reset();
+
   closeProductModal();
   loadProducts();
   alert('Menu Item Saved!');
@@ -708,14 +724,6 @@ window.renderSingleRecipeTable = function () {
       grossQty = (yieldPercent > 0) ? netQty / yieldPercent : netQty;
     }
 
-    // Conversion? costPerUnit is usually per Base Unit.
-    // If item.qty is in Usage Unit (e.g. g), we need to normalize costs.
-    // In `addIngredient...` we stored `factor`.
-    // Let's assume `item.costPerUnit` is accurate for `item.unit`?
-    // In `addIngredientToSingleRecipe`, we calculated costPerUnit = baseCost * conversionFactor. 
-    // So `lineCost = grossQty * costPerUnit` is correct IF grossQty is in Usage Units. 
-    // Yes.
-
     const lineCost = grossQty * unitCost;
     totalCost += lineCost;
 
@@ -737,10 +745,15 @@ window.renderSingleRecipeTable = function () {
   const hiddenCost = document.getElementById('product-cost');
   if (hiddenCost) hiddenCost.value = totalCost.toFixed(2);
 
-  // Update Size Cost in Memory
+  // Update Size Cost in Memory + live cost cell in sizes table
   if (currentEditingSizeId) {
-    const s = currentSizes.find(sz => sz.id === currentEditingSizeId);
-    if (s) s.cost = totalCost;
+    const s = currentSizes.find(sz => sz.id == currentEditingSizeId);
+    if (s) {
+      s.cost = totalCost;
+      // Refresh the cost cell in the sizes table (if the tab is visible)
+      const costCell = document.getElementById(`size-cost-${s.id}`);
+      if (costCell) costCell.textContent = totalCost.toFixed(2);
+    }
   }
 }
 
@@ -900,16 +913,35 @@ window.editProduct = (id) => {
   if (allowAllCheck) {
     allowAllCheck.checked = !!product.allowAllAddons;
   }
-
   allowedAddons = product.allowedAddons || [];
-
   toggleAddonsContainer();
   loadAddonsDropdown();
   renderAllowedAddons();
 
+  // ✅ Load Sizes state (must be loaded before toggleSizesSection)
+  const hasSizesCheck = document.getElementById('product-has-sizes');
+  if (hasSizesCheck) hasSizesCheck.checked = !!product.hasSizes;
+  currentSizes = (product.sizes || []).map(s => ({ ...s, recipe: s.recipe || [] }));
+  toggleSizesSection();
+  renderSizesTable();
+
+  // Reset size recipe editing state
+  currentEditingSizeId = null;
+  currentSingleRecipe = [];
+
+  // ✅ Load Single Recipe state (only for non-size products)
+  if (!product.hasSizes) {
+    currentSingleRecipe = product.recipe || [];
+    renderSingleRecipeTable();
+  } else {
+    renderSingleRecipeTable(); // Clear the recipe table
+  }
+  loadSingleRecipeIngredientsDropdown();
+
   document.getElementById('productModalTitle').textContent = 'Edit Product';
   document.getElementById('productModal').style.display = 'flex';
 };
+
 window.deleteProduct = (id) => {
   if (confirm('Delete?')) {
     window.DB.deletePart(id);
@@ -936,11 +968,21 @@ function renderRecipeSizeButtons() {
     btn.style.margin = '0 5px';
     btn.onclick = (e) => {
       e.preventDefault(); // prevent form submit
+
+      // 💾 Save current recipe back to the currently-editing size before switching
+      if (currentEditingSizeId) {
+        const prevSize = currentSizes.find(sz => sz.id == currentEditingSizeId);
+        if (prevSize) {
+          prevSize.recipe = [...currentSingleRecipe];
+          // cost is already kept in sync by renderSingleRecipeTable
+        }
+      }
+
+      // Switch to new size
       currentEditingSizeId = s.id;
-      // Load recipe for this size
-      currentSingleRecipe = s.recipe || [];
+      currentSingleRecipe = [...(s.recipe || [])];
       renderRecipeSizeButtons(); // update active class
-      renderSingleRecipeTable(); // render table
+      renderSingleRecipeTable(); // render table for new size
     };
     container.appendChild(btn);
   });
@@ -1071,7 +1113,9 @@ function renderSingleRecipeTable() {
 
   currentSingleRecipe.forEach((item, index) => {
     const ingredient = window.DB.getIngredient(item.ingredientId);
-    const unitCost = ingredient ? parseFloat(ingredient.cost) : 0;
+    // Use stored costPerUnit first (calculated with conversion factor at add-time)
+    const convFactor = item.conversionFactor || 1;
+    const unitCost = parseFloat(item.costPerUnit || (ingredient ? ingredient.cost * convFactor : 0));
     const netQty = parseFloat(item.qty);
     const wasteVal = parseFloat(item.wasteValue || 0);
     const wasteType = item.wasteType || 'percent';
@@ -1096,6 +1140,7 @@ function renderSingleRecipeTable() {
     row.innerHTML = `
       <td>${item.name}</td>
       <td>${netQty}</td>
+      <td>${item.unit || ''}</td>
       <td>${wasteDisplay}</td>
       <td>${grossQty.toFixed(3)}</td>
       <td>${lineCost.toFixed(2)}</td>
@@ -1107,8 +1152,22 @@ function renderSingleRecipeTable() {
   const totalEl = document.getElementById('single-recipe-total');
   if (totalEl) totalEl.textContent = totalCost.toFixed(2);
 
+  // Also update the display-total-cost used by the save logic
+  const displayTotal = document.getElementById('display-total-cost');
+  if (displayTotal) displayTotal.textContent = totalCost.toFixed(2);
+
   const costInput = document.getElementById('product-cost');
   if (costInput) costInput.value = totalCost.toFixed(2);
+
+  // Update size cost in memory + refresh the live cost cell in sizes table
+  if (currentEditingSizeId) {
+    const s = currentSizes.find(sz => sz.id == currentEditingSizeId);
+    if (s) {
+      s.cost = totalCost;
+      const costCell = document.getElementById(`size-cost-${s.id}`);
+      if (costCell) costCell.textContent = totalCost.toFixed(2);
+    }
+  }
 }
 
 window.removeSingleRecipeItem = function (index) {

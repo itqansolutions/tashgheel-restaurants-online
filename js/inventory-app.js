@@ -35,13 +35,33 @@ async function initApp() {
     //     return;
     // }
 
-    loadVendors();
+    await loadVendors();
     loadInventory();
 }
 
-function loadVendors() {
-    const vendors = window.DB.getVendors();
+async function loadVendors() {
+    let vendors = [];
+
+    // In web mode, vendors live in the Vendor DB table (via /parties/vendors REST API),
+    // NOT in the generic data KV store that window.DB.getVendors() reads from.
+    if (window.electronAPI && window.electronAPI.isWebAdapter && window.apiFetch) {
+        try {
+            const result = await window.apiFetch('/parties/vendors');
+            if (Array.isArray(result)) {
+                vendors = result;
+                // Update the DataCache so other parts of the app can find them
+                if (window.DataCache) window.DataCache['vendors'] = vendors;
+            }
+        } catch (e) {
+            console.warn('Failed to fetch vendors from API, falling back to cache:', e);
+            vendors = window.DB.getVendors();
+        }
+    } else {
+        vendors = window.DB.getVendors();
+    }
+
     const select = document.getElementById('material-vendor');
+    if (!select) return;
     select.innerHTML = '<option value="">-- Select Vendor --</option>';
     vendors.forEach(v => {
         const opt = document.createElement('option');
@@ -256,9 +276,12 @@ function handleSaveMaterial(e) {
     alert(id ? 'Material Updated' : 'Material Added');
 }
 
-function editMaterial(id) {
+async function editMaterial(id) {
     const mat = window.DB.getIngredient(id);
     if (!mat) return;
+
+    // Ensure vendor dropdown is populated before setting value
+    await loadVendors();
 
     document.getElementById('material-id').value = mat.id;
     document.getElementById('material-name').value = mat.name;
