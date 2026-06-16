@@ -96,7 +96,7 @@
                 : '';
 
             return `
-                <button onclick="DineIn.openTable('${table._id}', '${table.name}')"
+                <button onclick="DineIn.openTable('${table.id || table._id}', '${table.name}')"
                     class="relative flex flex-col items-center justify-center p-4 rounded-xl border-2 ${borderColor} ${bgColor} ${extraClass} transition-all cursor-pointer text-center min-h-[120px]">
                     <span class="material-symbols-outlined text-4xl mb-1 ${isOccupied ? 'text-red-400' : 'text-slate-400'}">${isOccupied ? 'chair' : 'table_restaurant'}</span>
                     <p class="font-bold text-sm text-white">${table.name}</p>
@@ -139,7 +139,7 @@
                 });
                 order = result?.order;
             }
-            activeOrderId = order?._id;
+            activeOrderId = order?.id || order?._id;
             activeOrder = order;
             renderOrderPanel(order);
             startPolling();
@@ -432,7 +432,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full ${t.status === 'occupied' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}">${t.status}</span>
-                    <button onclick="DineIn.deleteTable('${t._id}', '${t.name}')"
+                    <button onclick="DineIn.deleteTable('${t.id || t._id}', '${t.name}')"
                         class="p-1.5 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors ${t.status === 'occupied' ? 'opacity-40 cursor-not-allowed' : ''}"
                         ${t.status === 'occupied' ? 'disabled' : ''}>
                         <span class="material-symbols-outlined text-sm">delete</span>
