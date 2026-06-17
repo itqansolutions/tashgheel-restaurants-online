@@ -155,6 +155,12 @@
         if (method === 'GET' && cleanPath.startsWith('/data/read/')) {
             const key = urlParts[3];
             if (!key) return null;
+            // 1. Try in-memory DataCache first (mid-session offline without refresh)
+            if (window.DataCache && window.DataCache[key] !== undefined && window.DataCache[key] !== null) {
+                const val = window.DataCache[key];
+                return JSON.stringify(Array.isArray(val) ? val : val);
+            }
+            // 2. Try localStorage backup (offline after page refresh)
             const bk = _getOfflineBackupKey(key);
             const stored = localStorage.getItem(bk);
             if (stored) {

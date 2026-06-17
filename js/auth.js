@@ -260,8 +260,18 @@ async function initializeDataSystem() {
                     if (local) { try { fileData = JSON.parse(local); } catch (e) { fileData = local; } }
                 }
 
-                if (fileData) window.DataCache[key] = fileData;
-                else window.DataCache[key] = [];
+                if (fileData) {
+                    window.DataCache[key] = fileData;
+                    // 💾 Persist to localStorage immediately so offline mode can find it
+                    try {
+                        const backupKey = EnhancedSecurity._getBackupKey(key);
+                        localStorage.setItem(backupKey, JSON.stringify(fileData));
+                    } catch (storageErr) {
+                        console.warn(`⚠️ Could not persist ${key} to localStorage:`, storageErr);
+                    }
+                } else {
+                    window.DataCache[key] = [];
+                }
             });
 
             await Promise.all(promises);
