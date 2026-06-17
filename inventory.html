@@ -131,6 +131,15 @@
                             <input type="text" id="searchBox" placeholder="Search materials..."
                                 class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm">
                         </div>
+                        <!-- Branch Filter -->
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-slate-400 text-lg">business</span>
+                            <select id="branchFilter"
+                                class="border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+                                onchange="onBranchFilterChange()">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
                     </div>
                     <button onclick="openStockAudit()"
                         class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95">
@@ -377,49 +386,124 @@
         </div>
     </div>
 
-    <!-- Restock Modal -->
+    <!-- Restock Modal (Redesigned with Credit / Paid Now) -->
     <div id="restockModal" class="modal">
-        <div class="modal-content w-full max-w-md p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <span class="material-symbols-outlined text-green-600">add_box</span>
-                Restock Material
-            </h3>
+        <div class="modal-content w-full max-w-lg p-0 overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-white text-2xl">add_box</span>
+                    <div>
+                        <h3 class="font-bold text-white text-lg">Restock Material</h3>
+                        <p class="text-emerald-100 text-xs" id="restock-material-subtitle"></p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('restockModal').style.display='none'" class="text-white hover:text-emerald-200 transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
 
-            <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-4 text-sm text-indigo-900">
+            <div class="p-6 space-y-5">
                 <input type="hidden" id="restock-id">
-                <div class="flex justify-between">
-                    <span>Current Stock: <strong id="restock-current-stock"></strong></span>
-                    <span>Avg Cost: <strong id="restock-current-cost"></strong></span>
-                </div>
-            </div>
+                <input type="hidden" id="restock-vendor-id">
+                <input type="hidden" id="restock-ingredient-name">
+                <input type="hidden" id="restock-ingredient-unit">
 
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Add Qty</label>
-                    <input type="number" id="restock-qty"
-                        class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                        placeholder="0.000" step="0.001">
+                <!-- Current Stock Info -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-xs text-slate-500 uppercase font-bold">Current Stock</p>
+                            <p class="text-xl font-black text-slate-800" id="restock-current-stock">-</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-500 uppercase font-bold">Avg Unit Cost</p>
+                            <p class="text-xl font-black text-slate-800" id="restock-current-cost">-</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">New Unit Cost</label>
-                    <input type="number" id="restock-cost"
-                        class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                        step="0.01">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Payment</label>
-                    <select id="restock-method" class="w-full p-2 border border-slate-200 rounded-lg bg-white">
-                        <option value="credit">Credit (Pay Later)</option>
-                        <option value="cash">Cash (Paid Now)</option>
-                    </select>
-                </div>
-            </div>
 
-            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
-                <button onclick="confirmRestock()"
-                    class="px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold">Confirm</button>
-                <button onclick="document.getElementById('restockModal').style.display='none'"
-                    class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg">Cancel</button>
+                <!-- Qty + Cost row -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Add Qty</label>
+                        <input type="number" id="restock-qty" step="0.001" min="0.001" placeholder="0.000"
+                            class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                            oninput="updateRestockTotal()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Unit Cost</label>
+                        <input type="number" id="restock-cost" step="0.01" min="0" placeholder="0.00"
+                            class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                            oninput="updateRestockTotal()">
+                    </div>
+                </div>
+
+                <!-- Total Cost Preview -->
+                <div class="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 flex justify-between items-center">
+                    <span class="text-xs font-bold text-blue-600 uppercase">Total Purchase Cost</span>
+                    <span class="text-lg font-black text-blue-700" id="restock-total-preview">0.00</span>
+                </div>
+
+                <!-- Purchase Type Toggle -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Purchase Type</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" id="btn-credit" onclick="setPurchaseType('credit')"
+                            class="flex flex-col items-center gap-1.5 py-3 px-4 rounded-xl border-2 border-amber-400 bg-amber-50 text-amber-700 font-bold text-sm transition-all">
+                            <span class="material-symbols-outlined text-xl">account_balance_wallet</span>
+                            <span>Credit (Pay Later)</span>
+                            <span class="text-[10px] font-normal text-amber-600">Adds to vendor debt</span>
+                        </button>
+                        <button type="button" id="btn-paid" onclick="setPurchaseType('paid_now')"
+                            class="flex flex-col items-center gap-1.5 py-3 px-4 rounded-xl border-2 border-slate-200 bg-white text-slate-500 font-bold text-sm transition-all hover:border-green-400">
+                            <span class="material-symbols-outlined text-xl">payments</span>
+                            <span>Paid Now</span>
+                            <span class="text-[10px] font-normal">Vendor balance stays 0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Payment Method (visible only when Paid Now) -->
+                <div id="payment-method-row" style="display:none;">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Payment Method</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="pmBtn-cash" onclick="setPaymentMethod('cash')"
+                            class="py-2 rounded-lg border-2 border-emerald-400 bg-emerald-50 text-emerald-700 font-bold text-xs transition-all">
+                            <span class="material-symbols-outlined block text-base">payments</span>Cash</button>
+                        <button type="button" id="pmBtn-card" onclick="setPaymentMethod('card')"
+                            class="py-2 rounded-lg border-2 border-slate-200 bg-white text-slate-500 font-bold text-xs transition-all hover:border-blue-400">
+                            <span class="material-symbols-outlined block text-base">credit_card</span>Card</button>
+                        <button type="button" id="pmBtn-mobile" onclick="setPaymentMethod('mobile')"
+                            class="py-2 rounded-lg border-2 border-slate-200 bg-white text-slate-500 font-bold text-xs transition-all hover:border-purple-400">
+                            <span class="material-symbols-outlined block text-base">smartphone</span>Mobile</button>
+                    </div>
+                    <input type="hidden" id="restock-payment-method" value="cash">
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes (Optional)</label>
+                    <input type="text" id="restock-notes" placeholder="e.g. Invoice #1234"
+                        class="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                </div>
+
+                <!-- Summary badge -->
+                <div id="restock-summary-badge" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                    <span class="material-symbols-outlined text-sm align-middle">info</span>
+                    <span id="restock-summary-text"></span>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="document.getElementById('restockModal').style.display='none'"
+                        class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors">Cancel</button>
+                    <button type="button" onclick="confirmRestock()"
+                        class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-base">check_circle</span>
+                        Confirm Restock
+                    </button>
+                </div>
             </div>
         </div>
     </div>

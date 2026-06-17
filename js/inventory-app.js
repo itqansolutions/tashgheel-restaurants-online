@@ -27,16 +27,53 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function initApp() {
-    // EnhancedSecurity.init() is now auto-handled by auth.js
-
-    // REMOVED: Legacy session check - auth.js handles this via cookies
-    // if (window.isSessionValid && !window.isSessionValid()) {
-    //     window.location.href = 'index.html';
-    //     return;
-    // }
-
+    await loadBranches();
     await loadVendors();
     loadInventory();
+}
+
+// === BRANCH MANAGEMENT ===
+let allBranches = [];
+
+async function loadBranches() {
+    try {
+        if (window.apiFetch) {
+            const branches = await window.apiFetch('/branches');
+            allBranches = Array.isArray(branches) ? branches : [];
+        }
+    } catch (e) {
+        console.warn('Could not load branches:', e);
+        allBranches = [];
+    }
+
+    // Populate branch filter
+    const branchFilter = document.getElementById('branchFilter');
+    if (!branchFilter) return;
+
+    const activeBranchId = localStorage.getItem('activeBranchId') || '';
+    branchFilter.innerHTML = '<option value="">All Branches</option>';
+    allBranches.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.id;
+        opt.textContent = b.name + (b.code ? ` (${b.code})` : '');
+        if (b.id === activeBranchId) opt.selected = true;
+        branchFilter.appendChild(opt);
+    });
+
+    // If no branch selected and activeBranchId exists, default to it
+    if (activeBranchId && branchFilter.value !== activeBranchId) {
+        // activeBranchId not in list (different tenant) - leave as 'All'
+    }
+}
+
+function onBranchFilterChange() {
+    loadInventory();
+}
+
+function getActiveBranchId() {
+    const filter = document.getElementById('branchFilter');
+    if (filter && filter.value) return filter.value;
+    return localStorage.getItem('activeBranchId') || null;
 }
 
 async function loadVendors() {
@@ -80,16 +117,14 @@ function safeFloat(val) {
 function loadInventory() {
     const materials = window.DB.getIngredients();
     const vendors = window.DB.getVendors();
-    const search = document.getElementById('searchBox').value.toLowerCase();
+    const search = document.getElementById('searchBox')?.value.toLowerCase() || '';
+    const activeBranchId = getActiveBranchId();
     const dashboardContainer = document.getElementById('inventory-dashboard');
     const tbody = document.getElementById('inventory-table-body');
 
-    if (!tbody) {
-        console.error('Inventory Table Body not found');
-        return;
-    }
+    if (!tbody) { console.error('Inventory Table Body not found'); return; }
 
-    // Render Dashboard (unchanged)
+    // Render Dashboard
     if (dashboardContainer) {
         dashboardContainer.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -100,7 +135,7 @@ function loadInventory() {
                 </div>
                 <span class="material-symbols-outlined text-red-400 text-3xl">event_busy</span>
             </div>
-             <div class="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between">
+            <div class="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between">
                 <div>
                     <div class="text-xs font-bold text-amber-500 uppercase">Expiring Soon</div>
                     <div class="text-xl font-bold text-amber-700" id="alert-expiring-count">0</div>
@@ -108,14 +143,14 @@ function loadInventory() {
                 <span class="material-symbols-outlined text-amber-400 text-3xl">history</span>
             </div>
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                 <div>
-                    <div class="text-xs font-bold text-slate-500 uppercase">Dead Stock (>30d)</div>
+                <div>
+                    <div class="text-xs font-bold text-slate-500 uppercase">Dead Stock (&gt;30d)</div>
                     <div class="text-xl font-bold text-slate-700" id="alert-dead-count">0</div>
                 </div>
                 <span class="material-symbols-outlined text-slate-400 text-3xl">inventory_2</span>
             </div>
-             <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center justify-between">
-                 <div>
+            <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center justify-between">
+                <div>
                     <div class="text-xs font-bold text-emerald-500 uppercase">Healthy Stock</div>
                     <div class="text-xl font-bold text-emerald-700" id="alert-healthy-count">0</div>
                 </div>
@@ -125,81 +160,61 @@ function loadInventory() {
     }
 
     const filtered = materials.filter(m => m.name.toLowerCase().includes(search));
-
     tbody.innerHTML = '';
 
-    // Reset Counts
-    let expiredCount = 0;
-    let expiringCount = 0;
-    let deadCount = 0;
-    let healthyCount = 0;
+    let expiredCount = 0, expiringCount = 0, deadCount = 0, healthyCount = 0;
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">No materials found.</td></tr>';
-        // Only return if we truly want to stop. But we should probably leave the dashboard up?
-        // Let's continue to update dashboard even if empty (counts will be 0)
-    }
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No materials found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">No materials found.</td></tr>';
         return;
     }
 
     filtered.forEach(m => {
         const vendor = vendors.find(v => v.id == m.vendorId);
         const cost = safeFloat(m.cost);
-        const stock = safeFloat(m.stock);
+
+        // 🌿 Branch-aware stock display
+        let stock;
+        if (activeBranchId && m.stockByBranch && m.stockByBranch[activeBranchId] !== undefined) {
+            stock = safeFloat(m.stockByBranch[activeBranchId]);
+        } else if (!activeBranchId && m.stock !== undefined) {
+            stock = safeFloat(m.stock); // All branches: show total
+        } else {
+            stock = safeFloat(m.stock || 0); // Fallback
+        }
+
         const totalValue = (cost * stock).toFixed(2);
+        const minStock = safeFloat(m.minStock || 0);
+        const isLow = stock <= minStock && minStock > 0;
 
         // Expiration Logic
         let expiryBadge = '';
         if (m.expirationDate) {
             const exp = new Date(m.expirationDate);
             const today = new Date();
-            const diffTime = exp - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
+            const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
             if (diffDays <= 0) {
-                expiryBadge = `<div class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded mt-1 border border-red-200 w-fit flex items-center gap-1 font-bold">
-                                    <span class="material-symbols-outlined text-[10px]">warning</span> Expired
-                                </div>`;
+                expiryBadge = `<div class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded mt-1 border border-red-200 w-fit flex items-center gap-1 font-bold"><span class="material-symbols-outlined text-[10px]">warning</span> Expired</div>`;
                 expiredCount++;
             } else if (diffDays <= 30) {
-                expiryBadge = `<div class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mt-1 border border-amber-200 w-fit flex items-center gap-1 font-bold">
-                                    <span class="material-symbols-outlined text-[10px]">history</span> Exp: ${diffDays}d
-                                </div>`;
+                expiryBadge = `<div class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mt-1 border border-amber-200 w-fit flex items-center gap-1 font-bold"><span class="material-symbols-outlined text-[10px]">history</span> Exp: ${diffDays}d</div>`;
                 expiringCount++;
             }
         }
 
-        // Health Logic (Movement)
+        // Health Logic
         let healthBadge = '';
-        let daysIdle = 999; // Default to very old if no lastUsedAt
-        if (m.lastUsedAt) {
-            const diff = new Date() - new Date(m.lastUsedAt);
-            daysIdle = Math.floor(diff / (1000 * 60 * 60 * 24));
-        }
-
-        if (daysIdle <= 7) {
-            healthBadge = `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold border border-emerald-200 ml-1">Healthy</span>`;
-            healthyCount++;
-        } else if (daysIdle <= 30) {
-            healthBadge = `<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold border border-blue-100 ml-1">Slow</span>`;
-        } else {
-            healthBadge = `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold border border-slate-200 ml-1">Dead</span>`;
-            deadCount++;
-        }
-
+        let daysIdle = 999;
+        if (m.lastUsedAt) daysIdle = Math.floor((new Date() - new Date(m.lastUsedAt)) / (1000 * 60 * 60 * 24));
+        if (daysIdle <= 7) { healthBadge = `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold border border-emerald-200 ml-1">Healthy</span>`; healthyCount++; }
+        else if (daysIdle <= 30) { healthBadge = `<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold border border-blue-100 ml-1">Slow</span>`; }
+        else { healthBadge = `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold border border-slate-200 ml-1">Dead</span>`; deadCount++; }
 
         const row = document.createElement('tr');
-        row.className = "hover:bg-slate-50 transition-colors group";
-
+        row.className = 'hover:bg-slate-50 transition-colors group';
         row.innerHTML = `
             <td class="px-6 py-4 text-sm font-medium text-slate-800">
-                <div class="flex items-center">
-                    ${m.name}
-                    ${healthBadge}
-                </div>
+                <div class="flex items-center">${m.name}${healthBadge}</div>
                 ${expiryBadge}
             </td>
             <td class="px-6 py-4">
@@ -207,20 +222,19 @@ function loadInventory() {
             </td>
             <td class="px-6 py-4 text-right text-sm text-slate-600">${cost.toFixed(2)}</td>
             <td class="px-6 py-4 text-center">
-                <span class="text-sm font-bold ${stock < 5 ? 'text-red-600' : 'text-slate-800'}">${stock.toFixed(3)}</span>
+                <span class="text-sm font-bold ${isLow ? 'text-red-600' : 'text-slate-800'}">${stock.toFixed(3)}</span>
+                ${isLow ? '<span class="block text-[10px] text-red-500">Low Stock</span>' : ''}
             </td>
             <td class="px-6 py-4 text-right text-sm font-bold text-slate-800">${totalValue}</td>
             <td class="px-6 py-4 text-sm text-slate-500">${vendor?.name || '-'}</td>
             <td class="px-6 py-4 text-center">
-                 <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button class="w-8 h-8 flex items-center justify-center bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors" onclick="openRestockModal(${m.id})" title="Restock">
                         <span class="material-symbols-outlined text-[18px]">add_box</span>
                     </button>
-                    <!-- 🟢 NEW: Adjustment Button -->
                     <button class="w-8 h-8 flex items-center justify-center bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors" onclick="openAdjustmentModal(${m.id})" title="Adjust/Waste">
                         <span class="material-symbols-outlined text-[18px]">tune</span>
                     </button>
-                    <!-- 🟢 NEW: Transfer Button -->
                     <button class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors" onclick="openTransferModal(${m.id})" title="Transfer">
                         <span class="material-symbols-outlined text-[18px]">move_up</span>
                     </button>
@@ -229,13 +243,13 @@ function loadInventory() {
                     </button>
                     <button class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors" onclick="deleteMaterial(${m.id})" title="Delete">
                         <span class="material-symbols-outlined text-[18px]">delete</span>
-                 </div>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(row);
     });
 
-    // Update Counts
     document.getElementById('alert-expired-count').textContent = expiredCount;
     document.getElementById('alert-expiring-count').textContent = expiringCount;
     document.getElementById('alert-dead-count').textContent = deadCount;
@@ -260,12 +274,23 @@ function handleSaveMaterial(e) {
         return;
     }
 
+    const activeBranchId = getActiveBranchId();
+    const existingIngredient = id ? window.DB.getIngredient(id) : null;
+
+    // Merge stockByBranch: keep existing branch stocks, set current branch stock for new items
+    let stockByBranch = existingIngredient?.stockByBranch || {};
+    if (!id && activeBranchId) {
+        // New material: initialise stock for the current branch
+        stockByBranch[activeBranchId] = isNaN(stock) ? 0 : stock;
+    }
+
     const material = {
         id: id ? parseInt(id) : Date.now(),
         name,
         unit,
         cost,
-        stock: id ? (window.DB.getIngredient(id)?.stock || 0) : (isNaN(stock) ? 0 : stock),
+        stock: id ? (existingIngredient?.stock || 0) : (isNaN(stock) ? 0 : stock),
+        stockByBranch,
         vendorId,
         minStock: isNaN(minStock) ? 5 : minStock,
         expirationDate: expDate || null
@@ -419,6 +444,8 @@ window.openStockAudit = openStockAudit;
 window.saveStockAudit = saveStockAudit;
 window.closeStockAudit = closeStockAudit;
 window.calculateAuditDifference = calculateAuditDifference;
+window.onBranchFilterChange = onBranchFilterChange;
+window.getActiveBranchId = getActiveBranchId;
 
 
 // 🟢 NEW: Adjustment Logic
@@ -603,106 +630,167 @@ window.confirmTransfer = async function () {
 };
 
 
-// Restock Feature (Existing) - Update to use API logic if needed? 
-// Current Restock uses DB.addVendorTransaction + electronAPI.updateStock.
-// That is technically a "Purchase". 
-// Ideally "Purchase" should also be an InventoryAdjustment of type 'PURCHASE' or similar?
-// But user spec didn't strictly ask to migrate Purchase logic, just Waste/Audit.
-// We'll leave Restock as is for now, or maybe later add an Adjustment record too?
-// The user spec said "One table for ALL stock movements". 
-// So ideally, yes, confirmed restock SHOULD create a TRANSFER_IN or PURCHASE record.
-// But let's stick to the specific request for now (Waste/Audit). 
+// === RESTOCK (New Financial Flow) ===
+
+let _restockPurchaseType = 'credit';  // 'credit' | 'paid_now'
+let _restockPaymentMethod = 'cash';   // 'cash' | 'card' | 'mobile'
 
 window.openRestockModal = function (id) {
-    // ... existing ... 
     const ing = window.DB.getIngredient(id);
     if (!ing) return;
 
+    // Populate hidden fields
     document.getElementById('restock-id').value = id;
-    document.getElementById('restock-current-stock').textContent = safeFloat(ing.stock);
-    document.getElementById('restock-current-cost').textContent = safeFloat(ing.cost).toFixed(2);
-    document.getElementById('restock-qty').value = '';
-    document.getElementById('restock-cost').value = '';
+    document.getElementById('restock-vendor-id').value = ing.vendorId || '';
+    document.getElementById('restock-ingredient-name').value = ing.name || '';
+    document.getElementById('restock-ingredient-unit').value = ing.unit || '';
 
-    // Auto-fill cost if available from existing
-    if (ing.cost > 0) document.getElementById('restock-cost').value = ing.cost;
+    // Current stock for active branch
+    const activeBranchId = getActiveBranchId();
+    const branchStock = activeBranchId && ing.stockByBranch
+        ? safeFloat(ing.stockByBranch[activeBranchId] ?? ing.stock ?? 0)
+        : safeFloat(ing.stock || 0);
+
+    document.getElementById('restock-material-subtitle').textContent = ing.name + (ing.unit ? ` (${ing.unit})` : '');
+    document.getElementById('restock-current-stock').textContent = branchStock.toFixed(3) + (ing.unit ? ' ' + ing.unit : '');
+    document.getElementById('restock-current-cost').textContent = safeFloat(ing.cost).toFixed(2);
+
+    // Clear inputs
+    document.getElementById('restock-qty').value = '';
+    document.getElementById('restock-cost').value = ing.cost > 0 ? ing.cost : '';
+    document.getElementById('restock-notes').value = '';
+    document.getElementById('restock-total-preview').textContent = '0.00';
+
+    // Reset purchase type to credit
+    _restockPurchaseType = 'credit';
+    _restockPaymentMethod = 'cash';
+    setPurchaseType('credit');
 
     document.getElementById('restockModal').style.display = 'block';
 };
 
-window.confirmRestock = function () {
-    // ... existing logic ...
+window.updateRestockTotal = function () {
+    const qty = parseFloat(document.getElementById('restock-qty').value || 0);
+    const cost = parseFloat(document.getElementById('restock-cost').value || 0);
+    const total = (qty * cost).toFixed(2);
+    document.getElementById('restock-total-preview').textContent = total;
+
+    // Update summary badge
+    const badge = document.getElementById('restock-summary-badge');
+    const summaryText = document.getElementById('restock-summary-text');
+    if (qty > 0 && cost >= 0) {
+        const type = _restockPurchaseType;
+        const pm = _restockPaymentMethod;
+        if (type === 'credit') {
+            summaryText.textContent = ` Vendor debt will increase by ${total}. Appears in Expenses as 'Raw Materials'.`;
+        } else {
+            summaryText.textContent = ` Paid ${total} via ${pm}. 2 ledger rows created (purchase + payment). Appears in Expenses.`;
+        }
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+};
+
+window.setPurchaseType = function (type) {
+    _restockPurchaseType = type;
+    const btnCredit = document.getElementById('btn-credit');
+    const btnPaid   = document.getElementById('btn-paid');
+    const pmRow     = document.getElementById('payment-method-row');
+
+    if (type === 'credit') {
+        btnCredit.className = 'flex flex-col items-center gap-1.5 py-3 px-4 rounded-xl border-2 border-amber-400 bg-amber-50 text-amber-700 font-bold text-sm transition-all';
+        btnPaid.className   = 'flex flex-col items-center gap-1.5 py-3 px-4 rounded-xl border-2 border-slate-200 bg-white text-slate-500 font-bold text-sm transition-all hover:border-green-400';
+        pmRow.style.display = 'none';
+    } else {
+        btnCredit.className = 'flex flex-col items-center gap-1.5 py-3 px-4 rounded-xl border-2 border-slate-200 bg-white text-slate-500 font-bold text-sm transition-all hover:border-amber-400';
+        btnPaid.className   = 'flex flex-col items-center gap-1.5 py-3 px-4 rounded-xl border-2 border-green-500 bg-green-50 text-green-700 font-bold text-sm transition-all';
+        pmRow.style.display = 'block';
+    }
+    window.updateRestockTotal();
+};
+
+window.setPaymentMethod = function (method) {
+    _restockPaymentMethod = method;
+    document.getElementById('restock-payment-method').value = method;
+
+    const colors = { cash: 'emerald', card: 'blue', mobile: 'purple' };
+    ['cash', 'card', 'mobile'].forEach(m => {
+        const btn = document.getElementById(`pmBtn-${m}`);
+        if (!btn) return;
+        if (m === method) {
+            btn.className = `py-2 rounded-lg border-2 border-${colors[m]}-400 bg-${colors[m]}-50 text-${colors[m]}-700 font-bold text-xs transition-all`;
+        } else {
+            btn.className = `py-2 rounded-lg border-2 border-slate-200 bg-white text-slate-500 font-bold text-xs transition-all hover:border-${colors[m]}-400`;
+        }
+    });
+    window.updateRestockTotal();
+};
+
+window.confirmRestock = async function () {
     const id = parseInt(document.getElementById('restock-id').value);
     const qty = parseFloat(document.getElementById('restock-qty').value);
     const newUnitCost = parseFloat(document.getElementById('restock-cost').value);
-    const method = document.getElementById('restock-method').value; // cash or credit
+    const notes = document.getElementById('restock-notes').value.trim();
 
-    if (isNaN(qty) || qty <= 0) return alert('Invalid Quantity');
-    if (isNaN(newUnitCost) || newUnitCost < 0) return alert('Invalid Cost');
+    if (isNaN(qty) || qty <= 0) return alert('Please enter a valid quantity.');
+    if (isNaN(newUnitCost) || newUnitCost < 0) return alert('Please enter a valid unit cost.');
 
     const ing = window.DB.getIngredient(id);
-    if (!ing) return;
+    if (!ing) return alert('Ingredient not found.');
 
-    const oldStock = safeFloat(ing.stock);
-    const oldUnitCost = safeFloat(ing.cost);
+    const vendorId = document.getElementById('restock-vendor-id').value || ing.vendorId || null;
 
-    // === COST CALCULATION (Weighted Average) ===
-    let finalUnitCost = newUnitCost;
-    if (oldStock > 0) {
-        const totalValue = (oldStock * oldUnitCost) + (qty * newUnitCost);
-        finalUnitCost = totalValue / (oldStock + qty);
-    }
+    try {
+        const response = await window.apiFetch('/inventory/restock', {
+            method: 'POST',
+            body: JSON.stringify({
+                ingredientId: id,
+                ingredientName: ing.name,
+                ingredientUnit: ing.unit,
+                vendorId: vendorId || null,
+                qty,
+                unitCost: newUnitCost,
+                purchaseType: _restockPurchaseType,
+                paymentMethod: _restockPurchaseType === 'paid_now' ? _restockPaymentMethod : null,
+                notes: notes || null
+            })
+        });
 
-    // ✅ FIX: Update Local Stock Immediately
-    ing.stock = oldStock + qty;
-    ing.cost = parseFloat(finalUnitCost.toFixed(2));
-    ing.lastRestockDate = new Date().toISOString();
+        if (!response.success) throw new Error(response.error || 'Server error');
 
-    // Save Definition (Cost Update)
-    if (window.DB.saveIngredient(ing)) {
-        // Update Stock via API (Double write, but ensures sync)
-        window.electronAPI.updateStock(id, ing.stock);
+        // Update local cache so inventory list reflects immediately
+        const activeBranchId = getActiveBranchId();
+        const oldTotalStock = safeFloat(ing.stock || 0);
+        const oldCost = safeFloat(ing.cost || 0);
 
-        // 🟢 ALSO RECORD AS ADJUSTMENT (PURCHASE/TRANSFER_IN)
-        // Ideally we call the API to do this record keeping.
-        // But since we already updated stock manually via .updateStock above...
-        // If we call .adjust, it will increment AGAIN. 
-        // So we should NOT call .updateStock and instead use .adjust?
-        // OR we just create the record without updating stock? API doesn't support that flag.
-        // Let's just leave Restock alone for this specific task scope 
-        // unless I want to refactor Restock to use the new API entirely.
-        // Given "Phase 6" focuses on Waste/Audit, I will leave Restock as "Purchase" flow (Vendor Transaction).
+        if (!ing.stockByBranch) ing.stockByBranch = {};
+        const branchKey = activeBranchId || 'default';
+        const branchStock = safeFloat(ing.stockByBranch[branchKey] ?? ing.stock ?? 0);
+        ing.stockByBranch[branchKey] = branchStock + qty;
+        ing.stock = Object.values(ing.stockByBranch).reduce((sum, v) => sum + safeFloat(v), 0);
 
-        const totalPurchaseValue = qty * newUnitCost;
-
-        // === VENDOR & FINANCIAL LOGIC ===
-        if (ing.vendorId) {
-            // ... existing vendor logic ...
-            window.DB.addVendorTransaction({
-                vendorId: ing.vendorId,
-                type: 'purchase',
-                amount: totalPurchaseValue,
-                description: `Restock: ${ing.name} (${qty} x ${newUnitCost})`,
-                date: new Date().toISOString().split('T')[0],
-                method: method
-            });
-
-            if (method === 'cash') {
-                window.DB.addVendorTransaction({
-                    vendorId: ing.vendorId,
-                    type: 'payment',
-                    amount: totalPurchaseValue,
-                    description: `Cash Payment for Restock: ${ing.name}`,
-                    date: new Date().toISOString().split('T')[0],
-                    method: 'cash'
-                });
-            }
+        // Weighted average cost
+        if (oldTotalStock > 0) {
+            ing.cost = parseFloat(((oldTotalStock * oldCost + qty * newUnitCost) / (oldTotalStock + qty)).toFixed(4));
+        } else {
+            ing.cost = newUnitCost;
         }
+        ing.lastRestockDate = new Date().toISOString();
+        window.DB.saveIngredient(ing);
 
-        alert('Restock Successful!');
+        const totalCost = (qty * newUnitCost).toFixed(2);
+        const typeLabel = _restockPurchaseType === 'credit' ? 'Credit' : `Paid (${_restockPaymentMethod})`;
+        window.showToast
+            ? window.showToast(`✅ Restocked! ${qty} ${ing.unit} added. Total: ${totalCost} [${typeLabel}]`, 'success')
+            : alert(`Restock Successful! ${qty} ${ing.unit} added. Total: ${totalCost} [${typeLabel}]`);
+
         document.getElementById('restockModal').style.display = 'none';
         loadInventory();
-    } else {
-        alert('Failed to save stock update.');
+
+    } catch (err) {
+        console.error('Restock Error:', err);
+        alert('Restock failed: ' + (err.message || 'Unknown error'));
     }
 };
+

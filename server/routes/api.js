@@ -388,7 +388,7 @@ router.post('/shifts/close', async (req, res) => {
     }
 });
 
-async function deductIngredientsStock(tenantId, items, txClient = prisma) {
+async function deductIngredientsStock(tenantId, branchId, items, txClient = prisma) {
     try {
         let products = [];
         const prodData = await txClient.data.findFirst({
@@ -445,8 +445,16 @@ async function deductIngredientsStock(tenantId, items, txClient = prisma) {
                             }
                         }
 
-                        const oldStock = parseFloat(ingredients[idx].stock || 0);
-                        ingredients[idx].stock = oldStock - consumeQty;
+                        // 🌿 Branch-aware stock: use stockByBranch[branchId] when available
+                        if (!ingredients[idx].stockByBranch) ingredients[idx].stockByBranch = {};
+                        const branchKey = branchId || 'default';
+                        const currentBranchStock = parseFloat(
+                            ingredients[idx].stockByBranch[branchKey] ?? ingredients[idx].stock ?? 0
+                        );
+                        ingredients[idx].stockByBranch[branchKey] = currentBranchStock - consumeQty;
+                        // Keep flat stock in sync for backward compatibility
+                        ingredients[idx].stock = Object.values(ingredients[idx].stockByBranch)
+                            .reduce((sum, v) => sum + parseFloat(v || 0), 0);
                         ingredients[idx].lastUsedAt = new Date().toISOString();
                         changed = true;
                     }
@@ -561,8 +569,8 @@ router.post('/sales', async (req, res) => {
                 }
             }
 
-            // Deduct Ingredients Stock (raw materials)
-            await deductIngredientsStock(req.tenantId, saleData.items, tx);
+            // Deduct Ingredients Stock (raw materials) — branch-aware
+            await deductIngredientsStock(req.tenantId, req.branchId, saleData.items, tx);
 
             return sale;
         });
@@ -807,6 +815,165 @@ router.post('/kitchen/preparing/:id', async (req, res) => {
 });
 
 // === INVENTORY MANAGEMENT ===
+
+// 0. Restock Raw Material — Full Financial Flow
+router.post('/inventory/restock', async (req, res) => {
+    try {
+        const {
+            ingredientId,
+            ingredientName,
+            ingredientUnit,
+            vendorId,
+            qty,
+            unitCost,
+            purchaseType,   // 'credit' | 'paid_now'
+            paymentMethod,  // 'cash' | 'card' | 'mobile' — only used when paid_now
+            notes
+        } = req.body;
+
+        if (!ingredientId || !qty || qty <= 0 || !unitCost || unitCost < 0) {
+            return res.status(400).json({ error: 'Missing or invalid required fields' });
+        }
+
+        const totalCost = parseFloat(qty) * parseFloat(unitCost);
+        const today = new Date().toISOString().split('T')[0];
+        const description = `Raw Material Purchase: ${ingredientName || ingredientId} (${qty} ${ingredientUnit || ''} × ${parseFloat(unitCost).toFixed(2)})`;
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Read ingredients blob and update stock for this branch
+            const ingData = await tx.data.findUnique({
+                where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } }
+            });
+            if (!ingData) throw new Error('Ingredients data not found');
+
+            let ingredients = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
+            if (!Array.isArray(ingredients)) throw new Error('Invalid ingredients data');
+
+            const idx = ingredients.findIndex(i => String(i.id) === String(ingredientId));
+            if (idx === -1) throw new Error(`Ingredient ${ingredientId} not found`);
+
+            // Branch-aware stock update
+            if (!ingredients[idx].stockByBranch) ingredients[idx].stockByBranch = {};
+            const branchKey = req.branchId || 'default';
+            const currentBranchStock = parseFloat(ingredients[idx].stockByBranch[branchKey] ?? ingredients[idx].stock ?? 0);
+            ingredients[idx].stockByBranch[branchKey] = currentBranchStock + parseFloat(qty);
+
+            // Weighted average cost update
+            const oldTotalStock = parseFloat(ingredients[idx].stock || 0);
+            const oldCost = parseFloat(ingredients[idx].cost || 0);
+            const newQty = parseFloat(qty);
+            if (oldTotalStock > 0) {
+                ingredients[idx].cost = parseFloat(
+                    ((oldTotalStock * oldCost + newQty * parseFloat(unitCost)) / (oldTotalStock + newQty)).toFixed(4)
+                );
+            } else {
+                ingredients[idx].cost = parseFloat(unitCost);
+            }
+
+            // Keep flat stock as sum of all branches
+            ingredients[idx].stock = Object.values(ingredients[idx].stockByBranch)
+                .reduce((sum, v) => sum + parseFloat(v || 0), 0);
+            ingredients[idx].lastRestockDate = new Date().toISOString();
+
+            await tx.data.update({
+                where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } },
+                data: { value: JSON.stringify(ingredients), updatedAt: new Date() }
+            });
+
+            // 2. Log as InventoryAdjustment (PURCHASE)
+            await tx.inventoryAdjustment.create({
+                data: {
+                    tenantId: req.tenantId,
+                    branchId: req.branchId,
+                    itemId: String(ingredientId),
+                    type: 'PURCHASE',
+                    qty: parseFloat(qty),
+                    unitCost: parseFloat(unitCost),
+                    totalCost,
+                    reason: notes || (purchaseType === 'credit' ? 'Credit Purchase' : `Cash Purchase — paid ${paymentMethod || 'cash'}`),
+                    referenceId: vendorId ? `VENDOR-${vendorId}` : null,
+                    createdBy: req.userId
+                }
+            });
+
+            // 3. Create Expense record (always — credit or paid)
+            await tx.expense.create({
+                data: {
+                    description,
+                    amount: totalCost,
+                    date: today,
+                    seller: vendorId || null,
+                    method: purchaseType === 'paid_now' ? (paymentMethod || 'cash') : 'credit',
+                    notes: notes || null,
+                    category: 'Raw Materials',
+                    type: 'expense',
+                    tenantId: req.tenantId,
+                    branchId: req.branchId,
+                    createdBy: req.userId || 'system'
+                }
+            });
+
+            // 4. Vendor ledger: always add a PURCHASE transaction row
+            if (vendorId) {
+                const vendorTxKey = `vendor_transactions_${vendorId}`;
+                const existingData = await tx.data.findUnique({
+                    where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } }
+                });
+                let transactions = existingData
+                    ? (typeof existingData.value === 'string' ? JSON.parse(existingData.value) : existingData.value)
+                    : [];
+                if (!Array.isArray(transactions)) transactions = [];
+
+                // Row 1: Purchase (always)
+                transactions.push({
+                    id: `${Date.now()}-purchase`,
+                    vendorId,
+                    type: 'purchase',
+                    amount: totalCost,
+                    description,
+                    date: today,
+                    method: purchaseType === 'paid_now' ? (paymentMethod || 'cash') : 'credit',
+                    createdAt: new Date().toISOString()
+                });
+
+                // Row 2: Payment (only if paid_now)
+                if (purchaseType === 'paid_now') {
+                    transactions.push({
+                        id: `${Date.now()}-payment`,
+                        vendorId,
+                        type: 'payment',
+                        amount: totalCost,
+                        description: `Payment: ${ingredientName || ingredientId} restock (${paymentMethod || 'cash'})`,
+                        date: today,
+                        method: paymentMethod || 'cash',
+                        createdAt: new Date().toISOString()
+                    });
+                }
+
+                await tx.data.upsert({
+                    where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } },
+                    update: { value: JSON.stringify(transactions), updatedAt: new Date() },
+                    create: { key: vendorTxKey, tenantId: req.tenantId, value: JSON.stringify(transactions) }
+                });
+
+                // 5. Update Vendor.credit: credit purchase increases debt, paid_now has no net change
+                if (purchaseType === 'credit') {
+                    await tx.vendor.updateMany({
+                        where: { id: vendorId, tenantId: req.tenantId },
+                        data: { credit: { increment: totalCost } }
+                    });
+                }
+                // paid_now: no net credit change (purchase + payment cancel out)
+            }
+        });
+
+        res.json({ success: true, totalCost });
+    } catch (err) {
+        console.error('Restock Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 // 1. Set Stock (Absolute)
 router.post('/inventory/set', async (req, res) => {

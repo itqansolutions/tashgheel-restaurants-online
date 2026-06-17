@@ -76,6 +76,72 @@ router.delete('/vendors/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /parties/vendors/:id/transactions — vendor ledger rows
+router.get('/vendors/:id/transactions', async (req, res) => {
+    try {
+        const vendorId = req.params.id;
+        const vendorTxKey = `vendor_transactions_${vendorId}`;
+        const data = await prisma.data.findUnique({
+            where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } }
+        });
+        if (!data) return res.json([]);
+        const transactions = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        res.json(Array.isArray(transactions) ? transactions : []);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /parties/vendors/:id/transactions — manual payment against a vendor
+router.post('/vendors/:id/transactions', async (req, res) => {
+    try {
+        const vendorId = req.params.id;
+        const { type, amount, description, method, date, notes } = req.body;
+
+        if (!type || !amount || amount <= 0) {
+            return res.status(400).json({ error: 'type and amount are required' });
+        }
+
+        const vendorTxKey = `vendor_transactions_${vendorId}`;
+        const today = date || new Date().toISOString().split('T')[0];
+
+        await prisma.$transaction(async (tx) => {
+            const existing = await tx.data.findUnique({
+                where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } }
+            });
+            let transactions = existing
+                ? (typeof existing.value === 'string' ? JSON.parse(existing.value) : existing.value)
+                : [];
+            if (!Array.isArray(transactions)) transactions = [];
+
+            transactions.push({
+                id: `${Date.now()}-${type}`,
+                vendorId,
+                type,
+                amount: parseFloat(amount),
+                description: description || (type === 'payment' ? 'Manual Payment' : 'Manual Purchase'),
+                date: today,
+                method: method || 'cash',
+                notes: notes || null,
+                createdAt: new Date().toISOString()
+            });
+
+            await tx.data.upsert({
+                where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } },
+                update: { value: JSON.stringify(transactions), updatedAt: new Date() },
+                create: { key: vendorTxKey, tenantId: req.tenantId, value: JSON.stringify(transactions) }
+            });
+
+            // Update vendor credit balance
+            const delta = type === 'purchase' ? parseFloat(amount) : -parseFloat(amount);
+            await tx.vendor.updateMany({
+                where: { id: vendorId, tenantId: req.tenantId },
+                data: { credit: { increment: delta } }
+            });
+        });
+
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 
 // --- CUSTOMERS ROUTES ---
 router.get('/customers', async (req, res) => {
