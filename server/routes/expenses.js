@@ -19,8 +19,8 @@ router.get('/', async (req, res) => {
 
         if (from || to) {
             filter.date = {};
-            if (from) filter.date.gte = new Date(from);
-            if (to) filter.date.lte = new Date(to);
+            if (from) filter.date.gte = String(from);
+            if (to) filter.date.lte = String(to);
         }
 
         if (category) filter.category = category;
