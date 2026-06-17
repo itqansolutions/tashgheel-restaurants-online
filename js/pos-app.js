@@ -449,7 +449,7 @@ function renderProducts() {
       <div class="px-1 flex-1 flex flex-col justify-between">
         <h3 class="text-xs font-bold mb-1 truncate text-slate-800 dark:text-slate-100 uppercase tracking-tight" title="${product.name}">${product.name}</h3>
         <div class="flex items-center justify-between mt-auto">
-          <span class="text-xs font-black text-primary dark:text-slate-400">${product.hasSizes ? priceDisplay : priceDisplay.toFixed(2)}</span>
+          <span class="text-xs font-black text-primary dark:text-slate-400">${product.hasSizes ? priceDisplay : parseFloat(priceDisplay || 0).toFixed(2)}</span>
           <button class="w-7 h-7 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-primary dark:text-slate-200 group-hover:bg-primary group-hover:text-white transition-colors">
             <span class="material-symbols-outlined text-sm font-bold">add</span>
           </button>
@@ -1357,7 +1357,7 @@ function updateCartDisplay() {
 
   cart.forEach((item, index) => {
     let discountText = "";
-    let finalPrice = item.price;
+    let finalPrice = parseFloat(item.price || 0);
 
     if (item.discount?.type === "percent") {
       finalPrice *= (1 - item.discount.value / 100);
@@ -1393,7 +1393,7 @@ function updateCartDisplay() {
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-xs font-bold truncate text-slate-800 dark:text-slate-200" title="${displayName}">${displayName}</p>
-        <p class="text-[10px] text-slate-500 font-medium">${item.price.toFixed(2)} x ${item.qty} ${discountText}</p>
+        <p class="text-[10px] text-slate-500 font-medium">${parseFloat(item.price || 0).toFixed(2)} x ${item.qty} ${discountText}</p>
         ${addonsHtml}
         ${item.note ? `<p class="text-[10px] text-amber-600 font-bold italic mt-0.5">Note: ${item.note}</p>` : ''}
       </div>
@@ -1997,7 +1997,7 @@ window.printStoredReceipt = function (receiptId) {
     // Try to find product for name fallbacks, but prefer receipt data
     const product = products.find(p => p.code === item.code) || {};
     // Use saved values if available to ensure historical accuracy
-    const price = item.price || 0;
+    const price = parseFloat(item.price || 0);
     const qty = item.qty || 0;
     const originalTotal = price * qty;
 
@@ -2340,7 +2340,7 @@ function openOnlineOrders() {
             <div>
                 <div class="font-bold text-sm">#${order.receiptNo} — ${order.customer?.name || 'Guest'}</div>
                 <div class="text-[10px] text-slate-500">${order.orderType.toUpperCase()} | ${new Date(order.date).toLocaleTimeString()}</div>
-                <div class="text-[11px] font-bold text-success mt-1">${order.total.toFixed(2)} EGP</div>
+                <div class="text-[11px] font-bold text-success mt-1">${parseFloat(order.total || 0).toFixed(2)} EGP</div>
             </div>
             <button onclick="resumeOnlineOrder('${order.id}')" 
                 class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
