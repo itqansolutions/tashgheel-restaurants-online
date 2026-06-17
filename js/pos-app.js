@@ -1032,13 +1032,81 @@ async function saveCheckCustomerAddress() {
   document.getElementById('addressModal').style.display = 'none';
 }
 
+// ===================== MANAGER PIN SYSTEM =====================
+let _pinCallback = null;
+let _pinCancelCallback = null;
+
+function _buildPinNumpad() {
+  const numpad = document.getElementById('pin-numpad');
+  if (!numpad || numpad.children.length > 0) return;
+  const keys = [1,2,3,4,5,6,7,8,9,'',0,'⌫'];
+  keys.forEach(k => {
+    const btn = document.createElement('button');
+    btn.textContent = k;
+    btn.style.cssText = `padding:13px 0; background:#0f172a; border:1.5px solid #334155; border-radius:10px; color:${k===''?'transparent':'#f1f5f9'}; font-size:18px; font-weight:700; cursor:${k===''?'default':'pointer'};`;
+    if (k !== '') {
+      btn.onmousedown = () => btn.style.background = '#1e3a5f';
+      btn.onmouseup   = () => btn.style.background = '#0f172a';
+      if (k === '⌫') {
+        btn.onclick = () => { const inp = document.getElementById('pin-entry-input'); inp.value = inp.value.slice(0,-1); };
+      } else {
+        btn.onclick = () => { const inp = document.getElementById('pin-entry-input'); if (inp.value.length < 8) inp.value += k; };
+      }
+    }
+    numpad.appendChild(btn);
+  });
+}
+
+function requireManagerPin(actionLabel, onSuccess, onCancel) {
+  const settings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+  if (!settings.managerPin) {
+    // No PIN set — proceed immediately
+    onSuccess();
+    return;
+  }
+  _pinCallback = onSuccess;
+  _pinCancelCallback = onCancel || null;
+  const modal = document.getElementById('managerPinModal');
+  const label = document.getElementById('pin-action-label');
+  const input = document.getElementById('pin-entry-input');
+  const errEl = document.getElementById('pin-error-msg');
+  if (label) label.textContent = actionLabel || 'Enter manager PIN to continue';
+  if (input) input.value = '';
+  if (errEl) errEl.textContent = '';
+  _buildPinNumpad();
+  modal.style.display = 'flex';
+  setTimeout(() => input?.focus(), 100);
+}
+
+window.confirmManagerPin = function () {
+  const settings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+  const entered = document.getElementById('pin-entry-input')?.value || '';
+  const errEl = document.getElementById('pin-error-msg');
+  if (entered === settings.managerPin) {
+    document.getElementById('managerPinModal').style.display = 'none';
+    if (_pinCallback) { _pinCallback(); _pinCallback = null; }
+  } else {
+    if (errEl) errEl.textContent = '❌ Incorrect PIN. Try again.';
+    document.getElementById('pin-entry-input').value = '';
+  }
+};
+
+window.cancelManagerPin = function () {
+  document.getElementById('managerPinModal').style.display = 'none';
+  document.getElementById('pin-entry-input').value = '';
+  if (_pinCancelCallback) { _pinCancelCallback(); _pinCancelCallback = null; }
+  _pinCallback = null;
+};
+
 // ===================== DISCOUNT MODAL =====================
 function openDiscountModal(index) {
-  currentDiscountIndex = index;
-  const item = cart[index];
-  document.getElementById('discountType').value = item.discount?.type || 'none';
-  document.getElementById('discountValue').value = item.discount?.value || 0;
-  document.getElementById('discountModal').style.display = 'flex';
+  requireManagerPin('Authorize discount on item', () => {
+    currentDiscountIndex = index;
+    const item = cart[index];
+    document.getElementById('discountType').value = item.discount?.type || 'none';
+    document.getElementById('discountValue').value = item.discount?.value || 0;
+    document.getElementById('discountModal').style.display = 'flex';
+  });
 }
 
 function closeDiscountModal() {
@@ -1054,6 +1122,15 @@ function saveDiscount() {
   updateCartDisplay();
   closeDiscountModal();
 }
+
+// Remove from cart with manager PIN gate
+window.removeFromCart = function (index) {
+  requireManagerPin('Authorize item removal from cart', () => {
+    cart.splice(index, 1);
+    updateCartDisplay();
+  });
+};
+
 
 // ===================== CART =====================
 let pendingProduct = null;

@@ -300,7 +300,47 @@
           </div>
         </div>
 
+        <!-- Manager PIN (Hard Actions Password) -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-500">lock</span>
+            <h2 class="font-bold text-slate-800">Manager PIN — Hard Actions</h2>
+          </div>
+          <div class="p-6 space-y-4">
+            <p class="text-sm text-slate-600">Set a 4–6 digit PIN that staff must enter before performing sensitive actions: <strong>apply discount</strong>, <strong>remove item from cart</strong>, or <strong>cancel an invoice</strong>. Leave blank to disable PIN requirement.</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">New Manager PIN</label>
+                <input type="password" id="manager-pin-input" maxlength="8" placeholder="e.g. 1234"
+                  class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono tracking-widest">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Confirm PIN</label>
+                <input type="password" id="manager-pin-confirm" maxlength="8" placeholder="Repeat PIN"
+                  class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono tracking-widest">
+              </div>
+            </div>
+
+            <div id="pin-status" class="text-xs text-slate-500"></div>
+
+            <div class="flex items-center gap-3 pt-2">
+              <button onclick="saveManagerPin()"
+                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition-all active:scale-95 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">save</span>
+                Save PIN
+              </button>
+              <button onclick="clearManagerPin()"
+                class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-sm transition-all active:scale-95 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">lock_open</span>
+                Remove PIN (Disable)
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- User Management -->
+
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
             <span class="material-symbols-outlined text-slate-500">manage_accounts</span>

@@ -340,6 +340,31 @@ router.post('/:id/unlock', async (req, res) => {
     }
 });
 
+// @route  POST /api/orders/:id/ready-all
+// Marks all non-cancelled items as 'ready' (used when kitchen feature is disabled)
+router.post('/:id/ready-all', async (req, res) => {
+    try {
+        if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });
+        const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
+
+        await prisma.orderItem.updateMany({
+            where: { orderId: order.id, kitchenStatus: { not: 'cancelled' } },
+            data: { kitchenStatus: 'ready', readyAt: new Date() }
+        });
+
+        await prisma.order.update({
+            where: { id: order.id, tenantId: req.tenantId },
+            data: { version: { increment: 1 }, lastActivityAt: new Date() }
+        });
+
+        log('ITEMS_READY_ALL', { branch: order.branchId, orderId: order.id });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // @route  POST /api/orders/:id/close
 router.post('/:id/close', async (req, res) => {
     if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });

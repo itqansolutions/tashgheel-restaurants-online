@@ -111,6 +111,44 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(`✅ Kitchen feature ${kitchenLabel}. Changes apply on next page load.`);
   };
 
+  // === Manager PIN ===
+  function loadPinStatus() {
+    const s = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const statusEl = document.getElementById('pin-status');
+    if (statusEl) {
+      statusEl.textContent = s.managerPin
+        ? `✅ Manager PIN is set (${s.managerPin.length} digits). Staff will be prompted before hard actions.`
+        : '⬜ No PIN set — hard actions (discount, remove item, cancel) require no confirmation.';
+      statusEl.className = s.managerPin ? 'text-xs text-green-600 font-semibold' : 'text-xs text-slate-500';
+    }
+  }
+  loadPinStatus();
+
+  window.saveManagerPin = function () {
+    const pin = document.getElementById('manager-pin-input')?.value.trim();
+    const confirm = document.getElementById('manager-pin-confirm')?.value.trim();
+    if (!pin) { showToast('❌ PIN cannot be empty. Use "Remove PIN" to disable.', 'error'); return; }
+    if (pin.length < 4) { showToast('❌ PIN must be at least 4 digits.', 'error'); return; }
+    if (!/^\d+$/.test(pin)) { showToast('❌ PIN must contain only numbers.', 'error'); return; }
+    if (pin !== confirm) { showToast('❌ PINs do not match. Please re-enter.', 'error'); return; }
+
+    const existing = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    window.EnhancedSecurity?.storeSecureData('shop_settings', { ...existing, managerPin: pin });
+    document.getElementById('manager-pin-input').value = '';
+    document.getElementById('manager-pin-confirm').value = '';
+    loadPinStatus();
+    showToast('✅ Manager PIN saved. Staff will be prompted for hard actions.');
+  };
+
+  window.clearManagerPin = function () {
+    if (!confirm('Remove the Manager PIN? Hard actions will no longer require authorization.')) return;
+    const existing = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    delete existing.managerPin;
+    window.EnhancedSecurity?.storeSecureData('shop_settings', existing);
+    loadPinStatus();
+    showToast('✅ Manager PIN removed. Hard actions now require no PIN.');
+  };
+
   // === User Management ===
   const userForm = document.getElementById('user-form');
   const usernameInput = document.getElementById('new-username');

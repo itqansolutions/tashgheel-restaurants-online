@@ -16,6 +16,7 @@
     let pollTimer = null;
     let selectedCategory = 'All'; // Current category filter
     let searchQuery = '';         // Current search query
+    let kitchenEnabled = true;    // Controlled by admin shop_settings.enableKitchen
 
     // ─── Status chip config ───
     const STATUS = {
@@ -28,6 +29,12 @@
 
     // ─── Init ───
     async function init() {
+        // Read kitchen feature flag from shop settings
+        try {
+            const s = window.EnhancedSecurity?.getSecureData('shop_settings');
+            if (s && s.enableKitchen === false) kitchenEnabled = false;
+        } catch (e) { /* default true */ }
+
         await loadProducts();
         await loadTables();
         // Auto-refresh table grid every 4s
@@ -205,7 +212,17 @@
         const btnSend = document.getElementById('btn-send-kitchen');
         const btnBill = document.getElementById('btn-request-bill');
 
-        btnSend.disabled = pendingCount === 0 || isLocked;
+        if (!kitchenEnabled) {
+            // Kitchen disabled: hide Send to Kitchen button entirely
+            btnSend.style.display = 'none';
+            // Auto-send pending items so order can be closed (mark them ready via API)
+            if (pendingCount > 0) {
+                apiFetch(`/orders/${activeOrderId}/ready-all`, { method: 'POST' }).catch(() => {});
+            }
+        } else {
+            btnSend.style.display = '';
+            btnSend.disabled = pendingCount === 0 || isLocked;
+        }
         btnBill.disabled = isLocked;
 
         const container = document.getElementById('order-items');
