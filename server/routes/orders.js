@@ -38,6 +38,83 @@ async function enrichCosts(items, tenantId) {
     }
 }
 
+async function deductIngredientsStock(tenantId, items, txClient = prisma) {
+    try {
+        let products = [];
+        const prodData = await txClient.data.findFirst({
+            where: {
+                tenantId,
+                key: { in: ['products', 'spare_parts'] }
+            }
+        });
+        if (prodData) {
+            products = typeof prodData.value === 'string' ? JSON.parse(prodData.value) : prodData.value;
+        }
+        if (!Array.isArray(products)) products = [];
+
+        const ingData = await txClient.data.findUnique({
+            where: { key_tenantId: { key: 'ingredients', tenantId } }
+        });
+        if (!ingData) return;
+
+        let ingredients = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
+        if (!Array.isArray(ingredients)) return;
+
+        let changed = false;
+
+        for (const item of items) {
+            const product = products.find(p => String(p.id) === String(item.productId || item.id) || p.code === (item.productCode || item.code));
+            if (!product) continue;
+
+            let recipeToUse = [];
+            if ((item.sizeId || item.sizeName) && product.hasSizes && product.sizes) {
+                const size = product.sizes.find(s => s.id == item.sizeId || s.name === item.sizeName);
+                recipeToUse = size ? (size.recipe || []) : [];
+            } else {
+                recipeToUse = product.recipe || [];
+            }
+
+            if (recipeToUse && recipeToUse.length > 0) {
+                recipeToUse.forEach(ingItem => {
+                    const idx = ingredients.findIndex(i => String(i.id) === String(ingItem.ingredientId));
+                    if (idx !== -1) {
+                        const factor = parseFloat(ingItem.conversionFactor || 1);
+                        let consumeQty = 0;
+                        const qtyToDeduct = parseFloat(item.qty || 0);
+
+                        if (ingItem.wasteType === 'fixed') {
+                            consumeQty = (parseFloat(ingItem.qty || 0) + parseFloat(ingItem.wasteValue || 0)) * qtyToDeduct * factor;
+                        } else {
+                            const w = parseFloat(ingItem.wasteValue || ingItem.wastePercent || 0);
+                            if (w < 100) {
+                                const yieldPct = (100 - w) / 100;
+                                const grossUsageQty = parseFloat(ingItem.qty || 0) / yieldPct;
+                                consumeQty = grossUsageQty * qtyToDeduct * factor;
+                            } else {
+                                consumeQty = parseFloat(ingItem.qty || 0) * qtyToDeduct * factor;
+                            }
+                        }
+
+                        const oldStock = parseFloat(ingredients[idx].stock || 0);
+                        ingredients[idx].stock = oldStock - consumeQty;
+                        ingredients[idx].lastUsedAt = new Date().toISOString();
+                        changed = true;
+                    }
+                });
+            }
+        }
+
+        if (changed) {
+            await txClient.data.update({
+                where: { key_tenantId: { key: 'ingredients', tenantId } },
+                data: { value: JSON.stringify(ingredients), updatedAt: new Date() }
+            });
+        }
+    } catch (err) {
+        console.error('[INGREDIENTS_DEDUCTION] Error processing stock deduction:', err);
+    }
+}
+
 // @route  GET /api/orders
 router.get('/', async (req, res) => {
     try {
@@ -500,6 +577,9 @@ router.post('/:id/close', async (req, res) => {
                     create: { tenantId: order.tenantId, branchId: order.branchId, productId: item.productId, qty: -item.qty }
                 });
             }
+
+            // Deduct Ingredients Stock (raw materials)
+            await deductIngredientsStock(order.tenantId, billItems, tx);
 
             await tx.order.update({
                 where: { id: order.id, tenantId: order.tenantId },
