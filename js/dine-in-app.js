@@ -567,6 +567,15 @@
         openTableManager, addTable, deleteTable
     };
 
+    window.addEventListener('SystemDataReady', () => {
+        try {
+            const s = window.EnhancedSecurity?.getSecureData('shop_settings');
+            if (s && s.enableKitchen === false) kitchenEnabled = false;
+        } catch (e) { }
+        loadProducts();
+        loadTables();
+    });
+
     // ─── Boot ───
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

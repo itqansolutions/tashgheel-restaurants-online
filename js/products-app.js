@@ -1329,3 +1329,8 @@ window.saveRecipe = function () {
     originalSaveRecipe();
   }
 };
+
+window.addEventListener('SystemDataReady', () => {
+  loadProducts();
+  loadCategories();
+});

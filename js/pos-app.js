@@ -2448,3 +2448,18 @@ window.resumeOnlineOrder = resumeOnlineOrder;
 window.printReceiptPreview = printReceiptPreview;
 window.sendToKitchen = sendToKitchen;
 window.fetchOnlineOrders = fetchOnlineOrders;
+
+window.addEventListener('SystemDataReady', () => {
+  loadProducts();
+  loadSalesmen();
+  loadTables();
+  checkShift();
+  if (window.getCurrentUser) {
+    const user = window.getCurrentUser();
+    if (user && user.username) {
+      const nameEl = document.getElementById('currentUserName');
+      if (nameEl) nameEl.textContent = user.username;
+    }
+  }
+  fetchOnlineOrders();
+});

@@ -439,3 +439,12 @@ function confirmLogout() {
         window.location.href = 'index.html';
     }
 }
+
+window.addEventListener('SystemDataReady', () => {
+    const user = window.getCurrentUser();
+    if (user) {
+        document.getElementById('currentUserName').textContent = user.fullName;
+        document.getElementById('userRole').textContent = user.role;
+    }
+    renderApp();
+});
