@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -250,6 +250,53 @@
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Feature Toggles -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-500">tune</span>
+            <h2 class="font-bold text-slate-800">Feature Toggles</h2>
+          </div>
+          <div class="p-6 space-y-4">
+            <p class="text-xs text-slate-500">Enable or disable app features across all devices. Changes take effect immediately on next page load.</p>
+
+            <!-- Kitchen Toggle -->
+            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                  <span class="material-symbols-outlined text-orange-500">countertops</span>
+                </div>
+                <div>
+                  <p class="font-semibold text-slate-800 text-sm">Kitchen Display</p>
+                  <p class="text-xs text-slate-500">Show the Kitchen screen link in navigation. Disable for takeaway-only setups.</p>
+                </div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer ml-4">
+                <input type="checkbox" id="toggle-kitchen" class="sr-only peer" checked onchange="saveFeatureToggles()">
+                <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-green-500 peer-focus:ring-2 peer-focus:ring-green-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+              </label>
+            </div>
+
+            <!-- Dine-In Toggle -->
+            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <span class="material-symbols-outlined text-amber-500">table_restaurant</span>
+                </div>
+                <div>
+                  <p class="font-semibold text-slate-800 text-sm">Dine-In Tables</p>
+                  <p class="text-xs text-slate-500">Enable table ordering and waiter management features.</p>
+                </div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer ml-4">
+                <input type="checkbox" id="toggle-dinein" class="sr-only peer" checked onchange="saveFeatureToggles()">
+                <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-green-500 peer-focus:ring-2 peer-focus:ring-green-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+              </label>
+            </div>
+
+            <p class="text-[11px] text-slate-400">* Feature toggles are saved in shop settings and synced to all logged-in staff sessions.</p>
           </div>
         </div>
 

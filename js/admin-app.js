@@ -56,18 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
   shopForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    // Preserve existing feature toggles when re-saving shop settings
+    const existingSettings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+
     const settings = {
+      ...existingSettings, // Preserve all existing fields including feature flags
       shopName: shopNameInput.value.trim(),
       shopAddress: shopAddressInput.value.trim(),
       footerMessage: footerMessageInput.value.trim(),
-      shopLogo: uploadedLogoBase64.startsWith('data:image') ? uploadedLogoBase64 : '' // Ensure valid data URI
+      shopLogo: uploadedLogoBase64.startsWith('data:image') ? uploadedLogoBase64 : (existingSettings.shopLogo || '')
     };
 
     // Save to EnhancedSecurity for secure persistence
     if (window.EnhancedSecurity && window.EnhancedSecurity.storeSecureData) {
       window.EnhancedSecurity.storeSecureData('shop_settings', settings);
-      // If Electron, also try to save generic settings if we had a dedicated key, but 'shop_settings' works.
-      // We also sync to legacy keys for compatibility
     }
 
     // Also save to localStorage for immediate UI updates
@@ -80,6 +82,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showToast('✅ Settings saved successfully!');
   });
+
+  // === Feature Toggles ===
+  // Load current feature toggle states
+  function loadFeatureToggles() {
+    const s = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const kitchenToggle = document.getElementById('toggle-kitchen');
+    const dineinToggle = document.getElementById('toggle-dinein');
+    if (kitchenToggle) kitchenToggle.checked = s.enableKitchen !== false; // Default true
+    if (dineinToggle) dineinToggle.checked = s.enableDineIn !== false;   // Default true
+  }
+  loadFeatureToggles();
+
+  // Save feature toggle on change (global so onchange= in HTML can call it)
+  window.saveFeatureToggles = function () {
+    const existing = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const kitchenToggle = document.getElementById('toggle-kitchen');
+    const dineinToggle = document.getElementById('toggle-dinein');
+    const updated = {
+      ...existing,
+      enableKitchen: kitchenToggle ? kitchenToggle.checked : true,
+      enableDineIn: dineinToggle ? dineinToggle.checked : true
+    };
+    if (window.EnhancedSecurity?.storeSecureData) {
+      window.EnhancedSecurity.storeSecureData('shop_settings', updated);
+    }
+    const kitchenLabel = kitchenToggle?.checked ? 'enabled' : 'disabled';
+    showToast(`✅ Kitchen feature ${kitchenLabel}. Changes apply on next page load.`);
+  };
 
   // === User Management ===
   const userForm = document.getElementById('user-form');

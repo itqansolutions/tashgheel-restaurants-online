@@ -80,6 +80,48 @@
         #panel-backdrop {
             transition: opacity 0.3s;
         }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Category chip */
+        .cat-chip {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            transition: all 0.15s;
+            background: #1e293b;
+            color: #94a3b8;
+            border-color: #334155;
+        }
+        .cat-chip:hover { background: #334155; color: #e2e8f0; }
+        .cat-chip.active { background: #d97706; color: #fff; border-color: #d97706; }
+
+        /* Menu item card */
+        .menu-item-card {
+            background: #1e293b;
+            border: 1.5px solid #334155;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+        .menu-item-card:hover {
+            background: #293548;
+            border-color: #d97706;
+            transform: translateY(-1px);
+        }
+        .menu-item-card:active { transform: scale(0.97); }
     </style>
 </head>
 
@@ -226,18 +268,28 @@
             <!-- Populated by JS -->
         </div>
 
-        <!-- Add Item Search Bar -->
-        <div class="border-t border-slate-800 p-4 shrink-0">
-            <div class="relative mb-3">
-                <span
-                    class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-lg">search</span>
-                <input id="item-search" type="text" placeholder="Search menu items to add..."
-                    class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg py-2 pl-9 pr-3 text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500"
-                    oninput="DineIn.searchProducts(this.value)">
+        <!-- Add Item Panel: Category Browse + Search -->
+        <div class="border-t border-slate-800 shrink-0 flex flex-col" style="max-height: 55vh;">
+
+            <!-- Search Bar -->
+            <div class="px-4 pt-3 pb-2 shrink-0">
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-lg">search</span>
+                    <input id="item-search" type="text" placeholder="Search items..."
+                        class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg py-2 pl-9 pr-3 text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                        oninput="DineIn.filterItems(this.value)">
+                </div>
             </div>
-            <!-- Product search results -->
-            <div id="product-results"
-                class="hidden max-h-40 overflow-y-auto bg-slate-800 rounded-lg border border-slate-700 mb-3"></div>
+
+            <!-- Category Chips -->
+            <div id="category-chips" class="flex gap-2 px-4 pb-2 overflow-x-auto shrink-0 scrollbar-hide">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Item Grid -->
+            <div id="menu-item-grid" class="flex-1 overflow-y-auto px-4 pb-3 grid grid-cols-2 gap-2 content-start">
+                <!-- Populated by JS -->
+            </div>
         </div>
 
         <!-- Panel Action Buttons -->

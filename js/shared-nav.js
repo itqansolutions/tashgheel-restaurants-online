@@ -66,8 +66,23 @@ function renderNavigation(activePage) {
         { page: 'admin', label: t.admin_panel, icon: 'settings', href: 'admin.html', key: 'nav_admin' }
     ];
 
+    // Check feature flags from shop settings
+    let kitchenEnabled = true;
+    let dineInEnabled = true;
+    try {
+        const shopSettings = window.EnhancedSecurity?.getSecureData('shop_settings');
+        if (shopSettings) {
+            if (shopSettings.enableKitchen === false) kitchenEnabled = false;
+            if (shopSettings.enableDineIn === false) dineInEnabled = false;
+        }
+    } catch (e) { /* keep defaults */ }
+
     let navHTML = '';
     navItems.forEach(item => {
+        // Respect feature flags
+        if (item.page === 'kitchen' && !kitchenEnabled) return;
+        if ((item.page === 'dinein' || item.page === 'tables') && !dineInEnabled) return;
+
         const isActive = activePage === item.page;
         const activeClass = isActive
             ? 'bg-slate-800 border-l-4 border-blue-500 text-white'

@@ -203,16 +203,18 @@ router.patch('/:id/items', async (req, res) => {
                         }
                     });
                 } else {
+                    // Normalize productId: new items from client use `id`, existing server items use `productId`
+                    const resolvedProductId = item.productId || String(item.id || '');
                     await tx.orderItem.create({
                         data: {
                             orderId: order.id,
-                            productId: String(item.id),
-                            productCode: item.code,
+                            productId: resolvedProductId || undefined,
+                            productCode: item.code || item.productCode,
                             name: item.name,
                             qty: item.qty,
                             price: item.price,
-                            cost: item.cost,
-                            note: item.note,
+                            cost: item.cost || 0,
+                            note: item.note || null,
                             addedBy: item.addedBy,
                             lineId: item.lineId
                         }

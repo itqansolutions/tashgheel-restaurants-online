@@ -14,6 +14,8 @@
     let activeTableId = null;
     let activeOrder = null;
     let pollTimer = null;
+    let selectedCategory = 'All'; // Current category filter
+    let searchQuery = '';         // Current search query
 
     // ─── Status chip config ───
     const STATUS = {
@@ -127,6 +129,12 @@
         document.getElementById('panel-subtitle').textContent = 'Loading...';
 
         showPanel();
+        // Reset menu browser state
+        selectedCategory = 'All';
+        searchQuery = '';
+        const searchInput = document.getElementById('item-search');
+        if (searchInput) searchInput.value = '';
+        renderMenuBrowser();
 
         // Load or create order
         try {
@@ -266,8 +274,6 @@
 
     async function loadProducts() {
         try {
-            // Dine-in is a staff page. All staff pages have auth.js and db.js loaded.
-            // Menu items are already preloaded into memory/storage during the global auth boot sequence.
             products = window.DB.getParts() || [];
             console.log(`[DineIn] Loaded ${products.length} products from local DB sync`);
         } catch (e) {
@@ -276,47 +282,92 @@
         }
     }
 
-    function searchProducts(query) {
-        const results = document.getElementById('product-results');
-        if (!query || query.length < 1) { results.classList.add('hidden'); return; }
+    // ─── Category Browse Menu ───
 
-        const matches = products.filter(p =>
-            p.name && p.name.toLowerCase().includes(query.toLowerCase())
-        ).slice(0, 10);
+    function renderMenuBrowser() {
+        renderCategoryChips();
+        renderItemGrid();
+    }
 
-        if (matches.length === 0) { results.classList.add('hidden'); return; }
-
-        results.classList.remove('hidden');
-        results.innerHTML = matches.map(p => `
-            <button onclick="DineIn.addItem('${p.id}')"
-                class="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-700 transition-colors text-left">
-                <span class="text-sm text-white">${p.name}</span>
-                <span class="text-sm text-amber-400">${formatCurrency(p.price || 0)}</span>
+    function renderCategoryChips() {
+        const container = document.getElementById('category-chips');
+        if (!container) return;
+        const categories = ['All', ...new Set(products.map(p => p.category).filter(Boolean))].sort((a, b) => {
+            if (a === 'All') return -1;
+            if (b === 'All') return 1;
+            return a.localeCompare(b);
+        });
+        container.innerHTML = categories.map(cat => `
+            <button class="cat-chip ${selectedCategory === cat ? 'active' : ''}"
+                onclick="DineIn.selectCategory('${cat.replace(/'/g, "\\'")}')">
+                ${cat}
             </button>`).join('');
     }
+
+    function renderItemGrid() {
+        const grid = document.getElementById('menu-item-grid');
+        if (!grid) return;
+
+        let filtered = products.filter(p => {
+            const matchesCat = selectedCategory === 'All' || (p.category || 'Uncategorized') === selectedCategory;
+            const matchesSearch = !searchQuery || (p.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+            return matchesCat && matchesSearch;
+        });
+
+        if (filtered.length === 0) {
+            grid.innerHTML = `<div class="col-span-2 text-center py-8 text-slate-600">
+                <span class="material-symbols-outlined text-3xl mb-1">search_off</span>
+                <p class="text-sm">No items found</p>
+            </div>`;
+            return;
+        }
+
+        grid.innerHTML = filtered.map(p => `
+            <button class="menu-item-card" onclick="DineIn.addItem('${p.id}')">
+                <span class="text-sm font-semibold text-white leading-tight line-clamp-2">${p.name}</span>
+                ${p.category ? `<span class="text-[10px] text-slate-500">${p.category}</span>` : ''}
+                <span class="text-sm font-bold text-amber-400 mt-auto">${formatCurrency(p.price || 0)}</span>
+            </button>`).join('');
+    }
+
+    function selectCategory(cat) {
+        selectedCategory = cat;
+        renderCategoryChips();
+        renderItemGrid();
+    }
+
+    function filterItems(query) {
+        searchQuery = query;
+        renderItemGrid();
+    }
+
+    // Legacy alias kept for safety
+    function searchProducts(query) { filterItems(query); }
 
     async function addItem(productId) {
         if (!activeOrderId) return;
         const p = products.find(prod => String(prod.id) === String(productId));
         if (!p) return;
 
-        document.getElementById('item-search').value = '';
-        document.getElementById('product-results').classList.add('hidden');
-
-        // Check if already in pending items — increase qty instead
-        const existing = activeOrder?.items?.find(i => i.id === String(p.id) && i.kitchenStatus === 'pending');
+        // Check if already in pending items — increase qty instead (match by productId)
+        const existing = activeOrder?.items?.find(i =>
+            (i.productId === String(p.id) || i.id === String(p.id)) && i.kitchenStatus === 'pending'
+        );
 
         let updatedItems;
         if (existing) {
-            updatedItems = [{ ...existing, qty: existing.qty + 1 }];
+            // Send only the fields the server needs to update existing item
+            updatedItems = [{ lineId: existing.lineId, qty: existing.qty + 1, price: existing.price, note: existing.note }];
         } else {
             updatedItems = [{
                 lineId: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2),
-                id: String(p.id),
+                id: String(p.id),         // Client uses 'id' for new items
+                productId: String(p.id),  // Also include productId for normalization
                 code: p.code || '',
                 name: p.name,
                 qty: 1,
                 price: p.price || 0,
+                cost: p.cost || 0,
                 note: '',
                 addedBy: 'waiter'
             }];
@@ -493,7 +544,8 @@
 
     // ─── Public API ───
     window.DineIn = {
-        loadTables, openTable, closePanel, searchProducts,
+        loadTables, openTable, closePanel,
+        searchProducts, filterItems, selectCategory, renderMenuBrowser,
         addItem, changeQty, cancelItem, sendToKitchen, requestBill,
         openTableManager, addTable, deleteTable
     };
