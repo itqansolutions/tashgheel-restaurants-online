@@ -55,9 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   document.getElementById("productSearch")?.addEventListener("input", handleSearch);
-  document.addEventListener("input", (e) => {
-    if (e.target && e.target.id === "productSearch") handleSearch();
-  });
+  // NOTE: Single input listener only - avoid duplicate on document-level
 
   document.getElementById("closeDayBtn")?.addEventListener("click", printDailySummary);
 
@@ -429,32 +427,40 @@ function applyFilters() {
 }
 
 function renderProducts() {
+  // Debug: log what called renderProducts so we can trace spurious re-renders
+  if (window._posDebug) console.trace('[POS] renderProducts called, filteredProducts.length=', filteredProducts.length);
   const grid = document.getElementById("productGrid");
   if (!grid) return;
-  grid.innerHTML = "";
-
-  const currentLang = localStorage.getItem('pos_language') || 'en';
 
   if (filteredProducts.length === 0) {
+    // 🛡️ GUARD: Don't wipe the grid if it already has product cards rendered
+    // (prevents spurious re-renders with empty data from blanking the screen)
+    const existingCards = grid.querySelectorAll('div.cursor-pointer');
+    if (existingCards.length > 0) {
+      console.warn('[POS] renderProducts: filteredProducts is empty but grid has cards — keeping display.');
+      return;
+    }
+    grid.innerHTML = "";
     grid.innerHTML = `<p style="width:100%; text-align:center; color:#666;">${t('no_products_found')}</p>`;
     return;
   }
 
+  grid.innerHTML = "";
+
   filteredProducts.forEach(product => {
     const card = document.createElement("div");
     card.className = "bg-white dark:bg-slate-800 p-2.5 rounded-xl shadow-sm border border-transparent hover:border-primary transition-all group cursor-pointer h-full flex flex-col";
-    card.onclick = () => addToCart(product);
 
     // Determine Price Display
     let priceDisplay = product.price;
     if (product.hasSizes && product.sizes && product.sizes.length > 0) {
       const prices = product.sizes.map(s => s.price);
       const minPrice = Math.min(...prices);
-      priceDisplay = `${minPrice}+`; // classic "Starting at" display
+      priceDisplay = `${minPrice}+`;
     }
 
     const imgHtml = product.image
-      ? `<img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.parentElement.innerHTML='<span class=\\'material-symbols-outlined text-4xl text-slate-300\\'>restaurant</span>'">`
+      ? `<img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.parentElement.innerHTML='<span class=\\'material-symbols-outlined text-4xl text-slate-300\\'>restaurant</span>'">` 
       : `<span class="material-symbols-outlined text-4xl text-slate-300">restaurant</span>`;
 
     card.innerHTML = `
@@ -466,12 +472,36 @@ function renderProducts() {
         <h3 class="text-xs font-bold mb-1 truncate text-slate-800 dark:text-slate-100 uppercase tracking-tight" title="${product.name}">${product.name}</h3>
         <div class="flex items-center justify-between mt-auto">
           <span class="text-xs font-black text-primary dark:text-slate-400">${product.hasSizes ? priceDisplay : parseFloat(priceDisplay || 0).toFixed(2)}</span>
-          <button class="w-7 h-7 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-primary dark:text-slate-200 group-hover:bg-primary group-hover:text-white transition-colors">
+          <button type="button" class="add-to-cart-btn w-7 h-7 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-primary dark:text-slate-200 group-hover:bg-primary group-hover:text-white transition-colors">
             <span class="material-symbols-outlined text-sm font-bold">add</span>
           </button>
         </div>
       </div>
     `;
+
+    // Use a single click listener on the card — handles both card and inner button clicks
+    card.addEventListener('click', (e) => {
+      e.stopPropagation();
+      try {
+        addToCart(product);
+      } catch (err) {
+        console.error('[POS] addToCart error:', err);
+      }
+    });
+
+    // Prevent the inner button from bubbling independently (already handled above)
+    const addBtn = card.querySelector('.add-to-cart-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        try {
+          addToCart(product);
+        } catch (err) {
+          console.error('[POS] addToCart error:', err);
+        }
+      });
+    }
+
     grid.appendChild(card);
   });
 }
