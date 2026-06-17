@@ -48,7 +48,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener("pageshow", () => {
     bindSearchOnce();
     ensureSearchClickable();
-    loadProducts();
+    // Only reload products on pageshow if data is already ready
+    if (window.SystemReady) loadProducts();
     const q = document.getElementById("productSearch")?.value?.trim();
     if (q) handleSearch();
   });
@@ -365,6 +366,20 @@ let currentCategory = 'All';
 
 function loadProducts() {
   const products = window.DB.getParts(); // Get Menu Items
+  // Guard: Don't wipe the current grid if no products loaded yet (data may still be initializing)
+  if (!products || products.length === 0) {
+    // If we already have products displayed, keep them
+    if (allProducts && allProducts.length > 0) {
+      console.warn('[POS] loadProducts: DB returned empty — keeping current products in memory.');
+      return;
+    }
+    // Nothing to show yet
+    allProducts = [];
+    filteredProducts = [];
+    renderCategories();
+    applyFilters();
+    return;
+  }
   allProducts = products;
   renderCategories();
   applyFilters();

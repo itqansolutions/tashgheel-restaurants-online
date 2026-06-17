@@ -310,9 +310,6 @@ async function initializeDataSystem() {
         window.SystemReady = true;
         window.dispatchEvent(new Event('SystemDataReady'));
         console.log('🚀 System Data Ready Event Dispatched');
-
-
-
     }
 }
 
@@ -328,6 +325,12 @@ async function resolveBranchAndStart() {
         const branches = user.branches || [];
 
         if (!branches.length) {
+            // If offline simulator returned a cached user without branches, try from localStorage
+            const cachedBranch = localStorage.getItem('activeBranchId');
+            if (cachedBranch) {
+                initializeDataSystem();
+                return;
+            }
             alert("No branches assigned to your account.");
             return;
         }
@@ -355,6 +358,20 @@ async function resolveBranchAndStart() {
 
         const errMsg = err?.message || String(err);
         const isAuthError = errMsg.includes('token') || errMsg.includes('authorization') || errMsg.includes('401') || errMsg.includes('denied');
+
+        // 🔌 OFFLINE MODE: If network failed but we have a cached branch + session, proceed
+        const isOfflineError = errMsg.includes('offline') || errMsg.includes('fetch') ||
+            errMsg.includes('Network') || errMsg.includes('Failed') ||
+            err instanceof TypeError;
+        const cachedBranch = localStorage.getItem('activeBranchId');
+        const cachedSession = localStorage.getItem('pos_backup_session') || localStorage.getItem('currentUser');
+
+        if (!isLoginPage && (isOfflineError || errMsg.includes('offline_no_session')) && cachedBranch && cachedSession) {
+            console.warn('🔌 Offline detected in resolveBranchAndStart. Using cached session & branch:', cachedBranch);
+            localStorage.setItem('pos_is_offline', 'true');
+            initializeDataSystem();
+            return;
+        }
 
         if (!isLoginPage) {
             if (isAuthError) {

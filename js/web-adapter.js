@@ -104,12 +104,93 @@
         }
     }
 
+    // Helper: get tenant-scoped backup key (mirrors auth.js logic)
+    function _getOfflineBackupKey(key) {
+        const GLOBAL_KEYS = ['session', 'license'];
+        if (GLOBAL_KEYS.includes(key)) return 'pos_backup_' + key;
+        const tenantId = localStorage.getItem('tenant_id') || 'default';
+        return `pos_backup_${tenantId}_${key}`;
+    }
+
     async function handleOfflineRequest(path, options) {
         const cleanPath = path.startsWith('/') ? path : '/' + path;
         const urlParts = cleanPath.split('?')[0].split('/');
         const method = (options.method || 'GET').toUpperCase();
         
         console.log(`[OFFLINE_SIMULATOR] Simulating ${method} ${cleanPath}`);
+
+        // GET /auth/me — return session from localStorage
+        if (method === 'GET' && (cleanPath.startsWith('/auth/me') || cleanPath.startsWith('/auth/refresh'))) {
+            const session = JSON.parse(localStorage.getItem('pos_backup_session') || 'null');
+            if (session) return session;
+            // Build minimal user object from localStorage
+            const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            if (user) return user;
+            throw new Error('offline_no_session');
+        }
+
+        // POST /auth/login — offline login not supported
+        if (method === 'POST' && cleanPath.startsWith('/auth/login')) {
+            throw new Error('Cannot log in while offline. Please restore your internet connection.');
+        }
+
+        // GET /data/list — return list of known cached keys
+        if (method === 'GET' && cleanPath.startsWith('/data/list')) {
+            const tenantId = localStorage.getItem('tenant_id') || 'default';
+            const knownKeys = [
+                'users', 'products', 'customers', 'vendors', 'visits', 'sales',
+                'returns', 'expenses', 'shop_settings', 'license', 'spare_parts',
+                'vehicles', 'vendor_payments', 'employees', 'ingredients',
+                'vendor_transactions', 'tables', 'delivery_areas', 'salesmen',
+                'taxes', 'settings'
+            ];
+            // Return only keys that actually have data cached
+            return knownKeys.filter(k => {
+                const bk = _getOfflineBackupKey(k);
+                return !!localStorage.getItem(bk);
+            });
+        }
+
+        // GET /data/read/:key — serve from localStorage backup
+        if (method === 'GET' && cleanPath.startsWith('/data/read/')) {
+            const key = urlParts[3];
+            if (!key) return null;
+            const bk = _getOfflineBackupKey(key);
+            const stored = localStorage.getItem(bk);
+            if (stored) {
+                try { return JSON.stringify(JSON.parse(stored)); }
+                catch(e) { return stored; }
+            }
+            return null;
+        }
+
+        // POST /data/save — save to localStorage only
+        if (method === 'POST' && cleanPath.startsWith('/data/save')) {
+            try {
+                const body = options.body ? JSON.parse(options.body) : {};
+                if (body.key) {
+                    const bk = _getOfflineBackupKey(body.key);
+                    localStorage.setItem(bk, JSON.stringify(body.value));
+                    // Also update DataCache if available
+                    if (window.DataCache) window.DataCache[body.key] = body.value;
+                }
+                return { success: true };
+            } catch(e) { return { success: false }; }
+        }
+
+        // GET /tables — serve from backup
+        if (method === 'GET' && cleanPath.startsWith('/tables')) {
+            const bk = _getOfflineBackupKey('tables');
+            const stored = localStorage.getItem(bk);
+            return stored ? JSON.parse(stored) : [];
+        }
+
+        // GET /taxes — serve from backup
+        if (method === 'GET' && cleanPath.startsWith('/taxes')) {
+            const bk = _getOfflineBackupKey('taxes');
+            const stored = localStorage.getItem(bk);
+            return stored ? JSON.parse(stored) : [];
+        }
 
         // GET /shifts/current
         if (method === 'GET' && cleanPath.startsWith('/shifts/current')) {
@@ -458,6 +539,12 @@
             const sales = JSON.parse(localStorage.getItem('pos_sales') || '[]');
             const total = sales.reduce((sum, s) => sum + parseFloat(s.total || 0), 0);
             return { success: true, sales, totalSales: total, transactionCount: sales.length };
+        }
+
+        // Fallback: return null for unhandled GET requests (non-critical)
+        if (method === 'GET') {
+            console.warn(`[OFFLINE_SIMULATOR] Unhandled GET ${cleanPath} — returning null`);
+            return null;
         }
 
         throw new Error('You are currently offline. This action is not supported offline.');
