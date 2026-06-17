@@ -1213,7 +1213,8 @@ function prodWithAddons(product) {
     });
   } else {
     // Use loose equality (==) to handle int/string ID mismatches
-    allowedItems = allParts.filter(p => product.allowedAddons.some(aid => aid == p.id));
+    const allowedAddons = product.allowedAddons || [];
+    allowedItems = allParts.filter(p => allowedAddons.some(aid => aid == p.id));
   }
 
   list.innerHTML = '';
@@ -1449,8 +1450,17 @@ function applyTaxesForOrderType() {
   // Filter active taxes that match this order type
   // If orderTypes is undefined (legacy), assume all.
   currentOrderTaxes = activeTaxes.filter(t => {
-    if (!t.orderTypes || t.orderTypes.length === 0) return true;
-    return t.orderTypes.includes(orderType);
+    if (!t.orderTypes) return true;
+    try {
+      const types = typeof t.orderTypes === 'string' ? JSON.parse(t.orderTypes) : t.orderTypes;
+      if (Array.isArray(types)) {
+        if (types.length === 0) return true;
+        return types.includes(orderType);
+      }
+    } catch (e) {
+      console.warn('Failed to parse tax orderTypes', e);
+    }
+    return true;
   });
 }
 
