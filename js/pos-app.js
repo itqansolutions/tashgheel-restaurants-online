@@ -494,6 +494,7 @@ let barcodeBuffer = '';
 let lastKeyTime = 0;
 
 window.addEventListener('keydown', (e) => {
+  if (!e || !e.key) return;
   const target = e.target;
   const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
   
