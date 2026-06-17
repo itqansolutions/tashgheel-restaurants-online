@@ -186,6 +186,8 @@ model Sale {
   status            String   @default("finished") // finished, void, refunded, pending
   kitchenStatus     String   @default("pending")
   method            String   @default("cash")
+  splitCash         Float    @default(0)
+  splitCard         Float    @default(0)
   orderType         String   @default("take_away")
   tableId           String?
   tableName         String?
@@ -298,6 +300,7 @@ model Expense {
   notes       String?
   tenantId    String
   branchId    String
+  shiftId     String?
   createdBy   String?
   createdAt   DateTime @default(now())
 }

@@ -22,6 +22,7 @@ let currentDiscountIndex = null;
 let currentShift = null;
 let currentOnlineOrderId = null;
 let currentDineInOrder = null;
+let currentGrandTotal = 0;
 
 // Translation Helper using global translations
 const t = (key) => {
@@ -488,6 +489,47 @@ function searchProductByBarcode(barcode) {
   return false;
 }
 
+// Global Barcode Scanner Event Listener
+let barcodeBuffer = '';
+let lastKeyTime = 0;
+
+window.addEventListener('keydown', (e) => {
+  const target = e.target;
+  const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
+  
+  const currentTime = Date.now();
+  const isFast = lastKeyTime && (currentTime - lastKeyTime < 40);
+  lastKeyTime = currentTime;
+
+  if (e.key === 'Enter') {
+    if (barcodeBuffer.length >= 3) {
+      const found = searchProductByBarcode(barcodeBuffer);
+      if (found) {
+        barcodeBuffer = '';
+        e.preventDefault();
+        e.stopPropagation();
+        // Clear active search inputs if they were focused
+        if (isInput && (target.id === 'productSearch' || target.id === 'productBarcodeSearch')) {
+          target.value = '';
+        }
+        if (window.showToast) window.showToast('Product scanned successfully!', 'success');
+        return;
+      }
+    }
+    barcodeBuffer = '';
+  } else if (e.key.length === 1) {
+    if (!isInput || isFast) {
+      if (isFast || barcodeBuffer === '') {
+        barcodeBuffer += e.key;
+      } else {
+        barcodeBuffer = e.key;
+      }
+    } else {
+      barcodeBuffer = '';
+    }
+  }
+});
+
 // ... (existing code)
 
 // ===================== HELPERS =====================
@@ -620,6 +662,8 @@ window.clearCart = function() {
   if (confirm(t('confirm_clear_cart') || 'Are you sure you want to clear the cart?')) {
     cart = [];
     currentDineInOrder = null;
+    globalDiscountType = 'none';
+    globalDiscountValue = 0;
     clearSelectedCustomer();
     const tableSelect = document.getElementById('tableSelect');
     if (tableSelect) tableSelect.value = '';
@@ -1033,69 +1077,76 @@ async function saveCheckCustomerAddress() {
 }
 
 // ===================== MANAGER PIN SYSTEM =====================
-let _pinCallback = null;
-let _pinCancelCallback = null;
+// Uses global requireManagerPin, confirmManagerPin, cancelManagerPin from js/shared-nav.js
 
-function _buildPinNumpad() {
-  const numpad = document.getElementById('pin-numpad');
-  if (!numpad || numpad.children.length > 0) return;
-  const keys = [1,2,3,4,5,6,7,8,9,'',0,'⌫'];
-  keys.forEach(k => {
-    const btn = document.createElement('button');
-    btn.textContent = k;
-    btn.style.cssText = `padding:13px 0; background:#0f172a; border:1.5px solid #334155; border-radius:10px; color:${k===''?'transparent':'#f1f5f9'}; font-size:18px; font-weight:700; cursor:${k===''?'default':'pointer'};`;
-    if (k !== '') {
-      btn.onmousedown = () => btn.style.background = '#1e3a5f';
-      btn.onmouseup   = () => btn.style.background = '#0f172a';
-      if (k === '⌫') {
-        btn.onclick = () => { const inp = document.getElementById('pin-entry-input'); inp.value = inp.value.slice(0,-1); };
-      } else {
-        btn.onclick = () => { const inp = document.getElementById('pin-entry-input'); if (inp.value.length < 8) inp.value += k; };
-      }
-    }
-    numpad.appendChild(btn);
-  });
-}
+// ===================== SPLIT PAYMENT SYSTEM =====================
+window.openSplitPaymentModal = function() {
+  if (cart.length === 0) return;
+  document.getElementById('splitTotalLabel').textContent = `${currentGrandTotal.toFixed(2)} ${t('currency') || 'EGP'}`;
+  document.getElementById('splitCashInput').value = currentGrandTotal.toFixed(2);
+  document.getElementById('splitCardInput').value = 0;
+  document.getElementById('splitPaymentModal').style.display = 'flex';
+  calculateSplitDifference();
+};
 
-function requireManagerPin(actionLabel, onSuccess, onCancel) {
-  const settings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
-  if (!settings.managerPin) {
-    // No PIN set — proceed immediately
-    onSuccess();
-    return;
-  }
-  _pinCallback = onSuccess;
-  _pinCancelCallback = onCancel || null;
-  const modal = document.getElementById('managerPinModal');
-  const label = document.getElementById('pin-action-label');
-  const input = document.getElementById('pin-entry-input');
-  const errEl = document.getElementById('pin-error-msg');
-  if (label) label.textContent = actionLabel || 'Enter manager PIN to continue';
-  if (input) input.value = '';
-  if (errEl) errEl.textContent = '';
-  _buildPinNumpad();
-  modal.style.display = 'flex';
-  setTimeout(() => input?.focus(), 100);
-}
+window.closeSplitPaymentModal = function() {
+  document.getElementById('splitPaymentModal').style.display = 'none';
+};
 
-window.confirmManagerPin = function () {
-  const settings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
-  const entered = document.getElementById('pin-entry-input')?.value || '';
-  const errEl = document.getElementById('pin-error-msg');
-  if (entered === settings.managerPin) {
-    document.getElementById('managerPinModal').style.display = 'none';
-    if (_pinCallback) { _pinCallback(); _pinCallback = null; }
+window.calculateSplitDifference = function() {
+  const cash = parseFloat(document.getElementById('splitCashInput').value || 0);
+  const card = parseFloat(document.getElementById('splitCardInput').value || 0);
+  const diff = currentGrandTotal - (cash + card);
+
+  const label = document.getElementById('splitDiffLabel');
+  const banner = document.getElementById('splitDiffBanner');
+  const confirmBtn = document.getElementById('splitConfirmBtn');
+
+  if (Math.abs(diff) < 0.01) {
+    banner.style.background = '#e8f5e9';
+    banner.style.color = '#2e7d32';
+    label.textContent = `✓ Amount matches Grand Total`;
+    confirmBtn.disabled = false;
+    confirmBtn.style.opacity = '1';
   } else {
-    if (errEl) errEl.textContent = '❌ Incorrect PIN. Try again.';
-    document.getElementById('pin-entry-input').value = '';
+    banner.style.background = '#ffebee';
+    banner.style.color = '#c62828';
+    if (diff > 0) {
+      label.textContent = `Remaining: ${diff.toFixed(2)} ${t('currency') || 'EGP'}`;
+    } else {
+      label.textContent = `Overage: ${Math.abs(diff).toFixed(2)} ${t('currency') || 'EGP'}`;
+    }
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.5';
   }
 };
 
-window.cancelManagerPin = function () {
-  document.getElementById('managerPinModal').style.display = 'none';
-  document.getElementById('pin-entry-input').value = '';
-  if (_pinCancelCallback) { _pinCancelCallback(); _pinCancelCallback = null; }
-  _pinCallback = null;
+window.confirmSplitPayment = function() {
+  document.getElementById('splitPaymentModal').style.display = 'none';
+  processSale('split');
+};
+
+// ===================== GLOBAL DISCOUNT SYSTEM =====================
+let globalDiscountType = 'none';
+let globalDiscountValue = 0;
+
+window.openGlobalDiscountModal = function() {
+  requireManagerPin('Authorize global discount', () => {
+    document.getElementById('globalDiscountType').value = globalDiscountType;
+    document.getElementById('globalDiscountVal').value = globalDiscountValue;
+    document.getElementById('globalDiscountModal').style.display = 'flex';
+  });
+};
+
+window.closeGlobalDiscountModal = function() {
+  document.getElementById('globalDiscountModal').style.display = 'none';
+};
+
+window.saveGlobalDiscount = function() {
+  globalDiscountType = document.getElementById('globalDiscountType').value;
+  globalDiscountValue = parseFloat(document.getElementById('globalDiscountVal').value || 0);
+  updateCartSummary();
+  closeGlobalDiscountModal();
 };
 
 // ===================== DISCOUNT MODAL =====================
@@ -1336,14 +1387,115 @@ function addItemToCartFinal(product, addons = [], sizeObj = null, note = '') {
   updateCartDisplay();
 }
 
-window.editItemNote = function (index) {
-  const item = cart[index];
-  if (!item) return;
-  const note = prompt('Enter note for ' + item.name, item.note || '');
-  if (note !== null) {
-    item.note = note.trim();
+window.incrementQty = function(index) {
+  if (cart[index]) {
+    cart[index].qty++;
     updateCartDisplay();
   }
+};
+
+window.decrementQty = function(index) {
+  if (cart[index]) {
+    cart[index].qty--;
+    if (cart[index].qty <= 0) {
+      cart.splice(index, 1);
+    }
+    updateCartDisplay();
+  }
+};
+
+let currentNoteItemIndex = null;
+
+window.editItemNote = function(index) {
+  const item = cart[index];
+  if (!item) return;
+  currentNoteItemIndex = index;
+  document.getElementById('itemNoteTitle').textContent = item.name;
+  document.getElementById('itemNoteTextarea').value = item.note || '';
+  document.getElementById('itemNoteModal').style.display = 'flex';
+  document.getElementById('itemNoteTextarea').focus();
+};
+
+window.appendQuickTag = function(tag) {
+  const txt = document.getElementById('itemNoteTextarea');
+  const current = txt.value.trim();
+  txt.value = current ? `${current}, ${tag}` : tag;
+  txt.focus();
+};
+
+window.closeItemNoteModal = function() {
+  document.getElementById('itemNoteModal').style.display = 'none';
+  currentNoteItemIndex = null;
+};
+
+window.saveItemNote = function() {
+  if (currentNoteItemIndex !== null && cart[currentNoteItemIndex]) {
+    cart[currentNoteItemIndex].note = document.getElementById('itemNoteTextarea').value.trim();
+    updateCartDisplay();
+  }
+  closeItemNoteModal();
+};
+
+let currentSizeItemIndex = null;
+
+window.openCartSizeModal = function(index) {
+  const item = cart[index];
+  if (!item) return;
+  const product = window.DB.getPart(item.product_id);
+  if (!product || !product.hasSizes || !product.sizes) return;
+
+  currentSizeItemIndex = index;
+  document.getElementById('cartSizeProductTitle').textContent = product.name;
+  
+  const container = document.getElementById('cartSizeOptions');
+  container.innerHTML = product.sizes.map(size => {
+    const isCurrent = item.sizeId == size.id;
+    return `
+      <button onclick="selectCartSize(${size.id})" 
+        class="w-full flex items-center justify-between p-3 border ${isCurrent ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-800'} rounded-lg hover:border-amber-500 transition-colors text-left text-white font-bold">
+        <span>${size.name}</span>
+        <span class="text-amber-500">${parseFloat(size.price).toFixed(2)} EGP</span>
+      </button>
+    `;
+  }).join('');
+
+  document.getElementById('cartSizeModal').style.display = 'flex';
+};
+
+window.closeCartSizeModal = function() {
+  document.getElementById('cartSizeModal').style.display = 'none';
+  currentSizeItemIndex = null;
+};
+
+window.selectCartSize = function(sizeId) {
+  if (currentSizeItemIndex !== null && cart[currentSizeItemIndex]) {
+    const item = cart[currentSizeItemIndex];
+    const product = window.DB.getPart(item.product_id);
+    const sizeObj = product.sizes.find(s => s.id == sizeId);
+    if (sizeObj) {
+      item.sizeId = sizeObj.id;
+      item.sizeName = sizeObj.name;
+      item.sizeSignature = String(sizeObj.id);
+      
+      const basePrice = sizeObj.price;
+      let unitPrice = basePrice;
+      if (item.addons) {
+        item.addons.forEach(a => unitPrice += a.price);
+      }
+      item.price = unitPrice;
+      item.basePrice = basePrice;
+
+      const baseCost = sizeObj.cost || 0;
+      const addonCosts = (item.addons || []).reduce((sum, a) => {
+        const part = window.DB.getPart(a.id);
+        return sum + (part ? (part.cost || 0) : 0);
+      }, 0);
+      item.cost = baseCost + addonCosts;
+
+      updateCartDisplay();
+    }
+  }
+  closeCartSizeModal();
 };
 
 function updateCartDisplay() {
@@ -1388,13 +1540,20 @@ function updateCartDisplay() {
     // Display Size if exists
     const displayName = item.sizeName ? `${item.name} (${item.sizeName})` : item.name;
 
+    const hasSizes = product && product.hasSizes && product.sizes && product.sizes.length > 0;
+
     div.innerHTML = `
       <div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-white flex items-center justify-center border border-slate-100 dark:border-slate-700">
         ${imgHtml}
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-xs font-bold truncate text-slate-800 dark:text-slate-200" title="${displayName}">${displayName}</p>
-        <p class="text-[10px] text-slate-500 font-medium">${parseFloat(item.price || 0).toFixed(2)} x ${item.qty} ${discountText}</p>
+        <div class="flex items-center gap-1.5 mt-0.5">
+          <button onclick="decrementQty(${index})" class="w-4 h-4 flex items-center justify-center bg-slate-200 dark:bg-slate-700 rounded-full font-black text-[10px] hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 transition-colors">-</button>
+          <span class="text-[10px] text-slate-500 font-bold min-w-[12px] text-center">${item.qty}</span>
+          <button onclick="incrementQty(${index})" class="w-4 h-4 flex items-center justify-center bg-slate-200 dark:bg-slate-700 rounded-full font-black text-[10px] hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 transition-colors">+</button>
+          <span class="text-[10px] text-slate-400 font-medium ml-1">x ${parseFloat(item.price || 0).toFixed(2)}${discountText}</span>
+        </div>
         ${addonsHtml}
         ${item.note ? `<p class="text-[10px] text-amber-600 font-bold italic mt-0.5">Note: ${item.note}</p>` : ''}
       </div>
@@ -1404,6 +1563,11 @@ function updateCartDisplay() {
            <button onclick="editItemNote(${index})" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 hover:text-amber-500 hover:border-amber-300 transition-colors" title="Add Note">
              <span class="material-symbols-outlined text-[14px]">edit_note</span>
            </button>
+           ${hasSizes ? `
+           <button onclick="openCartSizeModal(${index})" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 hover:text-green-500 hover:border-green-300 transition-colors" title="Change Size">
+             <span class="material-symbols-outlined text-[14px]">aspect_ratio</span>
+           </button>
+           ` : ''}
            <button onclick="openDiscountModal(${index})" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 hover:text-blue-500 hover:border-blue-300 transition-colors" title="${t('discount')}">
              <span class="material-symbols-outlined text-[14px]">percent</span>
            </button>
@@ -1421,7 +1585,7 @@ function updateCartDisplay() {
 }
 
 function toggleCartButtons(enabled) {
-  const btns = ['cashBtn', 'cardBtn', 'mobileBtn', 'holdBtn', 'clearCartBtn'];
+  const btns = ['cashBtn', 'cardBtn', 'mobileBtn', 'splitBtn', 'talabatCashBtn', 'talabatVisaBtn', 'holdBtn', 'clearCartBtn'];
   btns.forEach(id => {
     const btn = document.getElementById(id);
     if (btn) btn.disabled = !enabled;
@@ -1535,6 +1699,16 @@ function updateCartSummary() {
     discountTotal += discount;
   });
 
+  // Calculate Global Invoice Discount
+  let globalDiscountAmt = 0;
+  const currentSubTotalAfterItemDiscounts = subtotal - discountTotal;
+  if (globalDiscountType === "percent") {
+    globalDiscountAmt = currentSubTotalAfterItemDiscounts * (globalDiscountValue / 100);
+  } else if (globalDiscountType === "value") {
+    globalDiscountAmt = globalDiscountValue;
+  }
+  discountTotal += globalDiscountAmt;
+
   const totalAfterDiscount = subtotal - discountTotal;
 
   // Calculate Taxes
@@ -1559,6 +1733,7 @@ function updateCartSummary() {
 
   const fee = (typeof currentDeliveryFee !== 'undefined') ? currentDeliveryFee : 0;
   const grandTotal = totalAfterDiscount + taxTotal + fee;
+  currentGrandTotal = grandTotal;
 
   // Render
   document.getElementById("cartSubtotal").textContent = subtotal.toFixed(2);
@@ -1715,6 +1890,10 @@ async function processSale(method) {
     }
   }
 
+  const isSplit = method === 'split';
+  const splitCash = isSplit ? parseFloat(document.getElementById('splitCashInput').value || 0) : 0;
+  const splitCard = isSplit ? parseFloat(document.getElementById('splitCardInput').value || 0) : 0;
+
   // Recalculate totals
   let subtotal = 0;
   let discountTotal = 0;
@@ -1726,6 +1905,16 @@ async function processSale(method) {
     subtotal += itemTotal;
     discountTotal += disc;
   });
+
+  // Calculate Global Invoice Discount
+  let globalDiscountAmt = 0;
+  const currentSubTotalAfterItemDiscounts = subtotal - discountTotal;
+  if (globalDiscountType === "percent") {
+    globalDiscountAmt = currentSubTotalAfterItemDiscounts * (globalDiscountValue / 100);
+  } else if (globalDiscountType === "value") {
+    globalDiscountAmt = globalDiscountValue;
+  }
+  discountTotal += globalDiscountAmt;
 
   const totalAfterDiscount = subtotal - discountTotal;
 
@@ -1749,6 +1938,8 @@ async function processSale(method) {
     shiftId: currentShift ? (currentShift.id || currentShift._id) : null, // 🟢 Fix: Link Sale to Shift
     date: new Date().toISOString(),
     method: method,
+    splitCash: splitCash,
+    splitCard: splitCard,
     orderType: orderType,
     tableId: tableId,
     tableName: tableName,
@@ -1809,6 +2000,8 @@ async function processSale(method) {
           discountType: 'value',
           shiftId: currentShift ? (currentShift.id || currentShift._id) : null,
           tax: parseFloat(taxTotal) || 0,
+          splitCash: splitCash,
+          splitCard: splitCard,
           closeOverride: true
         })
       });
@@ -1858,6 +2051,8 @@ async function processSale(method) {
   printReceipt(sale);
 
   cart = [];
+  globalDiscountType = 'none';
+  globalDiscountValue = 0;
   document.getElementById('orderNoteInput').value = '';
   // Reset taxes for next order? Or keep same? Keeping same is usually better UX.
   updateCartDisplay();

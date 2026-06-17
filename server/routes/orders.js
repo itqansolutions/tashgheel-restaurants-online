@@ -9,6 +9,7 @@ const router = express.Router();
  */
 
 const prisma = require('../prisma');
+const storage = require('../utils/storage');
 
 // ─── Structured logger ───────────────────────────────────────
 function log(event, ctx = {}) {
@@ -290,6 +291,33 @@ router.post('/:id/send', async (req, res) => {
         const batchNo = order.currentBatch + 1;
         const now = new Date();
 
+        // Load printer settings & products to categorize items
+        const shopSettingsRaw = await storage.readData('shop_settings', req.tenantId);
+        const settings = shopSettingsRaw ? JSON.parse(shopSettingsRaw) : {};
+        const printers = settings.printers || {};
+
+        const productsRaw = await storage.readData('products', req.tenantId);
+        const products = productsRaw ? JSON.parse(productsRaw) : [];
+
+        const productCategoryMap = {};
+        products.forEach(p => {
+            productCategoryMap[p.id] = p.category;
+            if (p.code) {
+                productCategoryMap[p.code] = p.category;
+            }
+        });
+
+        // Group by printer designation
+        const printerGroups = {};
+        pendingItems.forEach(item => {
+            const category = productCategoryMap[item.productId] || productCategoryMap[item.productCode] || '';
+            const printerName = printers[category] || 'Default Kitchen Printer';
+            if (!printerGroups[printerName]) {
+                printerGroups[printerName] = [];
+            }
+            printerGroups[printerName].push(item);
+        });
+
         await prisma.$transaction([
             prisma.orderItem.updateMany({
                 where: { orderId: order.id, kitchenStatus: 'pending' },
@@ -300,6 +328,18 @@ router.post('/:id/send', async (req, res) => {
                 data: { currentBatch: batchNo, version: { increment: 1 }, lastActivityAt: now }
             })
         ]);
+
+        // Log routing for each category segment printer group
+        Object.entries(printerGroups).forEach(([printerName, items]) => {
+            log('KOT_SEGMENT_ROUTED', {
+                printer: printerName,
+                orderId: order.id,
+                tableName: order.tableName,
+                batch: batchNo,
+                count: items.length,
+                details: items.map(i => `${i.qty}x ${i.name}`).join(', ')
+            });
+        });
 
         log('ITEMS_SENT', { branch: order.branchId, table: order.tableName, orderId: order.id, batch: batchNo, count: pendingItems.length });
         res.json({ success: true, batchNo, sentCount: pendingItems.length, version: order.currentBatch + 1 });
@@ -375,7 +415,9 @@ router.post('/:id/close', async (req, res) => {
         discountType = 'none', 
         closeOverride = false,
         shiftId = null,
-        tax = 0
+        tax = 0,
+        splitCash = 0,
+        splitCard = 0
     } = req.body;
 
     try {
@@ -387,8 +429,14 @@ router.post('/:id/close', async (req, res) => {
         if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
         if (order.status === 'closed') return res.json({ success: true, alreadyClosed: true, saleId: order.mappedSaleId });
 
+        const settingsDoc = await prisma.data.findUnique({
+            where: { key_tenantId: { key: 'shop_settings', tenantId: req.tenantId } }
+        });
+        const settings = settingsDoc ? (settingsDoc.value || {}) : {};
+        const enableKitchen = settings.enableKitchen !== false;
+
         const activeItems = order.items.filter(i => !['ready', 'cancelled'].includes(i.kitchenStatus));
-        if (activeItems.length > 0 && !closeOverride) {
+        if (enableKitchen && activeItems.length > 0 && !closeOverride) {
             return res.status(409).json({ error: `${activeItems.length} item(s) are not ready yet.`, canOverride: true });
         }
 
@@ -425,6 +473,8 @@ router.post('/:id/close', async (req, res) => {
                     tax: taxAmt,
                     total,
                     method,
+                    splitCash: parseFloat(splitCash || 0),
+                    splitCard: parseFloat(splitCard || 0),
                     shiftId: shiftId || undefined,
                     status: 'finished',
                     source: 'pos',

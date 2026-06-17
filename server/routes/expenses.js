@@ -45,6 +45,18 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        const activeShift = await prisma.shift.findFirst({
+            where: {
+                tenantId,
+                branchId,
+                status: 'open',
+                OR: [
+                    { cashierId: req.userId },
+                    { cashiers: { path: [], array_contains: req.userId } }
+                ]
+            }
+        });
+
         const expense = await prisma.expense.create({
             data: {
                 description,
@@ -56,6 +68,7 @@ router.post('/', async (req, res) => {
                 category,
                 tenantId,
                 branchId,
+                shiftId: activeShift ? activeShift.id : null,
                 createdBy: username || 'system'
             }
         });

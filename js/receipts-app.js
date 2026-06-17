@@ -122,33 +122,31 @@ async function loadServiceReceipts() {
 
 // 🟢 NEW: Enterprise Refund Logic
 window.handleRefund = async function (saleId) {
-    // Permission Check (Optional: Backend enforces it, but UI hide is good)
-    // const user = JSON.parse(localStorage.getItem('user') || '{}');
-    // if (user.role !== 'admin' && user.role !== 'manager') { ... }
+    window.requireManagerPin('Authorize Refund/Void', async () => {
+        const reason = prompt(t('Enter refund reason:', 'أدخل سبب الاسترجاع:'));
+        if (!reason) return; // Cancelled
 
-    const reason = prompt(t('Enter refund reason:', 'أدخل سبب الاسترجاع:'));
-    if (!reason) return; // Cancelled
-
-    if (!confirm(t('Are you sure you want to refund this order? Stock will be restored.', 'هل أنت متأكد من استرجاع هذا الطلب؟ سيتم إعادة المخزون.'))) {
-        return;
-    }
-
-    try {
-        const response = await window.apiFetch(`/sales/refund/${saleId}`, {
-            method: 'POST',
-            body: JSON.stringify({ reason })
-        });
-
-        if (response.success) {
-            alert(t('Refund Successful', 'تم الاسترجاع بنجاح'));
-            loadServiceReceipts(); // Refresh table
-        } else {
-            alert(t('Refund Failed', 'فشل الاسترجاع') + ': ' + (response.error || 'Unknown'));
+        if (!confirm(t('Are you sure you want to refund this order? Stock will be restored.', 'هل أنت متأكد من استرجاع هذا الطلب؟ سيتم إعادة المخزون.'))) {
+            return;
         }
-    } catch (e) {
-        console.error('Refund Request Error:', e);
-        alert(t('Refund Failed', 'فشل الاسترجاع'));
-    }
+
+        try {
+            const response = await window.apiFetch(`/sales/refund/${saleId}`, {
+                method: 'POST',
+                body: JSON.stringify({ reason })
+            });
+
+            if (response.success) {
+                alert(t('Refund Successful', 'تم الاسترجاع بنجاح'));
+                loadServiceReceipts(); // Refresh table
+            } else {
+                alert(t('Refund Failed', 'فشل الاسترجاع') + ': ' + (response.error || 'Unknown'));
+            }
+        } catch (e) {
+            console.error('Refund Request Error:', e);
+            alert(t('Refund Failed', 'فشل الاسترجاع'));
+        }
+    });
 };
 
 function viewServiceInvoice(visitId) {

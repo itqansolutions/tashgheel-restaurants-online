@@ -551,7 +551,161 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // === Kitchen Printers Mappings ===
+  window.addPrinterMappingRow = function(category = '', printer = '') {
+    const container = document.getElementById('printer-mappings-list');
+    if (!container) return;
+
+    const products = window.EnhancedSecurity?.getSecureData('products') || [];
+    const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
+
+    const row = document.createElement('div');
+    row.className = "flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 printer-mapping-row";
+
+    let optionsHtml = `<option value="">-- Select Category --</option>`;
+    categories.forEach(cat => {
+      optionsHtml += `<option value="${cat}" ${cat === category ? 'selected' : ''}>${cat}</option>`;
+    });
+
+    row.innerHTML = `
+      <div class="flex-1">
+        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Product Category</label>
+        <select class="w-full p-2 border border-slate-200 rounded-lg bg-white text-sm font-medium outline-none mapping-category">
+          ${optionsHtml}
+        </select>
+      </div>
+      <div class="flex-1">
+        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Printer Designation</label>
+        <input type="text" value="${printer}" placeholder="e.g. Hot Kitchen, Bar" class="w-full p-2 border border-slate-200 rounded-lg bg-white text-sm outline-none mapping-printer" />
+      </div>
+      <button type="button" onclick="this.closest('.printer-mapping-row').remove()" class="mt-4 p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center justify-center">
+        <span class="material-symbols-outlined text-sm">delete</span>
+      </button>
+    `;
+    container.appendChild(row);
+  };
+
+  window.loadPrinterMappings = function() {
+    const container = document.getElementById('printer-mappings-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const settings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const printers = settings.printers || {};
+
+    Object.entries(printers).forEach(([category, printer]) => {
+      window.addPrinterMappingRow(category, printer);
+    });
+
+    if (Object.keys(printers).length === 0) {
+      window.addPrinterMappingRow();
+    }
+  };
+
+  window.savePrinterMappings = function() {
+    const rows = document.querySelectorAll('.printer-mapping-row');
+    const printers = {};
+
+    rows.forEach(row => {
+      const categorySelect = row.querySelector('.mapping-category');
+      const printerInput = row.querySelector('.mapping-printer');
+      if (categorySelect && printerInput) {
+        const category = categorySelect.value;
+        const printer = printerInput.value.trim();
+        if (category && printer) {
+          printers[category] = printer;
+        }
+      }
+    });
+
+    const existing = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const updated = {
+      ...existing,
+      printers: printers
+    };
+
+    if (window.EnhancedSecurity?.storeSecureData) {
+      window.EnhancedSecurity.storeSecureData('shop_settings', updated);
+    }
+
+    showToast('✅ Printer mappings saved successfully!');
+  };
+
+  // === Shift History ===
+  window.loadShiftHistory = async function() {
+    const tableBody = document.getElementById('shift-history-table-body');
+    if (!tableBody) return;
+
+    try {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="8" class="px-4 py-8 text-center text-slate-400">Loading shift history...</td>
+        </tr>
+      `;
+
+      const shifts = await window.apiFetch('/shifts/history');
+      if (!shifts || shifts.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="8" class="px-4 py-8 text-center text-slate-400">No shifts found in history.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      tableBody.innerHTML = '';
+      shifts.forEach(shift => {
+        const openedDate = new Date(shift.openedAt).toLocaleString();
+        const closedDate = shift.closedAt ? new Date(shift.closedAt).toLocaleString() : '<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase">Active</span>';
+        
+        const opening = parseFloat(shift.openingCash || 0).toFixed(2);
+        const expected = parseFloat(shift.expectedCash || 0).toFixed(2);
+        const actual = shift.closedAt ? parseFloat(shift.closingCash || 0).toFixed(2) : '-';
+        
+        let diffHtml = '-';
+        if (shift.closedAt) {
+          const diff = parseFloat(shift.difference || 0);
+          if (diff === 0) {
+            diffHtml = `<span class="text-green-600 font-semibold">0.00</span>`;
+          } else if (diff > 0) {
+            diffHtml = `<span class="text-green-600 font-semibold">+${diff.toFixed(2)}</span>`;
+          } else {
+            diffHtml = `<span class="text-red-600 font-semibold">${diff.toFixed(2)}</span>`;
+          }
+        }
+
+        const cashierName = shift.cashier?.fullName || shift.cashier?.username || 'Unknown';
+        const notes = shift.notes || '';
+
+        const row = document.createElement('tr');
+        row.className = "hover:bg-slate-50 transition-colors";
+        row.innerHTML = `
+          <td class="px-4 py-3 font-semibold text-slate-800">${cashierName}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${openedDate}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${closedDate}</td>
+          <td class="px-4 py-3 text-right font-mono">${opening}</td>
+          <td class="px-4 py-3 text-right font-mono">${expected}</td>
+          <td class="px-4 py-3 text-right font-mono">${actual}</td>
+          <td class="px-4 py-3 text-right font-mono">${diffHtml}</td>
+          <td class="px-4 py-3 max-w-[200px] truncate" title="${notes}">${notes}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    } catch (e) {
+      console.error('Failed to load shift history:', e);
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="8" class="px-4 py-8 text-center text-rose-500 font-semibold">Failed to load shifts: ${e.message}</td>
+        </tr>
+      `;
+    }
+  };
+
   // Initial Load
-  if (window.apiFetch) loadTaxes();
+  if (window.apiFetch) {
+    loadTaxes();
+    loadShiftHistory();
+  }
+  loadPrinterMappings();
 
 });

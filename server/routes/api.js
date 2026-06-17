@@ -159,15 +159,33 @@ router.get('/shifts/current', async (req, res) => {
             const salesByMethod = await prisma.sale.groupBy({
                 by: ['method'],
                 where: { shiftId: shift.id, status: 'finished' },
-                _sum: { total: true }
+                _sum: { total: true, splitCash: true, splitCard: true }
             });
-            const stats = { cashTotal: 0, cardTotal: 0, mobileTotal: 0, totalSales: 0 };
+            const stats = { cashTotal: 0, cardTotal: 0, mobileTotal: 0, splitCashTotal: 0, splitCardTotal: 0, talabatCashTotal: 0, talabatVisaTotal: 0, totalSales: 0 };
             salesByMethod.forEach(m => {
-                if (m.method === 'cash') stats.cashTotal = m._sum.total || 0;
-                if (m.method === 'card') stats.cardTotal = m._sum.total || 0;
-                if (m.method === 'mobile') stats.mobileTotal = m._sum.total || 0;
+                if (m.method === 'cash') stats.cashTotal += m._sum.total || 0;
+                if (m.method === 'card') stats.cardTotal += m._sum.total || 0;
+                if (m.method === 'mobile') stats.mobileTotal += m._sum.total || 0;
+                if (m.method === 'talabat_cash') stats.talabatCashTotal += m._sum.total || 0;
+                if (m.method === 'talabat_visa') stats.talabatVisaTotal += m._sum.total || 0;
+                if (m.method === 'split') {
+                    stats.splitCashTotal += m._sum.splitCash || 0;
+                    stats.splitCardTotal += m._sum.splitCard || 0;
+                }
             });
-            stats.totalSales = (stats.cashTotal + stats.cardTotal + stats.mobileTotal);
+
+            // Calculate cash expenses registered during the shift
+            const expensesAggregate = await prisma.expense.aggregate({
+                where: { shiftId: shift.id, method: 'cash' },
+                _sum: { amount: true }
+            });
+            const cashExpenses = expensesAggregate._sum.amount || 0;
+            stats.cashExpenses = cashExpenses;
+
+            // Combine split portions
+            stats.cashTotal += stats.splitCashTotal;
+            stats.cardTotal += stats.splitCardTotal;
+            stats.totalSales = stats.cashTotal + stats.cardTotal + stats.mobileTotal + stats.talabatCashTotal + stats.talabatVisaTotal;
 
             const voidsCount = await prisma.sale.count({
                 where: { shiftId: shift.id, status: 'void' }
@@ -201,6 +219,25 @@ router.get('/shifts/active-branch', async (req, res) => {
             include: {
                 cashier: { select: { username: true, fullName: true } }
             }
+        });
+        res.json(shifts);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 1.2 Get Shift History
+router.get('/shifts/history', async (req, res) => {
+    try {
+        const shifts = await prisma.shift.findMany({
+            where: {
+                tenantId: req.tenantId,
+                branchId: req.branchId
+            },
+            include: {
+                cashier: { select: { username: true, fullName: true } }
+            },
+            orderBy: { openedAt: 'desc' }
         });
         res.json(shifts);
     } catch (err) {
@@ -278,26 +315,38 @@ router.post('/shifts/close', async (req, res) => {
         });
         if (!shift || shift.status !== 'open') return res.status(404).json({ error: 'Shift not found or already closed' });
 
-        // Prisma Aggregate for stats
-        const aggregations = await prisma.sale.aggregate({
-            where: { shiftId: shift.id, status: 'finished' },
-            _sum: { total: true },
-        });
-        
-        // Manual grouping for different methods as Prisma aggregate is simple
+        // Manual grouping for different methods
         const salesByMethod = await prisma.sale.groupBy({
             by: ['method'],
             where: { shiftId: shift.id, status: 'finished' },
-            _sum: { total: true }
+            _sum: { total: true, splitCash: true, splitCard: true }
         });
 
-        const stats = { cashTotal: 0, cardTotal: 0, mobileTotal: 0, totalSales: 0 };
+        const stats = { cashTotal: 0, cardTotal: 0, mobileTotal: 0, splitCashTotal: 0, splitCardTotal: 0, talabatCashTotal: 0, talabatVisaTotal: 0, totalSales: 0 };
         salesByMethod.forEach(m => {
-            if (m.method === 'cash') stats.cashTotal = m._sum.total || 0;
-            if (m.method === 'card') stats.cardTotal = m._sum.total || 0;
-            if (m.method === 'mobile') stats.mobileTotal = m._sum.total || 0;
+            if (m.method === 'cash') stats.cashTotal += m._sum.total || 0;
+            if (m.method === 'card') stats.cardTotal += m._sum.total || 0;
+            if (m.method === 'mobile') stats.mobileTotal += m._sum.total || 0;
+            if (m.method === 'talabat_cash') stats.talabatCashTotal += m._sum.total || 0;
+            if (m.method === 'talabat_visa') stats.talabatVisaTotal += m._sum.total || 0;
+            if (m.method === 'split') {
+                stats.splitCashTotal += m._sum.splitCash || 0;
+                stats.splitCardTotal += m._sum.splitCard || 0;
+            }
         });
-        stats.totalSales = (stats.cashTotal + stats.cardTotal + stats.mobileTotal);
+
+        // Calculate cash expenses registered during the shift
+        const expensesAggregate = await prisma.expense.aggregate({
+            where: { shiftId: shift.id, method: 'cash' },
+            _sum: { amount: true }
+        });
+        const cashExpenses = expensesAggregate._sum.amount || 0;
+        stats.cashExpenses = cashExpenses;
+
+        // Combine split portions
+        stats.cashTotal += stats.splitCashTotal;
+        stats.cardTotal += stats.splitCardTotal;
+        stats.totalSales = stats.cashTotal + stats.cardTotal + stats.mobileTotal + stats.talabatCashTotal + stats.talabatVisaTotal;
 
         const voidsCount = await prisma.sale.count({
             where: { shiftId: shift.id, status: 'void' }
@@ -307,12 +356,14 @@ router.post('/shifts/close', async (req, res) => {
             _sum: { total: true }
         });
 
+        const expectedCash = shift.openingCash + stats.cashTotal - cashExpenses;
+
         const updateData = {
             closedAt: new Date(),
             status: 'closed',
             closingCash: parseFloat(closingCash || 0),
-            expectedCash: shift.openingCash + stats.cashTotal,
-            difference: parseFloat(closingCash || 0) - (shift.openingCash + stats.cashTotal),
+            expectedCash: expectedCash,
+            difference: parseFloat(closingCash || 0) - expectedCash,
             notes: notes || "",
             totals: {
                 ...stats,
@@ -389,6 +440,8 @@ router.post('/sales', async (req, res) => {
                     deliveryFee: saleData.deliveryFee || 0,
                     tax: saleData.tax || 0,
                     method: saleData.method || 'cash',
+                    splitCash: parseFloat(saleData.splitCash || 0),
+                    splitCard: parseFloat(saleData.splitCard || 0),
                     orderType: saleData.orderType || 'take_away',
                     tableId: saleData.tableId,
                     tableName: saleData.tableName,

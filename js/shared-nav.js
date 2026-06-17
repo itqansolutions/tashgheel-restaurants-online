@@ -194,3 +194,107 @@ function setupMobileNav() {
 // Ensure it's available even if setupMobileNav hasn't run yet (failsafe)
 window.toggleSidebar = window.toggleSidebar || function () { console.warn('Sidebar not ready'); };
 
+// ===================== GLOBAL MANAGER PIN OVERRIDE SYSTEM =====================
+let _pinCallback = null;
+let _pinCancelCallback = null;
+
+function _buildPinNumpad() {
+    const numpad = document.getElementById('pin-numpad');
+    if (!numpad || numpad.children.length > 0) return;
+    const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'];
+    keys.forEach(k => {
+        const btn = document.createElement('button');
+        btn.textContent = k;
+        btn.style.cssText = `padding:13px 0; background:#0f172a; border:1.5px solid #334155; border-radius:10px; color:${k === '' ? 'transparent' : '#f1f5f9'}; font-size:18px; font-weight:700; cursor:${k === '' ? 'default' : 'pointer'};`;
+        if (k !== '') {
+            btn.onmousedown = () => btn.style.background = '#1e3a5f';
+            btn.onmouseup = () => btn.style.background = '#0f172a';
+            if (k === '⌫') {
+                btn.onclick = () => { const inp = document.getElementById('pin-entry-input'); inp.value = inp.value.slice(0, -1); };
+            } else {
+                btn.onclick = () => { const inp = document.getElementById('pin-entry-input'); if (inp.value.length < 8) inp.value += k; };
+            }
+        }
+        numpad.appendChild(btn);
+    });
+}
+
+function injectManagerPinModal() {
+    if (document.getElementById('managerPinModal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'managerPinModal';
+    modal.style.cssText = 'display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); align-items:center; justify-content:center;';
+    modal.innerHTML = `
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:20px; padding:28px; width:300px; max-width:92vw; text-align:center; box-shadow:0 25px 60px rgba(0,0,0,0.5); font-family: sans-serif;">
+      <div style="font-size:32px; margin-bottom:6px;">🔒</div>
+      <h3 style="color:#f1f5f9; font-weight:700; font-size:16px; margin-bottom:4px;">Manager Authorization</h3>
+      <p id="pin-action-label" style="color:#94a3b8; font-size:12px; margin-bottom:18px;">Enter manager PIN to continue</p>
+      <input id="pin-entry-input" type="password" maxlength="8" autocomplete="off"
+        style="width:100%; box-sizing:border-box; background:#0f172a; border:2px solid #334155; border-radius:12px; padding:12px 16px; color:#f1f5f9; font-size:24px; letter-spacing:10px; text-align:center; outline:none; margin-bottom:16px;"
+        onkeydown="if(event.key==='Enter') confirmManagerPin()">
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;" id="pin-numpad"></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button onclick="confirmManagerPin()"
+          style="padding:12px; background:#d97706; border:none; border-radius:12px; color:#fff; font-weight:700; cursor:pointer;">
+          ✓ Confirm
+        </button>
+        <button onclick="cancelManagerPin()"
+          style="padding:12px; background:#334155; border:none; border-radius:12px; color:#94a3b8; font-weight:700; cursor:pointer;">
+          Cancel
+        </button>
+      </div>
+      <p id="pin-error-msg" style="color:#ef4444; font-size:12px; margin-top:10px; min-height:16px;"></p>
+    </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+window.requireManagerPin = function(actionLabel, onSuccess, onCancel) {
+    const settings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    if (!settings.managerPin) {
+        onSuccess();
+        return;
+    }
+    injectManagerPinModal();
+    _pinCallback = onSuccess;
+    _pinCancelCallback = onCancel || null;
+    const modal = document.getElementById('managerPinModal');
+    const label = document.getElementById('pin-action-label');
+    const input = document.getElementById('pin-entry-input');
+    const errEl = document.getElementById('pin-error-msg');
+    if (label) label.textContent = actionLabel || 'Enter manager PIN to continue';
+    if (input) input.value = '';
+    if (errEl) errEl.textContent = '';
+    _buildPinNumpad();
+    if (modal) modal.style.display = 'flex';
+    setTimeout(() => input?.focus(), 100);
+};
+
+window.confirmManagerPin = function () {
+    const settings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const entered = document.getElementById('pin-entry-input')?.value || '';
+    const errEl = document.getElementById('pin-error-msg');
+    if (entered === settings.managerPin) {
+        document.getElementById('managerPinModal').style.display = 'none';
+        if (_pinCallback) { _pinCallback(); _pinCallback = null; }
+    } else {
+        if (errEl) errEl.textContent = '❌ Incorrect PIN. Try again.';
+        const input = document.getElementById('pin-entry-input');
+        if (input) input.value = '';
+    }
+};
+
+window.cancelManagerPin = function () {
+    document.getElementById('managerPinModal').style.display = 'none';
+    const input = document.getElementById('pin-entry-input');
+    if (input) input.value = '';
+    if (_pinCancelCallback) { _pinCancelCallback(); _pinCancelCallback = null; }
+    _pinCallback = null;
+};
+
+// Ensure modal injected on load
+document.addEventListener('DOMContentLoaded', () => {
+    injectManagerPinModal();
+});
+

@@ -336,6 +336,27 @@
                 Remove PIN (Disable)
               </button>
             </div>
+        <!-- Multiple Kitchen Printers -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-500">print</span>
+            <h2 class="font-bold text-slate-800">Multiple Kitchen Printers</h2>
+          </div>
+          <div class="p-6 space-y-4">
+            <p class="text-xs text-slate-500">Map product categories to specific printer designations (e.g., Hot Kitchen, Drinks, Bakery). When order items are sent to the kitchen, they will be printed/routed accordingly.</p>
+            
+            <div id="printer-mappings-list" class="space-y-3">
+              <!-- Printer Mapping Rows will be loaded here dynamically -->
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+              <button type="button" onclick="addPrinterMappingRow()" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-sm transition-all active:scale-95 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">add</span> Add Printer Designation
+              </button>
+              <button type="button" onclick="savePrinterMappings()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition-all active:scale-95 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">save</span> Save Mappings
+              </button>
+            </div>
           </div>
         </div>
 
@@ -911,8 +932,45 @@
               <div id="health-status-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div class="text-center p-2 bg-white rounded border text-xs text-slate-400">Loading...</div>
               </div>
-            </div>
+            </div> <!-- /Health Status Bar -->
 
+          </div>
+        </div>
+
+        <!-- Shift History -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-slate-500">history</span>
+              <h2 class="font-bold text-slate-800">Shift History Log</h2>
+            </div>
+            <button onclick="loadShiftHistory()" class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">refresh</span> Refresh
+            </button>
+          </div>
+          <div class="p-6">
+            <p class="text-xs text-slate-500 mb-4">View history logs for all cash drawer shifts, Cashier audit figures, expected calculations, physical drawer values, and notes.</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold">
+                    <th class="px-4 py-3">Cashier</th>
+                    <th class="px-4 py-3">Opened At</th>
+                    <th class="px-4 py-3">Closed At</th>
+                    <th class="px-4 py-3 text-right">Opening Cash</th>
+                    <th class="px-4 py-3 text-right">Expected Drawer</th>
+                    <th class="px-4 py-3 text-right">Actual Drawer</th>
+                    <th class="px-4 py-3 text-right">Discrepancy</th>
+                    <th class="px-4 py-3">Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="shift-history-table-body" class="divide-y divide-slate-100 text-slate-600">
+                  <tr>
+                    <td colspan="8" class="px-4 py-8 text-center text-slate-400">Loading shift history...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
