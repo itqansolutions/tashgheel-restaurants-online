@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tashgheel-cache-v1';
+const CACHE_NAME = 'tashgheel-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -22,6 +22,11 @@ const ASSETS_TO_CACHE = [
   '/vendor-summary-report.html',
   '/favicon.png',
   '/icon.ico',
+  '/css/styles.css',
+  '/css/expenses.css',
+  '/css/payroll.css',
+  '/css/report-app.css',
+  '/css/salesmen-app.css',
   '/js/web-adapter.js',
   '/js/auth.js',
   '/js/db.js',
