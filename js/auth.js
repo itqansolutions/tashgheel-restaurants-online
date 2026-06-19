@@ -367,7 +367,7 @@ async function resolveBranchAndStart() {
             window.location.pathname === '';
 
         const errMsg = err?.message || String(err);
-        const isAuthError = errMsg.includes('token') || errMsg.includes('authorization') || errMsg.includes('401') || errMsg.includes('denied');
+        const isAuthError = errMsg.includes('token') || errMsg.includes('authorization') || errMsg.includes('401') || errMsg.includes('denied') || errMsg.includes('offline_no_session');
 
         // 🔌 OFFLINE MODE: If network failed but we have a cached branch + session, proceed
         const isOfflineError = errMsg.includes('offline') || errMsg.includes('fetch') ||

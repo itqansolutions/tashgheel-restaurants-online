@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tashgheel-cache-v2';
+const CACHE_NAME = 'tashgheel-cache-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -52,19 +52,40 @@ const ASSETS_TO_CACHE = [
   '/js/table-order-app.js',
   '/js/online-store.js',
   '/js/vendor-report-app.js',
-  '/js/vendor-summary-report.js',
-  // CDN links and Google Fonts
+  '/js/vendor-summary-report.js'
+];
+
+const EXTERNAL_ASSETS_TO_CACHE = [
   'https://cdn.tailwindcss.com?plugins=forms,typography,container-queries',
+  'https://cdn.tailwindcss.com?plugins=forms,typography',
+  'https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio',
+  'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap',
+  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap',
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching all static assets');
-      return cache.addAll(ASSETS_TO_CACHE);
+      console.log('[Service Worker] Caching local and external static assets');
+      
+      // 1. Pre-cache local assets (must succeed)
+      const localPromise = cache.addAll(ASSETS_TO_CACHE);
+      
+      // 2. Pre-cache external assets (fetch individually as no-cors, ignore failures)
+      const externalPromises = EXTERNAL_ASSETS_TO_CACHE.map((url) => {
+        return fetch(new Request(url, { mode: 'no-cors' }))
+          .then((response) => {
+            return cache.put(url, response);
+          })
+          .catch((err) => {
+            console.warn('[Service Worker] Failed to pre-cache external asset:', url, err);
+          });
+      });
+      
+      return Promise.all([localPromise, ...externalPromises]);
     }).then(() => self.skipWaiting())
   );
 });

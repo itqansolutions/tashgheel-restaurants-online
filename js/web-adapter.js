@@ -656,7 +656,11 @@
             try {
                 return await handleOfflineRequest(path, options);
             } catch (mockErr) {
-                console.error("Offline Simulator Error:", mockErr);
+                if (mockErr && mockErr.message === 'offline_no_session') {
+                    console.log("Offline Simulator Info: User session not active (offline_no_session)");
+                } else {
+                    console.error("Offline Simulator Error:", mockErr);
+                }
                 throw mockErr;
             }
         }
