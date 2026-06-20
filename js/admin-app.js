@@ -22,22 +22,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoPlaceholder = document.getElementById('logo-placeholder');
   const shopForm = document.getElementById('shop-settings-form');
   const footerMessageInput = document.getElementById('footer-message');
+  const deadStockDaysInput = document.getElementById('dead-stock-days');
 
   let uploadedLogoBase64 = '';
-  const savedName = localStorage.getItem('shopName');
-  const savedAddress = localStorage.getItem('shopAddress');
-  const savedLogo = localStorage.getItem('shopLogo');
-  const savedFooter = localStorage.getItem('footerMessage');
 
-  if (savedName) shopNameInput.value = savedName;
-  if (savedAddress) shopAddressInput.value = savedAddress;
-  if (savedLogo) {
-    logoPreview.src = savedLogo;
-    logoPreview.style.display = 'block';
-    if (logoPlaceholder) logoPlaceholder.style.display = 'none';
-    uploadedLogoBase64 = savedLogo;
+  function loadShopSettingsFromStorage() {
+    const savedName = localStorage.getItem('shopName');
+    const savedAddress = localStorage.getItem('shopAddress');
+    const savedLogo = localStorage.getItem('shopLogo');
+    const savedFooter = localStorage.getItem('footerMessage');
+    const s = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const savedDeadStock = s.deadStockDays || '';
+
+    if (savedName && shopNameInput) shopNameInput.value = savedName;
+    if (savedAddress && shopAddressInput) shopAddressInput.value = savedAddress;
+    if (savedLogo && logoPreview) {
+      logoPreview.src = savedLogo;
+      logoPreview.style.display = 'block';
+      if (logoPlaceholder) logoPlaceholder.style.display = 'none';
+      uploadedLogoBase64 = savedLogo;
+    }
+    if (savedFooter && footerMessageInput) footerMessageInput.value = savedFooter;
+    if (deadStockDaysInput) deadStockDaysInput.value = savedDeadStock;
   }
-  if (savedFooter) footerMessageInput.value = savedFooter;
+
+  loadShopSettingsFromStorage();
+
+  // Reload everything on SystemDataReady event
+  window.addEventListener('SystemDataReady', () => {
+    loadShopSettingsFromStorage();
+    if (typeof loadFeatureToggles === 'function') loadFeatureToggles();
+    if (typeof loadPinStatus === 'function') loadPinStatus();
+  });
 
   shopLogoInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -64,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
       shopName: shopNameInput.value.trim(),
       shopAddress: shopAddressInput.value.trim(),
       footerMessage: footerMessageInput.value.trim(),
+      deadStockDays: parseInt(deadStockDaysInput?.value) || 30,
       shopLogo: uploadedLogoBase64.startsWith('data:image') ? uploadedLogoBase64 : (existingSettings.shopLogo || '')
     };
 

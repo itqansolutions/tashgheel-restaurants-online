@@ -137,10 +137,30 @@ function renderEmployeesTable() {
 // Modal Functions
 let editingEmpId = null;
 
+window.toggleRoleOther = function() {
+  const select = document.getElementById('emp-role-select');
+  const otherInput = document.getElementById('emp-role-other');
+  if (select && otherInput) {
+    if (select.value === 'Other') {
+      otherInput.classList.remove('hidden');
+      otherInput.focus();
+    } else {
+      otherInput.classList.add('hidden');
+      otherInput.value = '';
+    }
+  }
+};
+
 // Open Modal
 function openEmployeeModal() {
   editingEmpId = null;
   document.getElementById('employee-form').reset();
+
+  const roleOther = document.getElementById('emp-role-other');
+  if (roleOther) {
+    roleOther.value = '';
+    roleOther.classList.add('hidden');
+  }
 
   // Populate Linked User Dropdown
   const userSelect = document.getElementById('emp-user-link');
@@ -199,15 +219,38 @@ function editEmployee(id) {
   const emp = allEmployees.find(e => e.id === id);
   if (!emp) return;
 
+  // Make sure dropdown options exist by calling openEmployeeModal first
+  openEmployeeModal();
+
   editingEmpId = id;
   document.getElementById('emp-name').value = emp.name;
-  document.getElementById('emp-role').value = emp.role || '';
+  
+  const standardRoles = ["Manager", "Cashier", "Waiter", "Delivery Man", "Chef"];
+  const roleSelect = document.getElementById('emp-role-select');
+  const roleOther = document.getElementById('emp-role-other');
+  if (roleSelect && roleOther) {
+    if (standardRoles.includes(emp.role)) {
+      roleSelect.value = emp.role;
+      roleOther.value = '';
+      roleOther.classList.add('hidden');
+    } else {
+      roleSelect.value = 'Other';
+      roleOther.value = emp.role || '';
+      roleOther.classList.remove('hidden');
+    }
+  }
+
   document.getElementById('emp-nid').value = emp.nationalId || '';
   document.getElementById('emp-phone').value = emp.mobile || '';
   document.getElementById('emp-salary').value = emp.baseSalary || '';
   document.getElementById('emp-days').value = emp.workingDays || 26;
   document.getElementById('emp-hours').value = emp.shiftHours || 9;
   document.getElementById('emp-address').value = emp.address || '';
+  
+  const userLink = document.getElementById('emp-user-link');
+  if (userLink) {
+    userLink.value = emp.linkedUser || '';
+  }
 
   document.getElementById('employee-modal').style.display = 'flex';
 }
@@ -223,16 +266,23 @@ function deleteEmployee(id) {
 document.getElementById('employee-form').addEventListener('submit', (e) => {
   e.preventDefault();
 
+  const roleSelect = document.getElementById('emp-role-select');
+  let selectedRole = roleSelect ? roleSelect.value : '';
+  if (selectedRole === 'Other') {
+    selectedRole = document.getElementById('emp-role-other')?.value.trim() || 'Other';
+  }
+
   const newEmp = {
     id: editingEmpId || Date.now(),
     name: document.getElementById('emp-name').value,
-    role: document.getElementById('emp-role').value,
+    role: selectedRole,
     nationalId: document.getElementById('emp-nid').value,
     mobile: document.getElementById('emp-phone').value,
     baseSalary: parseFloat(document.getElementById('emp-salary').value) || 0,
     workingDays: parseInt(document.getElementById('emp-days').value) || 26,
     shiftHours: parseInt(document.getElementById('emp-hours').value) || 9,
-    address: document.getElementById('emp-address').value
+    address: document.getElementById('emp-address').value,
+    linkedUser: document.getElementById('emp-user-link')?.value || ''
   };
 
   window.DB.saveSalesman(newEmp);

@@ -401,6 +401,7 @@ const translations = {
     expired_badge: { en: "Expired", ar: "منتهي للصلاحية" },
     expiring_soon_badge: { en: "Expiring Soon", ar: "ينتهي قريباً" },
     dead_stock_badge: { en: "Dead Stock (>30d)", ar: "مخزون راكد (>٣٠ يوم)" },
+    dead_stock_days: { en: "Dead Stock Threshold (Days)", ar: "حد المخزون الراكد (بالأيام)" },
     healthy_stock_badge: { en: "Healthy Stock", ar: "مخزون صحي" },
     no_materials_found: { en: "No materials found.", ar: "لم يتم العثور على مواد." },
     base_cash: { en: "Base", ar: "أساس" },

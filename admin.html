@@ -179,7 +179,7 @@
           </div>
           <div class="p-6">
             <form id="shop-settings-form" class="space-y-4">
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label class="block text-xs font-bold text-slate-500 uppercase mb-1" for="shop-name"
                     data-i18n-key="shop_name">Shop Name</label>
@@ -193,6 +193,13 @@
                   <input type="text" id="footer-message"
                     class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                     placeholder="e.g. Thank you for your visit!">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase mb-1" for="dead-stock-days"
+                    data-i18n-key="dead_stock_days">Dead Stock Threshold (Days)</label>
+                  <input type="number" id="dead-stock-days"
+                    class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    min="1" placeholder="e.g. 30">
                 </div>
               </div>
               <div>

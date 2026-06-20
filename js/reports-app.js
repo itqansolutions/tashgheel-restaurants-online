@@ -341,7 +341,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.ReportCharts.renderTopAssets(products);
 
     document.getElementById('aging-0-7').textContent = aggs.stockAging['0-7'] + ' Items';
-    document.getElementById('aging-8-30').textContent = aggs.stockAging['8-30'] + ' Items';
+    const aging830 = document.getElementById('aging-8-30');
+    if (aging830) {
+      aging830.textContent = aggs.stockAging['8-30'] + ' Items';
+      const label = aging830.nextElementSibling;
+      if (label) {
+        const shopSettings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+        const deadStockDays = parseInt(shopSettings.deadStockDays) || 30;
+        const lang = localStorage.getItem('pos_language') || 'en';
+        label.textContent = lang === 'ar' ? `تحذير (٨-${deadStockDays} يوم)` : `Warning (8-${deadStockDays} Days)`;
+      }
+    }
     document.getElementById('aging-31-90').textContent = aggs.stockAging['31-90'] + ' Items';
     document.getElementById('aging-90').textContent = aggs.stockAging['90+'] + ' Items';
 

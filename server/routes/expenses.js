@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
             data: {
                 description,
                 amount: parseFloat(amount),
-                date: new Date(date),
+                date: String(date),
                 seller,
                 method,
                 notes,

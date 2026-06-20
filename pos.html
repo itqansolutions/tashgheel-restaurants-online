@@ -73,6 +73,58 @@
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       text-align: center;
     }
+
+    @media (max-height: 820px) {
+      #cartSidebar {
+        width: 22rem !important;
+      }
+      #cartSidebar > div.p-4 {
+        padding: 0.5rem 1rem !important;
+      }
+      #cartSidebar div.flex-1 {
+        padding: 0.5rem 1rem !important;
+        gap: 0.5rem !important;
+      }
+      #cartSidebar .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0.5rem !important;
+      }
+      #cartSidebar .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0.35rem !important;
+      }
+      #cartSidebar .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0.25rem !important;
+      }
+      #cartSidebar .p-4.bg-slate-50 {
+        padding: 0.75rem 1rem !important;
+        gap: 0.5rem !important;
+      }
+      #cartSidebar button.py-2.5 {
+        padding-top: 0.4rem !important;
+        padding-bottom: 0.4rem !important;
+      }
+      #cartSidebar button.py-3.5 {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+      }
+      #cartSidebar textarea {
+        rows: 1 !important;
+      }
+    }
+    @media (max-height: 700px) {
+      #cartSidebar {
+        overflow-y: auto !important;
+        display: block !important;
+      }
+      #cartSidebar > div.flex-1 {
+        overflow-y: visible !important;
+        min-height: auto !important;
+        flex: none !important;
+      }
+      #cartSidebar > div.p-4.bg-slate-50 {
+        flex: none !important;
+        position: relative !important;
+      }
+    }
   </style>
 </head>
 

@@ -715,6 +715,20 @@
 
             const text = await response.text();
             if (!text) return null;
+
+            // Cache tables & taxes responses for offline mode
+            const cleanPath = safePath.split('?')[0];
+            const method = (options.method || 'GET').toUpperCase();
+            if (method === 'GET') {
+                if (cleanPath === '/tables') {
+                    const bk = _getOfflineBackupKey('tables');
+                    localStorage.setItem(bk, text);
+                } else if (cleanPath === '/taxes') {
+                    const bk = _getOfflineBackupKey('taxes');
+                    localStorage.setItem(bk, text);
+                }
+            }
+
             return JSON.parse(text);
 
         } catch (err) {

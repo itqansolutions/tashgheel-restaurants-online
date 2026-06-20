@@ -34,7 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === Sellers Loading ===
   function loadSellers() {
-    const salesmen = JSON.parse(localStorage.getItem("salesmen") || "[]");
+    let salesmen = [];
+    if (window.DB && typeof window.DB.getSalesmen === 'function') {
+      salesmen = window.DB.getSalesmen();
+    } else if (window.EnhancedSecurity) {
+      salesmen = window.EnhancedSecurity.getSecureData('salesmen') || [];
+    } else {
+      try {
+        salesmen = JSON.parse(localStorage.getItem("salesmen") || "[]");
+      } catch (e) { salesmen = []; }
+    }
     if (!sellerSelect || !filterSeller) return;
 
     sellerSelect.innerHTML = '<option value="">--</option>';

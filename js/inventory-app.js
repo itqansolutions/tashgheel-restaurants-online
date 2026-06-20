@@ -124,6 +124,11 @@ function loadInventory() {
 
     if (!tbody) { console.error('Inventory Table Body not found'); return; }
 
+    const shopSettings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const deadStockDays = parseInt(shopSettings.deadStockDays) || 30;
+    const lang = localStorage.getItem('pos_language') || 'en';
+    const deadStockLabel = lang === 'ar' ? `مخزون راكد (>${deadStockDays} يوم)` : `Dead Stock (>${deadStockDays}d)`;
+
     // Render Dashboard
     if (dashboardContainer) {
         dashboardContainer.innerHTML = `
@@ -144,7 +149,7 @@ function loadInventory() {
             </div>
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
                 <div>
-                    <div class="text-xs font-bold text-slate-500 uppercase">Dead Stock (&gt;30d)</div>
+                    <div class="text-xs font-bold text-slate-500 uppercase">${deadStockLabel}</div>
                     <div class="text-xl font-bold text-slate-700" id="alert-dead-count">0</div>
                 </div>
                 <span class="material-symbols-outlined text-slate-400 text-3xl">inventory_2</span>
@@ -207,7 +212,7 @@ function loadInventory() {
         let daysIdle = 999;
         if (m.lastUsedAt) daysIdle = Math.floor((new Date() - new Date(m.lastUsedAt)) / (1000 * 60 * 60 * 24));
         if (daysIdle <= 7) { healthBadge = `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold border border-emerald-200 ml-1">Healthy</span>`; healthyCount++; }
-        else if (daysIdle <= 30) { healthBadge = `<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold border border-blue-100 ml-1">Slow</span>`; }
+        else if (daysIdle <= deadStockDays) { healthBadge = `<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold border border-blue-100 ml-1">Slow</span>`; }
         else { healthBadge = `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold border border-slate-200 ml-1">Dead</span>`; deadCount++; }
 
         const row = document.createElement('tr');

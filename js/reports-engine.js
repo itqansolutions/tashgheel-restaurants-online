@@ -296,6 +296,9 @@ async function buildReportContext() {
         });
     }
 
+    const shopSettings = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
+    const deadStockDays = parseInt(shopSettings.deadStockDays) || 30;
+
     combinedInventory.forEach(p => {
         const qty = parseFloat(p.qty) || 0;
         const cost = getProductCost(p); // Use Dynamic Cost Logic
@@ -323,7 +326,7 @@ async function buildReportContext() {
 
         // Aging Logic
         if (daysIdle <= 7) agingBuckets['0-7']++;
-        else if (daysIdle <= 30) agingBuckets['8-30']++;
+        else if (daysIdle <= deadStockDays) agingBuckets['8-30']++;
         else if (daysIdle <= 90) agingBuckets['31-90']++;
         else agingBuckets['90+']++;
 
@@ -331,7 +334,7 @@ async function buildReportContext() {
             stockCost: qty * cost,
             retailValue: qty * price,
             daysIdle,
-            health: daysIdle <= 7 ? 'Healthy' : (daysIdle <= 30 ? 'Slow' : 'Dead')
+            health: daysIdle <= 7 ? 'Healthy' : (daysIdle <= deadStockDays ? 'Slow' : 'Dead')
         };
     });
 

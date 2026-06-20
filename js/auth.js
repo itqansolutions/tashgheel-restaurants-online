@@ -302,6 +302,15 @@ async function initializeDataSystem() {
             console.log(`✅ System Data Fully Loaded: ${keys.length} entities.`);
         }
 
+        // Unpack shop settings into separate localStorage keys for receipt rendering
+        const shopSettings = window.DataCache['shop_settings'] || EnhancedSecurity.getSecureData('shop_settings');
+        if (shopSettings) {
+            if (shopSettings.shopName) localStorage.setItem('shopName', shopSettings.shopName);
+            if (shopSettings.shopAddress) localStorage.setItem('shopAddress', shopSettings.shopAddress);
+            if (shopSettings.footerMessage) localStorage.setItem('footerMessage', shopSettings.footerMessage);
+            if (shopSettings.shopLogo) localStorage.setItem('shopLogo', shopSettings.shopLogo);
+        }
+
         if (migrationNeeded) {
             console.log('Migration/Recovery completed successfully.');
         }
