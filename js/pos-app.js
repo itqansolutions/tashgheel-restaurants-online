@@ -592,8 +592,19 @@ function loadSalesmen(roleOrRoles) {
   defaultOpt.textContent = "-- Select --";
   select.appendChild(defaultOpt);
 
-  // Get Employees from DB
-  const employees = window.DB.getEmployees ? window.DB.getEmployees() : [];
+  // Get Employees/Salesmen from DB
+  let employees = [];
+  if (window.DB) {
+    const salesmen = typeof window.DB.getSalesmen === 'function' ? window.DB.getSalesmen() : [];
+    const legacyEmployees = typeof window.DB.getEmployees === 'function' ? window.DB.getEmployees() : [];
+    const seen = new Set();
+    [...salesmen, ...legacyEmployees].forEach(e => {
+      if (e && e.id && !seen.has(e.id)) {
+        seen.add(e.id);
+        employees.push(e);
+      }
+    });
+  }
 
   // Filter based on roles
   let validRoles = [];

@@ -66,7 +66,7 @@ const branchScope = require('./middleware/branchScope');
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/super-admin', require('./routes/super-admin'));
 app.use('/api/taxes', auth, require('./routes/taxes')); // 🆕 Tax Management
-app.use('/api/expenses', auth, require('./routes/expenses')); // 🆕 Expenses Management
+app.use('/api/expenses', auth, branchScope, require('./routes/expenses')); // 🆕 Expenses Management
 app.use('/api/parties', auth, require('./routes/parties')); // 🆕 Vendors & Customers
 app.use('/api/branches', auth, require('./routes/branches')); // 🆕 Branch Management
 app.use('/api/delivery-zones', auth, require('./routes/delivery-zones')); // 🆕 Delivery Zones Management
