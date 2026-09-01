@@ -104,15 +104,23 @@ router.get('/tenants', checkSuperAdmin, async (req, res) => {
             });
 
             // Average Daily Sales Calculation
-            const salesByDay = await prisma.sale.groupBy({
-                by: ['date'],
+            // groupBy DateTime is not reliable in Postgres (each ms is unique), so use aggregate
+            const salesAggregate = await prisma.sale.aggregate({
                 where: { tenantId: tenant.id, status: 'finished' },
-                _sum: { total: true }
+                _sum: { total: true },
+                _count: { id: true }
             });
-
-            const avgDailySales = salesByDay.length > 0
-                ? salesByDay.reduce((acc, curr) => acc + (curr._sum.total || 0), 0) / salesByDay.length
-                : 0;
+            const totalSalesRevenue = salesAggregate._sum.total || 0;
+            const totalSalesDays = await prisma.sale.findMany({
+                where: { tenantId: tenant.id, status: 'finished' },
+                select: { date: true },
+                distinct: ['date']
+            }).then(rows => {
+                // Count distinct calendar days
+                const days = new Set(rows.map(r => new Date(r.date).toISOString().slice(0, 10)));
+                return days.size || 1;
+            });
+            const avgDailySales = totalSalesRevenue / totalSalesDays;
 
             return {
                 ...tenant,
@@ -250,7 +258,5 @@ router.put('/tenants/:id/password', checkSuperAdmin, async (req, res) => {
         res.status(500).json({ msg: 'Server Error' });
     }
 });
-
-module.exports = router;
 
 module.exports = router;
