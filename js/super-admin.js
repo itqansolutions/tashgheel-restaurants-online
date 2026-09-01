@@ -196,7 +196,11 @@ function renderTenantsTable(tenants) {
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 text-base">${tenant.businessName}</div>
                 <div class="text-xs font-mono text-slate-400 mt-0.5">ID: ${tenant.id || tenant._id}</div>
-                <div class="mt-2 flex gap-2 text-xs">
+                <div class="mt-1.5 flex items-center gap-1.5 text-xs text-purple-700 bg-purple-50 border border-purple-100 rounded px-2 py-0.5 w-fit font-mono" title="Admin Login Username">
+                    <span class="material-symbols-outlined text-[13px]">person</span>
+                    <span>${tenant.adminUsername || 'N/A'}</span>
+                </div>
+                <div class="mt-1.5 flex gap-2 text-xs">
                     <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100" title="Total Users">
                         users: <b>${tenant.usersCount || 0}</b>
                     </span>
