@@ -103,6 +103,12 @@ router.get('/tenants', checkSuperAdmin, async (req, res) => {
                 select: { lastLogin: true }
             });
 
+            // Fetch the admin username for this tenant
+            const adminUser = await prisma.user.findFirst({
+                where: { tenantId: tenant.id, role: 'admin' },
+                select: { username: true }
+            });
+
             // Average Daily Sales Calculation
             // groupBy DateTime is not reliable in Postgres (each ms is unique), so use aggregate
             const salesAggregate = await prisma.sale.aggregate({
@@ -124,6 +130,7 @@ router.get('/tenants', checkSuperAdmin, async (req, res) => {
 
             return {
                 ...tenant,
+                adminUsername: adminUser ? adminUser.username : 'N/A',
                 lastActive: lastActiveUser ? lastActiveUser.lastLogin : null,
                 usersCount: stats.usersCount,
                 employeesCount: stats.employeesCount,
