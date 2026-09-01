@@ -519,21 +519,7 @@
     <!-- Modal Helpers -->
     <script>
         function closeModal(id) { document.getElementById(id).classList.remove('active'); document.getElementById(id).style.display = 'none'; }
-        // Overriding globals to ensure display:flex is set for Tailwind modal
-        const _oldOpenAudit = window.openStockAudit;
-        window.openStockAudit = function () {
-            // Logic handled in app.js, we just ensure class 'active' is added if we hook it, 
-            // OR we can rely on app.js setting display:block and we add a CSS rule [style*="block"] { display: flex !important } ? 
-            // Better: override the open functions here if possible, but they are defined in app.js
-            // Since app.js defines `document.getElementById('auditModal').style.display = 'block'`,
-            // I added `.modal[style*="block"] { display: flex !important; }` hack or just redefine the open function.
-            // Let's redefine close.
-
-            // Actually, easiest way is to let app.js do `display = 'block'` and I change my CSS to allow block but use flex inside?
-            // Or I monkey patch the open function.
-            // Since app.js is loaded AFTER this, it will overwrite my overrides here if I put them in body.
-            // So I will fix it by patching app.js or handling it in CSS.
-        }
+        // ✅ openStockAudit is defined in inventory-app.js — do NOT override it here.
     </script>
     <style>
         /* Compatibility for JS setting display:block */
