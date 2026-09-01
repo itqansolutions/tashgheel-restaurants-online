@@ -1017,15 +1017,13 @@ router.post('/inventory/adjust', async (req, res) => {
                     unitCost: adjustmentUnitCost,
                     totalCost,
                     reason,
-                    createdBy: req.userId
+                    createdById: req.userId  // ✅ Fixed: was 'createdBy' (wrong field name)
                 }
             });
 
-            await tx.productStock.upsert({
-                where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(itemId) } },
-                update: { qty: { increment: adjustmentQty } },
-                create: { tenantId: req.tenantId, branchId: req.branchId, productId: String(itemId), qty: adjustmentQty }
-            });
+            // ✅ Note: We do NOT touch productStock here — ingredients are tracked
+            // in the frontend local DB (window.DB.saveIngredient), not in productStock.
+            // productStock is only used for finished POS menu products.
 
             await tx.auditLog.create({
                 data: {
@@ -1065,15 +1063,11 @@ router.post('/inventory/transfer', async (req, res) => {
         const referenceId = `TRF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         await prisma.$transaction(async (tx) => {
-            // Check Source Stock
-            const sourceStock = await tx.productStock.findUnique({
-                where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(itemId) } }
-            });
-            if (!sourceStock || sourceStock.qty < transferQty) {
-                throw new Error("Insufficient stock for transfer");
-            }
+            // ✅ Note: We do NOT check productStock for ingredients.
+            // Ingredient stock is tracked in the frontend local DB (window.DB.saveIngredient).
+            // We only log the transfer via InventoryAdjustment records.
 
-            // Adjust Source
+            // Log: Transfer Out from source branch
             await tx.inventoryAdjustment.create({
                 data: {
                     tenantId: req.tenantId,
@@ -1085,15 +1079,11 @@ router.post('/inventory/transfer', async (req, res) => {
                     totalCost,
                     reason: `Transfer to Branch ${targetBranchId}`,
                     referenceId,
-                    createdBy: req.userId
+                    createdById: req.userId  // ✅ Fixed: was 'createdBy'
                 }
             });
-            await tx.productStock.update({
-                where: { id: sourceStock.id },
-                data: { qty: { decrement: transferQty } }
-            });
 
-            // Adjust Target
+            // Log: Transfer In to target branch
             await tx.inventoryAdjustment.create({
                 data: {
                     tenantId: req.tenantId,
@@ -1105,17 +1095,12 @@ router.post('/inventory/transfer', async (req, res) => {
                     totalCost,
                     reason: `Transfer from Branch ${req.branchId}`,
                     referenceId,
-                    createdBy: req.userId
+                    createdById: req.userId  // ✅ Fixed: was 'createdBy'
                 }
-            });
-            await tx.productStock.upsert({
-                where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: targetBranchId, productId: String(itemId) } },
-                update: { qty: { increment: transferQty } },
-                create: { tenantId: req.tenantId, branchId: targetBranchId, productId: String(itemId), qty: transferQty }
             });
         });
 
-        res.json({ success: true });
+        res.json({ success: true, referenceId });
     } catch (err) {
         console.error('Transfer Error:', err);
         res.status(400).json({ error: err.message });
