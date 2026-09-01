@@ -875,16 +875,23 @@ function selectCustomer(customer) {
   }
 }
 
-function setAddressAndFee(addr) {
+async function setAddressAndFee(addr) {
   selectedAddress = addr;
-  // Find Fee
-  const areas = window.DB.getDeliveryAreas();
-  const area = areas.find(a => a.name === addr.area);
-  if (area) {
-    currentDeliveryFee = area.fee || 0;
-  } else {
-    currentDeliveryFee = 0;
+
+  // Try local DB first, then fall back to backend API
+  // (In the web context, delivery zones are not preloaded into local storage)
+  let areas = (window.DB.getDeliveryAreas && window.DB.getDeliveryAreas()) || [];
+  if (!areas || areas.length === 0) {
+    try {
+      areas = await window.apiFetch('/delivery-zones') || [];
+    } catch (e) {
+      console.warn('Could not fetch delivery zones from API:', e);
+      areas = [];
+    }
   }
+
+  const area = areas.find(a => a.name === addr.area);
+  currentDeliveryFee = area ? (parseFloat(area.fee) || 0) : 0;
   updateCartDisplay();
 }
 
@@ -961,24 +968,66 @@ async function saveQuickCustomer() {
   }
 
   let savedCustomer = null;
-  try {
-    if (window.electronAPI && window.electronAPI.saveCustomer) {
-      savedCustomer = await window.electronAPI.saveCustomer(newCust);
-    } else {
+
+  // ✅ Always try the backend first (web context)
+  if (window.apiFetch) {
+    try {
+      savedCustomer = await window.apiFetch('/parties/customers', {
+        method: 'POST',
+        body: JSON.stringify(newCust)
+      });
+    } catch (e) {
+      const errMsg = (e && e.message) || String(e);
+
+      // ✅ Handle duplicate mobile: fetch the existing customer and select them
+      if (errMsg.toLowerCase().includes('unique') || errMsg.toLowerCase().includes('mobile')) {
+        try {
+          const allCustomers = await window.apiFetch('/parties/customers');
+          const existing = allCustomers.find(c => c.mobile === mobile);
+          if (existing) {
+            document.getElementById('quickCustomerModal').style.display = 'none';
+            selectCustomer(existing);
+            window.showToast && window.showToast('Customer already exists — selected automatically.', 'info');
+            return;
+          }
+        } catch (fetchErr) {
+          console.error('Could not fetch existing customers:', fetchErr);
+        }
+        alert(`A customer with mobile "${mobile}" already exists.`);
+        return;
+      }
+
+      // Other API error — save locally as fallback
+      console.error('API save failed, saving locally:', e);
       newCust.id = Date.now();
       window.DB.saveCustomer(newCust);
       savedCustomer = newCust;
     }
-  } catch (e) {
-    console.error('Failed to save customer to cloud, saving locally', e);
+  } else if (window.electronAPI && window.electronAPI.saveCustomer) {
+    try {
+      savedCustomer = await window.electronAPI.saveCustomer(newCust);
+    } catch (e) {
+      console.error('Failed to save customer via electronAPI:', e);
+      newCust.id = Date.now();
+      window.DB.saveCustomer(newCust);
+      savedCustomer = newCust;
+    }
+  } else {
+    // Pure local fallback
     newCust.id = Date.now();
     window.DB.saveCustomer(newCust);
     savedCustomer = newCust;
   }
 
+  // ✅ After successful save, also update local DB cache so the customer is found in local searches
+  if (savedCustomer && savedCustomer.id) {
+    window.DB.saveCustomer(savedCustomer);
+  }
+
   document.getElementById('quickCustomerModal').style.display = 'none';
   if (savedCustomer) {
     selectCustomer(savedCustomer);
+    window.showToast && window.showToast('Customer added!', 'success');
   }
 }
 
