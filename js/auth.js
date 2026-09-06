@@ -999,6 +999,7 @@ async function login(username, password) {
         // Scenario A: Legacy / No Branches
         if (branches.length === 0) {
             console.warn('User has no branches linked. Defaulting to legacy mode.');
+            sessionStorage.setItem('showOrderModePicker', 'true');
             window.location.href = 'pos.html';
             return true;
         }
@@ -1006,6 +1007,7 @@ async function login(username, password) {
         // Scenario B: Single Branch -> Auto Select
         else if (branches.length === 1) {
             localStorage.setItem('activeBranchId', branches[0].id);
+            sessionStorage.setItem('showOrderModePicker', 'true');
             window.location.href = 'pos.html';
             return true;
         }
@@ -1074,6 +1076,7 @@ function selectBranch(branchId) {
 
     // Initialize data immediately after selection (if logical)
     // Or just redirect to POS which triggers init
+    sessionStorage.setItem('showOrderModePicker', 'true');
     window.location.href = 'pos.html';
 }
 

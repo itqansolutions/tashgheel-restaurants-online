@@ -15,6 +15,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
+    
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
         body {
@@ -324,24 +328,60 @@
                     <!-- Delivery Fields -->
                     <div id="deliveryFields"
                         class="hidden space-y-4 mb-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+                        
+                        <!-- Location Mode Switcher -->
                         <div>
-                            <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Delivery Area
-                                *</label>
+                            <label class="block text-xs font-bold text-blue-800 uppercase mb-2">Delivery Location Method *</label>
+                            <div class="grid grid-cols-2 gap-2 p-1 bg-white rounded-xl border border-blue-200">
+                                <button type="button" id="btnModeMap" onclick="setDeliveryLocationMode('map')"
+                                    class="py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow-sm">
+                                    <span class="material-symbols-rounded text-sm">location_on</span>
+                                    <span>Choose on Map</span>
+                                </button>
+                                <button type="button" id="btnModeArea" onclick="setDeliveryLocationMode('area')"
+                                    class="py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-50">
+                                    <span class="material-symbols-rounded text-sm">apartment</span>
+                                    <span>Choose Area</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Map Section -->
+                        <div id="deliveryMapSection" class="space-y-2">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-500 font-medium">Drag pin to your exact delivery location:</span>
+                                <button type="button" onclick="locateOnlineUser()" class="flex items-center gap-1 text-blue-600 font-bold hover:underline">
+                                    <span class="material-symbols-rounded text-sm">my_location</span>
+                                    <span>Locate Me</span>
+                                </button>
+                            </div>
+                            <div id="onlineOrderMap" style="height: 220px; width: 100%; border-radius: 12px;" class="border border-blue-200 shadow-inner overflow-hidden"></div>
+                            <div id="detectedZoneAlert" class="text-xs p-2.5 rounded-lg font-medium bg-white border border-blue-200 text-blue-800 flex items-center justify-between">
+                                <span>📍 Pin placed. Detecting area...</span>
+                            </div>
+                        </div>
+
+                        <!-- Area Dropdown Section -->
+                        <div id="deliveryAreaSection" class="space-y-1">
+                            <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Delivery Area *</label>
                             <select id="deliveryZone"
                                 class="w-full p-3 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all shadow-sm">
                                 <option value="">Select Area...</option>
                             </select>
                         </div>
+
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Street</label>
+                                <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Street *</label>
                                 <input type="text" id="addrStreet"
-                                    class="w-full p-3 bg-white border border-blue-200 rounded-xl leading-none text-sm">
+                                    class="w-full p-3 bg-white border border-blue-200 rounded-xl leading-none text-sm"
+                                    placeholder="Street Name">
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Building/Apt</label>
                                 <input type="text" id="addrBuilding"
-                                    class="w-full p-3 bg-white border border-blue-200 rounded-xl leading-none text-sm">
+                                    class="w-full p-3 bg-white border border-blue-200 rounded-xl leading-none text-sm"
+                                    placeholder="Apt 4, Floor 2">
                             </div>
                         </div>
                     </div>

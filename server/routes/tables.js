@@ -41,12 +41,21 @@ router.get('/', async (req, res) => {
             });
 
             activeOrders.forEach(o => {
+                const nonCancelled = o.items.filter(i => i.kitchenStatus !== 'cancelled');
+                const subtotal = nonCancelled.reduce((sum, i) => sum + (parseFloat(i.price || 0) * parseFloat(i.qty || 0)), 0);
+                const itemsPreview = nonCancelled.slice(0, 3).map(i => `${i.qty}x ${i.name}`);
                 orderMap[o.id] = {
-                    itemCount: o.items.length,
+                    itemCount: nonCancelled.length,
+                    total: subtotal,
+                    itemsPreview: itemsPreview,
+                    moreCount: Math.max(0, nonCancelled.length - 3),
                     pendingCount: o.items.filter(i => i.kitchenStatus === 'pending').length,
                     sentCount: o.items.filter(i => i.kitchenStatus === 'sent').length,
+                    readyCount: o.items.filter(i => i.kitchenStatus === 'ready').length,
                     requestedBillAt: o.requestedBillAt,
-                    isLocked: o.isLocked
+                    isLocked: o.isLocked,
+                    openedAt: o.openedAt,
+                    openedBy: o.openedBy
                 };
             });
         }

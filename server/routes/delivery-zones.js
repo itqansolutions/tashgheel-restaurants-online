@@ -17,16 +17,44 @@ router.get('/', async (req, res) => {
 // POST /api/delivery-zones
 router.post('/', async (req, res) => {
     try {
-        const { name, fee, branchId } = req.body;
+        const { name, fee, branchId, coordinates } = req.body;
         const newZone = await prisma.deliveryZone.create({
             data: {
                 tenantId: req.tenantId,
                 branchId: branchId || null,
                 name,
-                fee: parseFloat(fee)
+                fee: parseFloat(fee) || 0,
+                coordinates: coordinates || null
             }
         });
         res.json(newZone);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PUT /api/delivery-zones/:id
+router.put('/:id', async (req, res) => {
+    try {
+        const { name, fee, branchId, coordinates, isActive } = req.body;
+        const zone = await prisma.deliveryZone.findFirst({
+            where: { id: req.params.id, tenantId: req.tenantId }
+        });
+        if (!zone) {
+            return res.status(404).json({ error: 'Delivery zone not found' });
+        }
+
+        const updated = await prisma.deliveryZone.update({
+            where: { id: req.params.id },
+            data: {
+                name: name !== undefined ? name : undefined,
+                fee: fee !== undefined ? parseFloat(fee) : undefined,
+                branchId: branchId !== undefined ? branchId : undefined,
+                coordinates: coordinates !== undefined ? coordinates : undefined,
+                isActive: isActive !== undefined ? isActive : undefined
+            }
+        });
+        res.json(updated);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -38,7 +66,7 @@ router.delete('/:id', async (req, res) => {
         await prisma.deliveryZone.deleteMany({
             where: { id: req.params.id, tenantId: req.tenantId }
         });
-        res.json({ success: true });
+        res.json({ success: true, message: 'Delivery zone deleted' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

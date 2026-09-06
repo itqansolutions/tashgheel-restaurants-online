@@ -1,7 +1,7 @@
 /**
- * Dine-In App — Waiter Interface
- * Manages table grid, order panel, item CRUD, send-to-kitchen, and bill request.
- * Polls server every 4 seconds when a panel is open.
+ * Dine-In App — Waiter Interface & Table Workstation
+ * Manages table grid, order workstation modal, cart item operations,
+ * Dine-In taxes calculation, send-to-kitchen, pre-bill preview, and payment close.
  */
 
 (function () {
@@ -10,21 +10,23 @@
     // ─── State ───
     let tables = [];           // All tables for this branch
     let products = [];         // Menu items (loaded once)
-    let activeOrderId = null;  // Currently open order in panel
+    let dineInTaxes = [];      // Taxes applicable to dine_in
+    let activeOrderId = null;  // Currently open order in workstation modal
     let activeTableId = null;
     let activeOrder = null;
     let pollTimer = null;
     let selectedCategory = 'All'; // Current category filter
     let searchQuery = '';         // Current search query
     let kitchenEnabled = true;    // Controlled by admin shop_settings.enableKitchen
+    let selectedPaymentMethod = 'cash'; // Default payment method for closing bill
 
     // ─── Status chip config ───
     const STATUS = {
-        pending: { label: 'Pending', color: 'bg-slate-600 text-slate-200', icon: 'schedule' },
+        pending: { label: 'Pending', color: 'bg-slate-700 text-slate-200', icon: 'schedule' },
         sent: { label: 'Sent', color: 'bg-blue-600 text-white', icon: 'send' },
         preparing: { label: 'Preparing', color: 'bg-orange-500 text-white', icon: 'outdoor_grill' },
-        ready: { label: 'Ready', color: 'bg-green-500 text-white', icon: 'check_circle' },
-        cancelled: { label: 'Cancelled', color: 'bg-red-500/20 text-red-400 line-through', icon: 'cancel' }
+        ready: { label: 'Ready', color: 'bg-emerald-600 text-white', icon: 'check_circle' },
+        cancelled: { label: 'Cancelled', color: 'bg-rose-500/20 text-rose-400 line-through', icon: 'cancel' }
     };
 
     // ─── Init ───
@@ -36,9 +38,33 @@
         } catch (e) { /* default true */ }
 
         await loadProducts();
+        await loadDineInTaxes();
         await loadTables();
         // Auto-refresh table grid every 4s
         setInterval(loadTables, 4000);
+    }
+
+    // ═════════════════════════════════════════════
+    // TAXES
+    // ═════════════════════════════════════════════
+
+    async function loadDineInTaxes() {
+        try {
+            const taxes = await apiFetch('/taxes?enabled=true');
+            if (Array.isArray(taxes)) {
+                dineInTaxes = taxes.filter(t => {
+                    if (t.enabled === false) return false;
+                    let types = [];
+                    if (Array.isArray(t.orderTypes)) types = t.orderTypes;
+                    else if (typeof t.orderTypes === 'string') {
+                        try { types = JSON.parse(t.orderTypes); } catch (e) { types = []; }
+                    }
+                    return Array.isArray(types) && types.includes('dine_in');
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to load dine-in taxes:', e);
+        }
     }
 
     // ═════════════════════════════════════════════
@@ -59,12 +85,14 @@
 
     function renderTableGrid(tables) {
         const grid = document.getElementById('tables-grid');
+        if (!grid) return;
+
         if (!tables || tables.length === 0) {
             grid.innerHTML = `
                 <div class="col-span-full flex flex-col items-center justify-center p-20 text-slate-600">
                     <span class="material-symbols-outlined text-5xl mb-3">table_restaurant</span>
                     <p class="text-lg">No tables yet.</p>
-                    <p class="text-sm mt-1">Click "Manage Tables" to add your first table.</p>
+                    <p class="text-sm mt-1">Click "Tables Setup" to add your first table.</p>
                 </div>`;
             return;
         }
@@ -75,46 +103,74 @@
             const hasBillRequest = table.orderSummary?.requestedBillAt;
             const allReady = table.orderSummary && table.orderSummary.sentCount === 0 && table.orderSummary.pendingCount === 0 && isOccupied;
 
-            let borderColor = 'border-slate-700';
-            let bgColor = 'bg-slate-800 hover:bg-slate-700';
-            let statusDot = '<span class="w-2.5 h-2.5 bg-green-500 rounded-full"></span>';
+            let borderColor = 'border-slate-700/80';
+            let bgColor = 'bg-slate-800/90 hover:bg-slate-750 hover:border-slate-600';
+            let statusDot = '<span class="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm shadow-emerald-500/50"></span>';
             let statusText = 'Available';
             let extraClass = '';
 
             if (isOccupied) {
                 if (isLocked) {
-                    borderColor = 'border-amber-500/60';
-                    bgColor = 'bg-amber-900/20 hover:bg-amber-900/30';
+                    borderColor = 'border-amber-500/80';
+                    bgColor = 'bg-amber-950/20 hover:bg-amber-950/30';
                     statusDot = '<span class="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse"></span>';
-                    statusText = 'Billing';
+                    statusText = 'Billing Requested';
                 } else {
-                    borderColor = 'border-red-500/60';
-                    bgColor = 'bg-red-900/10 hover:bg-red-900/20';
-                    statusDot = '<span class="w-2.5 h-2.5 bg-red-500 rounded-full"></span>';
+                    borderColor = 'border-rose-500/70';
+                    bgColor = 'bg-rose-950/20 hover:bg-rose-950/30';
+                    statusDot = '<span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span>';
                     statusText = 'Occupied';
-                    if (allReady) extraClass = 'all-ready-pulse border-green-500/80';
+                    if (allReady) extraClass = 'all-ready-pulse border-emerald-500/80';
                 }
             }
 
             const badge = table.orderSummary
-                ? `<div class="mt-2 flex flex-wrap gap-1">
-                    ${table.orderSummary.pendingCount > 0 ? `<span class="text-[10px] px-1.5 py-0.5 bg-slate-700 rounded-full">${table.orderSummary.pendingCount} pending</span>` : ''}
-                    ${table.orderSummary.sentCount > 0 ? `<span class="text-[10px] px-1.5 py-0.5 bg-blue-700 rounded-full">${table.orderSummary.sentCount} sent</span>` : ''}
-                    ${hasBillRequest ? `<span class="text-[10px] px-1.5 py-0.5 bg-amber-700 rounded-full">🔔 Bill</span>` : ''}
+                ? `<div class="mt-2 flex flex-wrap justify-center gap-1">
+                    ${table.orderSummary.pendingCount > 0 ? `<span class="text-[10px] px-2 py-0.5 bg-slate-700 text-slate-200 rounded-full font-medium">${table.orderSummary.pendingCount} pending</span>` : ''}
+                    ${table.orderSummary.sentCount > 0 ? `<span class="text-[10px] px-2 py-0.5 bg-blue-600/30 border border-blue-500/40 text-blue-300 rounded-full font-medium">${table.orderSummary.sentCount} sent</span>` : ''}
+                    ${hasBillRequest ? `<span class="text-[10px] px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded-full font-bold animate-pulse">🔔 Bill</span>` : ''}
                    </div>`
                 : '';
 
+            const orderDetails = isOccupied && table.orderSummary ? `
+                <div class="mt-2.5 w-full pt-2 border-t border-slate-700/60 flex flex-col items-center">
+                    <div class="flex items-center justify-between w-full text-xs font-bold mb-1.5 px-1">
+                        <span class="text-slate-400 font-normal text-[11px]">${table.orderSummary.itemCount || 0} items</span>
+                        <span class="text-amber-400 font-black">${formatCurrency(table.orderSummary.total)} EGP</span>
+                    </div>
+                    ${table.orderSummary.itemsPreview && table.orderSummary.itemsPreview.length > 0 ? `
+                        <div class="w-full bg-slate-900/80 rounded-lg p-2 text-left border border-slate-700/50 space-y-1">
+                            ${table.orderSummary.itemsPreview.map(p => `
+                                <div class="text-slate-300 text-[11px] truncate flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                                    <span class="truncate font-medium">${p}</span>
+                                </div>
+                            `).join('')}
+                            ${table.orderSummary.moreCount > 0 ? `
+                                <div class="text-[10px] text-amber-400/90 font-semibold pl-3">+${table.orderSummary.moreCount} more</div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            ` : `
+                <div class="mt-3 text-[11px] text-slate-500 group-hover:text-slate-400 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">touch_app</span>
+                    <span>Tap to start order</span>
+                </div>
+            `;
+
             return `
                 <button onclick="DineIn.openTable('${table.id || table._id}', '${table.name}')"
-                    class="relative flex flex-col items-center justify-center p-4 rounded-xl border-2 ${borderColor} ${bgColor} ${extraClass} transition-all cursor-pointer text-center min-h-[120px]">
-                    <span class="material-symbols-outlined text-4xl mb-1 ${isOccupied ? 'text-red-400' : 'text-slate-400'}">${isOccupied ? 'chair' : 'table_restaurant'}</span>
-                    <p class="font-bold text-sm text-white">${table.name}</p>
-                    <div class="flex items-center gap-1 mt-1">
+                    class="group relative flex flex-col items-center justify-start p-4 rounded-2xl border-2 ${borderColor} ${bgColor} ${extraClass} transition-all duration-200 cursor-pointer text-center min-h-[160px] shadow-lg hover:shadow-xl hover:scale-[1.01]">
+                    <span class="absolute top-2.5 right-2.5 text-[10px] font-semibold text-slate-400 bg-slate-800/80 border border-slate-700 px-1.5 py-0.5 rounded-md">${table.capacity || 4}p</span>
+                    <span class="material-symbols-outlined text-3xl mb-1 ${isOccupied ? 'text-rose-400' : 'text-emerald-400'}">${isOccupied ? 'chair' : 'table_restaurant'}</span>
+                    <p class="font-bold text-base text-white tracking-wide">${table.name}</p>
+                    <div class="flex items-center gap-1.5 mt-0.5">
                         ${statusDot}
-                        <span class="text-[11px] text-slate-400">${statusText}</span>
+                        <span class="text-xs font-semibold ${isOccupied ? 'text-rose-300' : 'text-emerald-300'}">${statusText}</span>
                     </div>
                     ${badge}
-                    <span class="absolute top-2 right-2 text-[10px] text-slate-600">${table.capacity}p</span>
+                    ${orderDetails}
                 </button>`;
         }).join('');
     }
@@ -122,8 +178,10 @@
     function updateStats(tables) {
         const occupied = tables.filter(t => t.status === 'occupied').length;
         const available = tables.filter(t => t.status === 'available').length;
-        document.getElementById('stat-occupied').textContent = occupied;
-        document.getElementById('stat-available').textContent = available;
+        const statOcc = document.getElementById('stat-occupied');
+        const statAvail = document.getElementById('stat-available');
+        if (statOcc) statOcc.textContent = occupied;
+        if (statAvail) statAvail.textContent = available;
     }
 
     // ═════════════════════════════════════════════
@@ -205,83 +263,134 @@
         if (!order) return;
 
         const isLocked = order.isLocked;
-        document.getElementById('panel-subtitle').textContent =
-            isLocked ? '🔒 Bill requested — locked' : `Order open · ${order.items?.length || 0} items`;
+        const validItems = (order.items || []).filter(i => i.kitchenStatus !== 'cancelled');
+        const totalItemQty = validItems.reduce((sum, i) => sum + (i.qty || 1), 0);
 
-        const pendingCount = (order.items || []).filter(i => i.kitchenStatus === 'pending').length;
+        document.getElementById('panel-subtitle').textContent =
+            isLocked ? '🔒 Bill requested — order locked' : `Order open · ${totalItemQty} items`;
+
+        const pendingCount = validItems.filter(i => i.kitchenStatus === 'pending').length;
         const btnSend = document.getElementById('btn-send-kitchen');
         const btnBill = document.getElementById('btn-request-bill');
+        const btnPay = document.getElementById('btn-pay-close');
 
-        if (!kitchenEnabled) {
-            // Kitchen disabled: hide Send to Kitchen button entirely
-            btnSend.style.display = 'none';
-            // Auto-send pending items so order can be closed (mark them ready via API)
-            if (pendingCount > 0) {
-                apiFetch(`/orders/${activeOrderId}/ready-all`, { method: 'POST' }).catch(() => {});
+        if (btnSend) {
+            if (!kitchenEnabled) {
+                btnSend.style.display = 'none';
+            } else {
+                btnSend.style.display = '';
+                btnSend.disabled = pendingCount === 0 || isLocked;
             }
-        } else {
-            btnSend.style.display = '';
-            btnSend.disabled = pendingCount === 0 || isLocked;
         }
-        btnBill.disabled = isLocked;
+        if (btnBill) btnBill.disabled = isLocked;
+        if (btnPay) btnPay.disabled = validItems.length === 0;
 
+        // Render Cart Items
         const container = document.getElementById('order-items');
+        if (container) {
+            if (validItems.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-16 text-slate-500">
+                        <span class="material-symbols-outlined text-4xl mb-2 text-slate-600">restaurant</span>
+                        <p class="text-sm font-medium">No items yet in this order.</p>
+                        <p class="text-xs text-slate-600 mt-1">Select products from the right menu to add.</p>
+                    </div>`;
+            } else {
+                // Group by batch
+                const batches = {};
+                validItems.forEach(item => {
+                    const bn = item.batchNo || 0;
+                    if (!batches[bn]) batches[bn] = [];
+                    batches[bn].push(item);
+                });
 
-        const items = (order.items || []).filter(i => i.kitchenStatus !== 'cancelled');
-        if (items.length === 0) {
-            container.innerHTML = `<div class="flex flex-col items-center justify-center py-16 text-slate-600">
-                <span class="material-symbols-outlined text-4xl mb-2">restaurant</span>
-                <p class="text-sm">No items yet. Search to add.</p>
-            </div>`;
-            return;
+                container.innerHTML = Object.entries(batches).map(([batchNo, batchItems]) => {
+                    const label = parseInt(batchNo) === 0 ? '📝 Current Draft (Not Sent)' : `Batch ${batchNo}`;
+                    return `
+                        <div class="mb-3">
+                            <p class="text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider px-1">${label}</p>
+                            <div class="space-y-2">
+                                ${batchItems.map(item => renderItemRow(item, isLocked)).join('')}
+                            </div>
+                        </div>`;
+                }).join('');
+            }
         }
 
-        // Group by batch
-        const batches = {};
-        items.forEach(item => {
-            const bn = item.batchNo || 0;
-            if (!batches[bn]) batches[bn] = [];
-            batches[bn].push(item);
+        // Subtotal & Taxes Calculation
+        const subtotal = validItems.reduce((sum, i) => sum + (parseFloat(i.price || 0) * (i.qty || 1)), 0);
+        let taxTotal = 0;
+        let taxNames = [];
+        dineInTaxes.forEach(t => {
+            const amt = subtotal * (parseFloat(t.percentage || 0) / 100);
+            taxTotal += amt;
+            taxNames.push(`${t.name} (${t.percentage}%)`);
         });
+        const grandTotal = subtotal + taxTotal;
 
-        container.innerHTML = Object.entries(batches).map(([batchNo, batchItems]) => {
-            const label = parseInt(batchNo) === 0 ? '📝 Not sent yet' : `Batch ${batchNo}`;
-            return `
-                <div class="mb-4">
-                    <p class="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">${label}</p>
-                    ${batchItems.map(item => renderItemRow(item, isLocked)).join('')}
-                </div>`;
-        }).join('');
+        // Update DOM Cart Summary
+        const cartItemCount = document.getElementById('cart-item-count');
+        if (cartItemCount) {
+            cartItemCount.textContent = `${totalItemQty} item${totalItemQty === 1 ? '' : 's'}`;
+        }
+
+        const subtotalEl = document.getElementById('cart-subtotal');
+        if (subtotalEl) subtotalEl.textContent = `${formatCurrency(subtotal)} EGP`;
+
+        const taxRowEl = document.getElementById('cart-taxes-row');
+        const taxLabelEl = document.getElementById('cart-taxes-label');
+        const taxAmtEl = document.getElementById('cart-taxes-amount');
+        if (taxRowEl) {
+            if (taxTotal > 0) {
+                taxRowEl.classList.remove('hidden');
+                if (taxLabelEl) taxLabelEl.textContent = `Taxes (${taxNames.join(', ')})`;
+                if (taxAmtEl) taxAmtEl.textContent = `${formatCurrency(taxTotal)} EGP`;
+            } else {
+                taxRowEl.classList.add('hidden');
+            }
+        }
+
+        const totalEl = document.getElementById('cart-total');
+        if (totalEl) totalEl.textContent = `${formatCurrency(grandTotal)} EGP`;
     }
 
     function renderItemRow(item, isLocked) {
         const s = STATUS[item.kitchenStatus] || STATUS.pending;
-        const canEdit = item.kitchenStatus === 'pending' && !isLocked;
-        const canCancel = (item.kitchenStatus === 'pending' || item.kitchenStatus === 'sent') && !isLocked;
+        const canEdit = !isLocked && (item.kitchenStatus === 'pending' || !kitchenEnabled);
+        const canCancel = !isLocked && (item.kitchenStatus === 'pending' || item.kitchenStatus === 'sent' || !kitchenEnabled);
+        const itemLineTotal = (item.qty || 1) * parseFloat(item.price || 0);
 
         return `
-            <div class="item-row flex items-center gap-3 p-2.5 rounded-lg bg-slate-800 border border-slate-700/50">
+            <div class="item-row flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-slate-600 transition-colors">
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-white truncate">${item.name}</p>
-                    ${item.note ? `<p class="text-xs text-slate-500 truncate">📝 ${item.note}</p>` : ''}
-                    <p class="text-xs text-slate-400">${item.qty} × ${formatCurrency(item.price)}</p>
+                    <div class="flex items-center gap-2">
+                        <p class="text-sm font-bold text-white truncate">${item.name}</p>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${s.color} shrink-0">
+                            <span class="material-symbols-outlined text-[11px]">${s.icon}</span>${s.label}
+                        </span>
+                    </div>
+                    ${item.note ? `<p class="text-xs text-amber-400/80 truncate mt-0.5">📝 ${item.note}</p>` : ''}
+                    <p class="text-xs text-slate-400 mt-1">
+                        ${item.qty} × ${formatCurrency(item.price)} = <span class="font-bold text-amber-400 font-mono">${formatCurrency(itemLineTotal)} EGP</span>
+                    </p>
                 </div>
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${s.color} shrink-0">
-                    <span class="material-symbols-outlined text-xs">${s.icon}</span>${s.label}
-                </span>
-                ${canEdit ? `
-                <div class="flex items-center gap-1 shrink-0">
-                    <button onclick="DineIn.changeQty('${item.lineId}', -1)"
-                        class="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-xs">−</button>
-                    <span class="text-sm w-5 text-center">${item.qty}</span>
-                    <button onclick="DineIn.changeQty('${item.lineId}', 1)"
-                        class="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-xs">+</button>
-                </div>` : ''}
-                ${canCancel ? `
-                <button onclick="DineIn.cancelItem('${item.lineId}')" title="Remove item"
-                    class="w-7 h-7 flex items-center justify-center text-red-400 hover:bg-red-500/20 rounded-lg shrink-0 transition-colors">
-                    <span class="material-symbols-outlined text-base">delete</span>
-                </button>` : ''}
+                <div class="flex items-center gap-2 shrink-0">
+                    ${canEdit ? `
+                    <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-700">
+                        <button onclick="DineIn.changeQty('${item.lineId}', -1)"
+                            class="w-7 h-7 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded font-bold text-sm transition-colors">−</button>
+                        <span class="text-sm font-bold text-white w-6 text-center">${item.qty}</span>
+                        <button onclick="DineIn.changeQty('${item.lineId}', 1)"
+                            class="w-7 h-7 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded font-bold text-sm transition-colors">+</button>
+                    </div>` : `
+                    <span class="text-sm font-bold text-slate-300 px-2 py-1 bg-slate-900 rounded-lg">x${item.qty}</span>
+                    `}
+                    ${canCancel ? `
+                    <button onclick="DineIn.cancelItem('${item.lineId}')" title="Remove item"
+                        class="w-8 h-8 flex items-center justify-center text-rose-400 hover:text-white hover:bg-rose-500/20 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                    </button>` : ''}
+                </div>
             </div>`;
     }
 
@@ -413,15 +522,21 @@
         const item = activeOrder.items.find(i => i.lineId === lineId);
         if (!item) return;
 
-        const newQty = Math.max(1, (item.qty || 1) + delta);
-        if (newQty === item.qty) return;
+        const currentQty = item.qty || 1;
+        if (currentQty === 1 && delta === -1) {
+            return cancelItem(lineId);
+        }
+
+        const newQty = Math.max(1, currentQty + delta);
+        if (newQty === currentQty) return;
 
         try {
             const res = await apiFetch(`/orders/${activeOrderId}/items`, {
                 method: 'PATCH',
-                body: JSON.stringify({ version: activeOrder.version, items: [{ ...item, qty: newQty }] })
+                body: JSON.stringify({ version: activeOrder.version, items: [{ lineId: item.lineId, qty: newQty, price: item.price, note: item.note }] })
             });
             if (res?.order) { activeOrder = res.order; renderOrderPanel(activeOrder); }
+            await loadTables();
         } catch (e) {
             showToast(e.message, 'error');
         }
@@ -429,7 +544,7 @@
 
     async function cancelItem(lineId) {
         if (!activeOrderId) return;
-        const confirmed = await window.showConfirm('Remove this item from the order?');
+        const confirmed = await (window.showConfirm ? window.showConfirm('Remove this item from the order?') : Promise.resolve(confirm('Remove this item from the order?')));
         if (!confirmed) return;
 
         try {
@@ -463,7 +578,7 @@
 
     async function requestBill() {
         if (!activeOrderId) return;
-        const confirmed = await window.showConfirm('Request the bill for this table? This will lock the order.');
+        const confirmed = await (window.showConfirm ? window.showConfirm('Request the bill for this table? This will lock the order.') : Promise.resolve(confirm('Request the bill for this table? This will lock the order.')));
         if (!confirmed) return;
 
         try {
@@ -474,6 +589,149 @@
             await loadTables();
         } catch (e) {
             showToast(e.message, 'error');
+        }
+    }
+
+    // ─── Pre-Bill Thermal Print Preview ───
+    async function printReceiptPreview() {
+        if (!activeOrderId || !activeOrder) return;
+        try {
+            await apiFetch(`/orders/${activeOrderId}/lock`, { method: 'POST' });
+        } catch (e) { /* ignore if already locked */ }
+
+        const validItems = (activeOrder.items || []).filter(i => i.kitchenStatus !== 'cancelled');
+        const subtotal = validItems.reduce((sum, i) => sum + (parseFloat(i.price || 0) * (i.qty || 1)), 0);
+        let taxTotal = 0;
+        dineInTaxes.forEach(t => {
+            taxTotal += subtotal * (parseFloat(t.percentage || 0) / 100);
+        });
+        const grandTotal = subtotal + taxTotal;
+
+        const printWin = window.open('', '_blank', 'width=360,height=600');
+        if (printWin) {
+            printWin.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Pre-Bill - ${activeOrder.tableName || 'Table'}</title>
+                    <style>
+                        body { font-family: monospace, sans-serif; padding: 18px; font-size: 13px; color: #000; }
+                        .center { text-align: center; }
+                        .right { text-align: right; }
+                        .divider { border-top: 1px dashed #000; margin: 8px 0; }
+                        .row { display: flex; justify-content: space-between; margin: 4px 0; }
+                        .bold { font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="center bold" style="font-size: 16px;">TASHGHEEL F&B</div>
+                    <div class="center">DINE-IN PRE-BILL</div>
+                    <div class="divider"></div>
+                    <div class="row"><span>Table:</span><span class="bold">${activeOrder.tableName || 'Table'}</span></div>
+                    <div class="row"><span>Date:</span><span>${new Date().toLocaleString()}</span></div>
+                    <div class="divider"></div>
+                    ${validItems.map(i => `
+                        <div class="row">
+                            <span style="flex:1;">${i.qty}x ${i.name}</span>
+                            <span class="right font-mono">${formatCurrency(i.price * i.qty)}</span>
+                        </div>
+                    `).join('')}
+                    <div class="divider"></div>
+                    <div class="row"><span>Subtotal:</span><span>${formatCurrency(subtotal)} EGP</span></div>
+                    ${taxTotal > 0 ? `<div class="row"><span>Taxes:</span><span>${formatCurrency(taxTotal)} EGP</span></div>` : ''}
+                    <div class="divider"></div>
+                    <div class="row bold" style="font-size: 15px;"><span>TOTAL:</span><span>${formatCurrency(grandTotal)} EGP</span></div>
+                    <div class="divider"></div>
+                    <div class="center" style="margin-top: 15px; font-size: 11px;">*** Pre-Bill / Unpaid Draft ***<br>Please proceed to cashier to settle.</div>
+                    <script>window.onload = function() { window.print(); };</script>
+                </body>
+                </html>
+            `);
+            printWin.document.close();
+        }
+
+        showToast('Pre-bill printed & table locked', 'info');
+        const order = await apiFetch(`/orders/${activeOrderId}`);
+        if (order) { activeOrder = order; renderOrderPanel(order); }
+        await loadTables();
+    }
+
+    // ─── Payment & Close Modal ───
+    function openPayModal() {
+        if (!activeOrderId || !activeOrder) return;
+        const modal = document.getElementById('dinein-pay-modal');
+        if (!modal) return;
+
+        const validItems = (activeOrder.items || []).filter(i => i.kitchenStatus !== 'cancelled');
+        if (validItems.length === 0) {
+            showToast('Cannot pay an empty order. Please add items first.', 'warning');
+            return;
+        }
+
+        const subtotal = validItems.reduce((sum, i) => sum + (parseFloat(i.price || 0) * (i.qty || 1)), 0);
+        let taxTotal = 0;
+        dineInTaxes.forEach(t => {
+            taxTotal += subtotal * (parseFloat(t.percentage || 0) / 100);
+        });
+        const grandTotal = subtotal + taxTotal;
+
+        const payTotalEl = document.getElementById('pay-modal-total');
+        if (payTotalEl) payTotalEl.textContent = `${formatCurrency(grandTotal)} EGP`;
+
+        const paySubEl = document.getElementById('pay-modal-subtitle');
+        if (paySubEl) paySubEl.textContent = `${activeOrder.tableName || 'Table'} · ${validItems.length} item line(s)`;
+
+        setPaymentMethod('cash');
+        modal.classList.remove('hidden');
+    }
+
+    function closePayModal() {
+        const modal = document.getElementById('dinein-pay-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function setPaymentMethod(method) {
+        selectedPaymentMethod = method;
+        ['cash', 'card', 'mobile'].forEach(m => {
+            const btn = document.getElementById(`pay-btn-${m}`);
+            if (!btn) return;
+            if (m === method) {
+                btn.className = 'py-3 rounded-xl border-2 font-bold text-sm flex flex-col items-center gap-1 border-emerald-500 bg-emerald-500/20 text-emerald-300 shadow-sm';
+            } else {
+                btn.className = 'py-3 rounded-xl border-2 font-bold text-sm flex flex-col items-center gap-1 border-slate-700 bg-slate-800 text-slate-300';
+            }
+        });
+    }
+
+    async function confirmPayAndClose() {
+        if (!activeOrderId || !activeOrder) return;
+
+        const validItems = (activeOrder.items || []).filter(i => i.kitchenStatus !== 'cancelled');
+        const subtotal = validItems.reduce((sum, i) => sum + (parseFloat(i.price || 0) * (i.qty || 1)), 0);
+        let taxTotal = 0;
+        dineInTaxes.forEach(t => {
+            taxTotal += subtotal * (parseFloat(t.percentage || 0) / 100);
+        });
+
+        try {
+            const res = await apiFetch(`/orders/${activeOrderId}/close`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    method: selectedPaymentMethod,
+                    closeOverride: true,
+                    tax: taxTotal
+                })
+            });
+
+            if (res?.success) {
+                showToast(`✅ Payment completed! Receipt #${res.receiptNo || ''} generated.`, 'success');
+                closePayModal();
+                closePanel();
+                await loadTables();
+            }
+        } catch (e) {
+            showToast('Payment failed: ' + e.message, 'error');
         }
     }
 
@@ -564,6 +822,7 @@
         loadTables, openTable, closePanel,
         searchProducts, filterItems, selectCategory, renderMenuBrowser,
         addItem, changeQty, cancelItem, sendToKitchen, requestBill,
+        openPayModal, closePayModal, setPaymentMethod, confirmPayAndClose, printReceiptPreview,
         openTableManager, addTable, deleteTable
     };
 
@@ -573,6 +832,7 @@
             if (s && s.enableKitchen === false) kitchenEnabled = false;
         } catch (e) { }
         loadProducts();
+        loadDineInTaxes();
         loadTables();
     });
 

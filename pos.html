@@ -188,7 +188,14 @@
           </button>
         </div>
       </div>
-      <div class="flex items-center gap-6">
+        <!-- Order Mode Selector button -->
+        <button onclick="openOrderModeModal()" id="currentOrderModeBadge"
+          class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-bold border border-indigo-200 dark:border-indigo-800 transition-all shadow-sm">
+          <span class="material-symbols-outlined text-sm" id="currentOrderModeIcon">takeout_dining</span>
+          <span id="currentOrderModeLabel">Take Away</span>
+          <span class="material-symbols-outlined text-[14px]">expand_more</span>
+        </button>
+
         <!-- Tables button for cashier dine-in bill closing -->
         <button onclick="DineInPOS.openTablesView()"
           class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-lg text-xs font-bold border border-amber-200 dark:border-amber-700 transition-colors">
@@ -1002,6 +1009,100 @@
 
       window.DineInPOS = { openTablesView, openOrder, setMethod, closeBill };
     })();
+  </script>
+
+  <!-- ═══ 3-ICON ORDER MODE SELECTION MODAL ═══ -->
+  <div id="orderModeModal" class="modal" style="display:none; position:fixed; inset:0; z-index:9999; align-items:center; justify-content:center; background:rgba(15,23,42,0.85); backdrop-filter:blur(8px);">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-2xl w-[94%] shadow-2xl border border-slate-200 dark:border-slate-800 text-center relative animate-in fade-in zoom-in duration-200">
+      <button onclick="closeOrderModeModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 dark:hover:text-white p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+        <span class="material-symbols-outlined text-xl">close</span>
+      </button>
+
+      <div class="w-16 h-16 mx-auto mb-3 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
+        <img src="favicon.png" alt="Logo" class="w-10 h-10 object-contain">
+      </div>
+
+      <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-1 tracking-tight">Select Order Type</h2>
+      <p class="text-slate-500 dark:text-slate-400 text-sm mb-6">Choose how you want to handle this order session</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- Dine In -->
+        <button onclick="selectOrderMode('dine_in')"
+          class="group relative flex flex-col items-center justify-center p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border-2 border-slate-200 dark:border-slate-700 hover:border-amber-500 hover:bg-amber-500/10 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md transform hover:-translate-y-1 active:scale-95">
+          <div class="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-inner">
+            <span class="material-symbols-outlined text-3xl">table_restaurant</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-0.5">Dine In</h3>
+          <span class="text-xs font-bold text-amber-600 dark:text-amber-400">صالة / طاولات</span>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 text-center">Tables overview, live table cart, & orders</p>
+        </button>
+
+        <!-- Delivery -->
+        <button onclick="selectOrderMode('delivery')"
+          class="group relative flex flex-col items-center justify-center p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border-2 border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md transform hover:-translate-y-1 active:scale-95">
+          <div class="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-inner">
+            <span class="material-symbols-outlined text-3xl">delivery_dining</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-0.5">Delivery</h3>
+          <span class="text-xs font-bold text-blue-600 dark:text-blue-400">توصيل</span>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 text-center">Customer address, delivery zones & rider assignment</p>
+        </button>
+
+        <!-- Takeaway -->
+        <button onclick="selectOrderMode('take_away')"
+          class="group relative flex flex-col items-center justify-center p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-500/10 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md transform hover:-translate-y-1 active:scale-95">
+          <div class="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-inner">
+            <span class="material-symbols-outlined text-3xl">takeout_dining</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-0.5">Takeaway</h3>
+          <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">سفري / تيك أواي</span>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 text-center">Direct counter sales & fast pickup orders</p>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openOrderModeModal() {
+      const modal = document.getElementById('orderModeModal');
+      if (modal) modal.style.display = 'flex';
+    }
+    function closeOrderModeModal() {
+      const modal = document.getElementById('orderModeModal');
+      if (modal) modal.style.display = 'none';
+    }
+    function selectOrderMode(mode) {
+      closeOrderModeModal();
+      if (mode === 'dine_in') {
+        window.location.href = 'dine-in.html';
+        return;
+      }
+
+      const radio = document.querySelector(`input[name="orderType"][value="${mode}"]`);
+      if (radio) {
+        radio.checked = true;
+        if (typeof toggleOrderType === 'function') toggleOrderType();
+      }
+
+      const badgeLabel = document.getElementById('currentOrderModeLabel');
+      const badgeIcon = document.getElementById('currentOrderModeIcon');
+      if (mode === 'delivery') {
+        if (badgeLabel) badgeLabel.textContent = 'Delivery';
+        if (badgeIcon) badgeIcon.textContent = 'delivery_dining';
+        document.getElementById('custSearchPos')?.focus();
+      } else {
+        if (badgeLabel) badgeLabel.textContent = 'Take Away';
+        if (badgeIcon) badgeIcon.textContent = 'takeout_dining';
+      }
+    }
+
+    // Auto-open on login or fresh session
+    document.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('showOrderModePicker') === 'true') {
+        sessionStorage.removeItem('showOrderModePicker');
+        setTimeout(openOrderModeModal, 300);
+      }
+    });
   </script>
 
   <!-- Scripts -->

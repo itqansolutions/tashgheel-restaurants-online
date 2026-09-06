@@ -1718,19 +1718,16 @@ async function loadTaxes() {
 function applyTaxesForOrderType() {
   const orderType = document.querySelector('input[name="orderType"]:checked')?.value || 'take_away';
   // Filter active taxes that match this order type
-  // If orderTypes is undefined (legacy), assume all.
   currentOrderTaxes = activeTaxes.filter(t => {
-    if (!t.orderTypes) return true;
-    try {
-      const types = typeof t.orderTypes === 'string' ? JSON.parse(t.orderTypes) : t.orderTypes;
-      if (Array.isArray(types)) {
-        if (types.length === 0) return true;
-        return types.includes(orderType);
-      }
-    } catch (e) {
-      console.warn('Failed to parse tax orderTypes', e);
+    if (t.enabled === false) return false;
+    let types = [];
+    if (Array.isArray(t.orderTypes)) types = t.orderTypes;
+    else if (typeof t.orderTypes === 'string') {
+      try { types = JSON.parse(t.orderTypes); } catch(e) { types = []; }
     }
-    return true;
+    // Strict match: must explicitly specify this order type
+    if (!types || types.length === 0) return false;
+    return types.includes(orderType);
   });
 }
 
@@ -1750,13 +1747,14 @@ function openTaxModal() {
   }
 
   activeTaxes.forEach(tax => {
-    const isApplied = currentOrderTaxes.some(t => t._id === tax._id);
+    const taxId = tax.id || tax._id;
+    const isApplied = currentOrderTaxes.some(t => (t.id || t._id) === taxId);
     const div = document.createElement('div');
     div.className = "flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-200";
     div.innerHTML = `
        <label class="flex items-center gap-2 cursor-pointer select-none">
           <input type="checkbox" class="w-4 h-4 text-blue-600 rounded" 
-             onchange="toggleTax('${tax._id}', this.checked)" ${isApplied ? 'checked' : ''}>
+             onchange="toggleTax('${taxId}', this.checked)" ${isApplied ? 'checked' : ''}>
           <span class="text-sm font-bold text-slate-700">${tax.name} (${tax.percentage}%)</span>
        </label>
     `;
@@ -1768,12 +1766,12 @@ function openTaxModal() {
 
 window.toggleTax = function (taxId, checked) {
   if (checked) {
-    const tax = activeTaxes.find(t => t._id === taxId);
-    if (tax && !currentOrderTaxes.some(t => t._id === taxId)) {
+    const tax = activeTaxes.find(t => (t.id || t._id) === taxId);
+    if (tax && !currentOrderTaxes.some(t => (t.id || t._id) === taxId)) {
       currentOrderTaxes.push(tax);
     }
   } else {
-    currentOrderTaxes = currentOrderTaxes.filter(t => t._id !== taxId);
+    currentOrderTaxes = currentOrderTaxes.filter(t => (t.id || t._id) !== taxId);
   }
   updateCartSummary();
 };

@@ -48,7 +48,7 @@ router.get('/delivery-zones', async (req, res) => {
 
         const zones = await prisma.deliveryZone.findMany({
             where: filter,
-            select: { id: true, name: true, fee: true, branchId: true }
+            select: { id: true, name: true, fee: true, branchId: true, coordinates: true }
         });
         res.json(zones);
     } catch (err) {

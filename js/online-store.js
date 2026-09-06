@@ -545,12 +545,203 @@ function openCheckout() {
 
     document.getElementById('checkoutModal').classList.remove('hidden');
     document.getElementById('checkoutModal').classList.add('flex');
+
+    const type = document.querySelector('input[name="orderType"]:checked')?.value;
+    if (type === 'delivery' && deliveryLocationMode === 'map') {
+        setTimeout(() => {
+            initOnlineOrderMap();
+            if (onlineMap) onlineMap.invalidateSize();
+        }, 150);
+    }
 }
 
 function closeCheckout() {
     document.getElementById('checkoutModal').classList.add('hidden');
     document.getElementById('checkoutModal').classList.remove('flex');
 }
+
+let onlineMap = null;
+let onlineMarker = null;
+let onlineZoneCircles = [];
+let onlineSelectedLocation = null;
+let deliveryLocationMode = 'map';
+
+window.setDeliveryLocationMode = function(mode) {
+    deliveryLocationMode = mode;
+    const btnMap = document.getElementById('btnModeMap');
+    const btnArea = document.getElementById('btnModeArea');
+    const mapSec = document.getElementById('deliveryMapSection');
+    const areaSec = document.getElementById('deliveryAreaSection');
+
+    if (mode === 'map') {
+        btnMap.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow-sm';
+        btnArea.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-50';
+        mapSec.classList.remove('hidden');
+        areaSec.classList.add('hidden');
+        setTimeout(() => {
+            initOnlineOrderMap();
+            if (onlineMap) onlineMap.invalidateSize();
+        }, 100);
+    } else {
+        btnArea.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow-sm';
+        btnMap.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-50';
+        areaSec.classList.remove('hidden');
+        mapSec.classList.add('hidden');
+    }
+};
+
+function initOnlineOrderMap() {
+    if (typeof L === 'undefined') return;
+    const container = document.getElementById('onlineOrderMap');
+    if (!container) return;
+
+    let defaultCenter = [30.0444, 31.2357]; // Cairo
+    // If any zone has coordinates, use the first zone's center
+    const zoneWithCoord = (state.zones || []).find(z => z.coordinates && (z.coordinates.lat || z.coordinates.center));
+    if (zoneWithCoord) {
+        const c = zoneWithCoord.coordinates;
+        defaultCenter = [c.lat || c.center.lat, c.lng || c.center.lng];
+    }
+
+    if (!onlineMap) {
+        onlineMap = L.map('onlineOrderMap').setView(defaultCenter, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(onlineMap);
+
+        // Draw delivery zones
+        renderZoneOverlays();
+
+        onlineMarker = L.marker(defaultCenter, { draggable: true }).addTo(onlineMap);
+        onlineSelectedLocation = { lat: defaultCenter[0], lng: defaultCenter[1] };
+
+        onlineMarker.on('dragend', () => {
+            const pos = onlineMarker.getLatLng();
+            onlineSelectedLocation = { lat: pos.lat, lng: pos.lng };
+            detectZoneForLocation(pos.lat, pos.lng);
+        });
+
+        onlineMap.on('click', (e) => {
+            onlineMarker.setLatLng(e.latlng);
+            onlineSelectedLocation = { lat: e.latlng.lat, lng: e.latlng.lng };
+            detectZoneForLocation(e.latlng.lat, e.latlng.lng);
+        });
+
+        detectZoneForLocation(defaultCenter[0], defaultCenter[1]);
+    } else {
+        onlineMap.invalidateSize();
+        renderZoneOverlays();
+    }
+}
+
+function renderZoneOverlays() {
+    if (!onlineMap) return;
+    onlineZoneCircles.forEach(c => onlineMap.removeLayer(c));
+    onlineZoneCircles = [];
+
+    (state.zones || []).forEach(z => {
+        if (!z.coordinates) return;
+        const c = typeof z.coordinates === 'string' ? JSON.parse(z.coordinates) : z.coordinates;
+        const lat = c.lat || (c.center && c.center.lat);
+        const lng = c.lng || (c.center && c.center.lng);
+        const radius = c.radius || 2500;
+        if (lat && lng) {
+            const circle = L.circle([lat, lng], {
+                radius: radius,
+                color: '#2563eb',
+                fillColor: '#60a5fa',
+                fillOpacity: 0.15,
+                weight: 1.5
+            }).addTo(onlineMap);
+            circle.bindTooltip(`${z.name} (${z.fee} EGP)`, { permanent: false, direction: 'center' });
+            onlineZoneCircles.push(circle);
+        }
+    });
+}
+
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function detectZoneForLocation(lat, lng) {
+    const alertEl = document.getElementById('detectedZoneAlert');
+    let matchedZone = null;
+    let minDistance = Infinity;
+
+    // Check against configured zone circles
+    (state.zones || []).forEach(z => {
+        if (!z.coordinates) return;
+        const c = typeof z.coordinates === 'string' ? JSON.parse(z.coordinates) : z.coordinates;
+        const zLat = c.lat || (c.center && c.center.lat);
+        const zLng = c.lng || (c.center && c.center.lng);
+        const radius = c.radius || 2500;
+        if (zLat && zLng) {
+            const dist = getDistanceMeters(lat, lng, zLat, zLng);
+            if (dist <= radius && dist < minDistance) {
+                minDistance = dist;
+                matchedZone = z;
+            }
+        }
+    });
+
+    if (matchedZone) {
+        state.deliveryZone = matchedZone;
+        const select = document.getElementById('deliveryZone');
+        if (select) select.value = matchedZone.id || matchedZone._id;
+        if (alertEl) {
+            alertEl.className = 'text-xs p-2.5 rounded-lg font-medium bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between';
+            alertEl.innerHTML = `<span>📍 <strong>${matchedZone.name}</strong></span> <span class="font-bold bg-white px-2 py-0.5 rounded border border-emerald-200 text-emerald-700">${matchedZone.fee} EGP Delivery</span>`;
+        }
+        updateCheckoutSummary();
+    } else {
+        if (alertEl) {
+            alertEl.className = 'text-xs p-2.5 rounded-lg font-medium bg-amber-50 border border-amber-200 text-amber-800';
+            alertEl.innerHTML = `<span>⚠️ Pin placed outside predefined zones. Please pick an area below or adjust location.</span>`;
+        }
+    }
+
+    // Attempt reverse geocoding via OpenStreetMap Nominatim for street convenience
+    try {
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.address) {
+                    const streetInput = document.getElementById('addrStreet');
+                    const road = data.address.road || data.address.suburb || data.address.neighbourhood || '';
+                    if (streetInput && road && (!streetInput.value || streetInput.dataset.autoFilled === 'true')) {
+                        streetInput.value = road;
+                        streetInput.dataset.autoFilled = 'true';
+                    }
+                }
+            }).catch(() => {});
+    } catch(e) {}
+}
+
+window.locateOnlineUser = function() {
+    if (!navigator.geolocation) return alert('Geolocation is not supported by your browser');
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (onlineMap && onlineMarker) {
+            onlineMap.setView([lat, lng], 15);
+            onlineMarker.setLatLng([lat, lng]);
+            onlineSelectedLocation = { lat, lng };
+            detectZoneForLocation(lat, lng);
+        }
+    }, err => {
+        alert('Could not retrieve your location: ' + err.message);
+    });
+};
 
 function toggleDeliveryFields() {
     const type = document.querySelector('input[name="orderType"]:checked').value;
@@ -561,12 +752,11 @@ function toggleDeliveryFields() {
     if (type === 'delivery') {
         fields.classList.remove('hidden');
         deliveryRow.classList.remove('hidden');
-        zoneSelect.setAttribute('required', 'true');
         document.getElementById('addrStreet').setAttribute('required', 'true');
+        setDeliveryLocationMode(deliveryLocationMode);
     } else {
         fields.classList.add('hidden');
         deliveryRow.classList.add('hidden');
-        zoneSelect.removeAttribute('required');
         document.getElementById('addrStreet').removeAttribute('required');
 
         // Reset Zone Selection
@@ -615,7 +805,12 @@ async function submitOrder(e) {
         address: orderType === 'delivery' ? {
             area: state.deliveryZone?.name || 'Unknown',
             street: document.getElementById('addrStreet').value,
-            building: document.getElementById('addrBuilding').value
+            building: document.getElementById('addrBuilding').value,
+            location: onlineSelectedLocation ? {
+                lat: onlineSelectedLocation.lat,
+                lng: onlineSelectedLocation.lng,
+                mapUrl: `https://maps.google.com/?q=${onlineSelectedLocation.lat},${onlineSelectedLocation.lng}`
+            } : null
         } : null
     };
 

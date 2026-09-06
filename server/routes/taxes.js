@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
                 name,
                 percentage: parseFloat(percentage),
                 enabled: enabled !== undefined ? enabled : true,
-                orderTypes: orderTypes || ['dine_in', 'take_away', 'delivery'],
+                orderTypes: Array.isArray(orderTypes) ? orderTypes : ['dine_in', 'take_away', 'delivery'],
                 branchId: branchId || null,
                 tenantId: req.tenantId
             }
@@ -71,8 +71,8 @@ router.put('/:id', async (req, res) => {
             data: {
                 name,
                 percentage: percentage !== undefined ? parseFloat(percentage) : undefined,
-                enabled,
-                orderTypes,
+                enabled: enabled !== undefined ? enabled : undefined,
+                orderTypes: Array.isArray(orderTypes) ? orderTypes : undefined,
                 branchId: branchId || undefined
             }
         });

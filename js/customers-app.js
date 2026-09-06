@@ -143,6 +143,12 @@ function openAreasModal() {
     document.getElementById('areasModal').style.display = 'flex';
 }
 
+let currentEditingZone = null;
+let zoneLeafletMap = null;
+let zoneMarker = null;
+let zoneCircle = null;
+let loadedAreas = [];
+
 async function renderAreasList() {
     const list = document.getElementById('areasList');
     list.innerHTML = '<div class="p-2 text-center text-xs text-slate-400">Loading...</div>';
@@ -150,6 +156,7 @@ async function renderAreasList() {
     let areas = [];
     try {
         areas = await window.apiFetch('/delivery-zones') || [];
+        loadedAreas = areas;
     } catch (e) {
         console.error('Failed to load zones', e);
         list.innerHTML = '<div class="text-red-500 text-xs">Error loading zones</div>';
@@ -161,27 +168,167 @@ async function renderAreasList() {
         return;
     }
 
+    list.innerHTML = '';
     areas.forEach(a => {
+        const zoneId = a.id || a._id;
+        const hasMap = a.coordinates && (a.coordinates.lat || a.coordinates.center);
         const item = document.createElement('div');
-        item.className = 'flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100 mb-2 group hover:border-blue-200 transition-colors';
+        item.className = 'flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100 mb-2 group hover:border-blue-200 transition-colors';
 
         item.innerHTML = `
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-sm">map</span>
+                <div class="w-9 h-9 rounded-full ${hasMap ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'} flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-sm">${hasMap ? 'pin_drop' : 'map'}</span>
                 </div>
                 <div>
-                    <div class="font-bold text-slate-700 text-sm">${a.name}</div>
-                    <div class="text-xs text-slate-500 font-medium">Fee: ${parseFloat(a.fee).toFixed(2)}</div>
+                    <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <span>${a.name}</span>
+                        ${hasMap ? '<span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded-full">📍 Map Set</span>' : ''}
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium">Delivery Fee: <span class="font-bold text-slate-700">${parseFloat(a.fee).toFixed(2)} EGP</span></div>
                 </div>
             </div>
-            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" onclick="deleteArea('${a._id}')">
-                <span class="material-symbols-outlined text-[18px]">close</span>
-            </button>
+            <div class="flex items-center gap-2">
+                <button type="button" class="px-2.5 py-1.5 flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200" onclick="openZoneMapModal('${zoneId}')">
+                    <span class="material-symbols-outlined text-[15px]">location_on</span>
+                    <span>${hasMap ? 'Edit Map' : 'Set Region'}</span>
+                </button>
+                <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" onclick="deleteArea('${zoneId}')" title="Delete Area">
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+            </div>
         `;
         list.appendChild(item);
     });
 }
+
+// ─── Map Region Picker Modal Functions ───
+window.openZoneMapModal = function(zoneId) {
+    const zone = loadedAreas.find(z => (z.id || z._id) === zoneId);
+    if (!zone) return;
+    currentEditingZone = zone;
+
+    document.getElementById('mapModalZoneTitle').textContent = `Set Map Region: ${zone.name}`;
+    const modal = document.getElementById('zoneMapModal');
+    modal.style.display = 'flex';
+
+    // Parse existing coordinates or use default
+    let center = [30.0444, 31.2357]; // Default to Cairo
+    let radius = 2500;
+
+    if (zone.coordinates) {
+        if (typeof zone.coordinates === 'string') {
+            try { zone.coordinates = JSON.parse(zone.coordinates); } catch(e) {}
+        }
+        if (zone.coordinates.lat && zone.coordinates.lng) {
+            center = [parseFloat(zone.coordinates.lat), parseFloat(zone.coordinates.lng)];
+            radius = parseFloat(zone.coordinates.radius) || 2500;
+        } else if (zone.coordinates.center) {
+            center = [parseFloat(zone.coordinates.center.lat), parseFloat(zone.coordinates.center.lng)];
+            radius = parseFloat(zone.coordinates.radius) || 2500;
+        }
+    }
+
+    document.getElementById('zoneRadiusSlider').value = radius;
+    document.getElementById('zoneRadiusLabel').textContent = `${radius} m`;
+
+    setTimeout(() => {
+        if (!zoneLeafletMap) {
+            zoneLeafletMap = L.map('zoneMapContainer').setView(center, 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(zoneLeafletMap);
+
+            zoneMarker = L.marker(center, { draggable: true }).addTo(zoneLeafletMap);
+            zoneCircle = L.circle(center, {
+                radius: radius,
+                color: '#2563eb',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.25
+            }).addTo(zoneLeafletMap);
+
+            zoneMarker.on('drag', () => {
+                const pos = zoneMarker.getLatLng();
+                zoneCircle.setLatLng(pos);
+            });
+
+            zoneLeafletMap.on('click', (e) => {
+                zoneMarker.setLatLng(e.latlng);
+                zoneCircle.setLatLng(e.latlng);
+            });
+        } else {
+            zoneLeafletMap.invalidateSize();
+            zoneLeafletMap.setView(center, 13);
+            zoneMarker.setLatLng(center);
+            zoneCircle.setLatLng(center);
+            zoneCircle.setRadius(radius);
+        }
+    }, 200);
+};
+
+window.updateZoneMapRadius = function(val) {
+    const r = parseFloat(val);
+    document.getElementById('zoneRadiusLabel').textContent = `${r} m`;
+    if (zoneCircle) zoneCircle.setRadius(r);
+};
+
+window.locateZoneMapCenter = function() {
+    if (!navigator.geolocation) return alert('Geolocation not supported');
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (zoneLeafletMap && zoneMarker && zoneCircle) {
+            const loc = [lat, lng];
+            zoneLeafletMap.setView(loc, 14);
+            zoneMarker.setLatLng(loc);
+            zoneCircle.setLatLng(loc);
+        }
+    }, (err) => {
+        alert('Could not get GPS location: ' + err.message);
+    });
+};
+
+window.clearZoneMapRegion = async function() {
+    if (!currentEditingZone) return;
+    if (!confirm(`Remove geographic region from ${currentEditingZone.name}?`)) return;
+    try {
+        const id = currentEditingZone.id || currentEditingZone._id;
+        await window.apiFetch(`/delivery-zones/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ coordinates: null })
+        });
+        closeModal('zoneMapModal');
+        renderAreasList();
+    } catch(e) {
+        alert('Error removing map region: ' + e.message);
+    }
+};
+
+window.saveZoneMapRegion = async function() {
+    if (!currentEditingZone || !zoneMarker || !zoneCircle) return;
+    const pos = zoneMarker.getLatLng();
+    const radius = zoneCircle.getRadius();
+
+    const coordinates = {
+        lat: pos.lat,
+        lng: pos.lng,
+        radius: Math.round(radius),
+        updatedAt: new Date().toISOString()
+    };
+
+    try {
+        const id = currentEditingZone.id || currentEditingZone._id;
+        await window.apiFetch(`/delivery-zones/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ coordinates })
+        });
+        closeModal('zoneMapModal');
+        renderAreasList();
+    } catch (e) {
+        alert('Error saving region: ' + e.message);
+    }
+};
 
 async function saveNewArea() {
     const name = document.getElementById('newAreaName').value.trim();

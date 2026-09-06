@@ -478,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Tax Management ===
   const taxForm = document.getElementById('tax-form');
   const taxTableBody = document.getElementById('tax-table-body');
+  let currentLoadedTaxes = [];
 
   async function loadTaxes() {
     try {
@@ -485,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.apiFetch) {
         const result = await window.apiFetch('/taxes');
         taxes = result || [];
+        currentLoadedTaxes = taxes;
       } else {
         console.warn('Tax API not available in local mode');
         return;
@@ -498,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         taxes.forEach(tax => {
+          const taxId = tax.id || tax._id;
           const row = document.createElement('tr');
           row.className = "hover:bg-slate-50 transition-colors group";
 
@@ -505,21 +508,42 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Enabled</span>'
             : '<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-xs font-bold">Disabled</span>';
 
+          let types = [];
+          if (Array.isArray(tax.orderTypes)) types = tax.orderTypes;
+          else if (typeof tax.orderTypes === 'string') {
+            try { types = JSON.parse(tax.orderTypes); } catch(e) { types = []; }
+          }
+
+          let scopeBadges = '';
+          if (!types || types.length === 0) {
+            scopeBadges = '<span class="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-bold">None</span>';
+          } else if (types.length === 3) {
+            scopeBadges = '<span class="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded font-bold">All Types</span>';
+          } else {
+            scopeBadges = types.map(t => {
+              const label = t === 'dine_in' ? 'Dine In' : (t === 'take_away' ? 'Take Away' : 'Delivery');
+              return `<span class="text-[10px] text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">${label}</span>`;
+            }).join(' ');
+          }
+
           row.innerHTML = `
              <td class="px-4 py-3 font-bold text-slate-800">${tax.name}</td>
              <td class="px-4 py-3 font-mono text-slate-600">${tax.percentage}%</td>
              <td class="px-4 py-3">
-                <div class="flex flex-col gap-1">
-                  ${statusBadge}
-                  <span class="text-[10px] text-slate-400">
-                    ${!tax.orderTypes || tax.orderTypes.length === 3 ? 'All Types' : tax.orderTypes.map(t => t.replace('dine_in', 'Din').replace('take_away', 'TkPv').replace('delivery', 'Del')).join(', ')}
-                  </span>
+                <div class="flex flex-col gap-1.5">
+                  <div>${statusBadge}</div>
+                  <div class="flex flex-wrap gap-1">${scopeBadges}</div>
                 </div>
              </td>
              <td class="px-4 py-3 text-right">
-                <button onclick="handleDeleteTax('${tax._id}')" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete">
-                  <span class="material-symbols-outlined text-[16px]">delete</span>
-                </button>
+                <div class="inline-flex items-center gap-1">
+                  <button onclick="handleEditTax('${taxId}')" class="w-8 h-8 inline-flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100" title="Edit">
+                    <span class="material-symbols-outlined text-[16px]">edit</span>
+                  </button>
+                  <button onclick="handleDeleteTax('${taxId}')" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete">
+                    <span class="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                </div>
              </td>
            `;
           taxTableBody.appendChild(row);
@@ -530,9 +554,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  window.resetTaxForm = function() {
+    if (!taxForm) return;
+    taxForm.reset();
+    document.getElementById('tax-id').value = '';
+    document.getElementById('tax-enabled').checked = true;
+    document.querySelectorAll('input[name="tax-scope"]').forEach(cb => cb.checked = true);
+    document.getElementById('tax-cancel-btn')?.classList.add('hidden');
+    const submitText = document.getElementById('tax-submit-text');
+    if (submitText) submitText.textContent = 'Save Tax';
+  };
+
+  window.handleEditTax = function(taxId) {
+    const tax = currentLoadedTaxes.find(t => (t.id || t._id) === taxId);
+    if (!tax) return;
+
+    document.getElementById('tax-id').value = taxId;
+    document.getElementById('tax-name').value = tax.name || '';
+    document.getElementById('tax-percentage').value = tax.percentage !== undefined ? tax.percentage : '';
+    document.getElementById('tax-enabled').checked = tax.enabled !== false;
+
+    let types = [];
+    if (Array.isArray(tax.orderTypes)) types = tax.orderTypes;
+    else if (typeof tax.orderTypes === 'string') {
+      try { types = JSON.parse(tax.orderTypes); } catch(e) { types = []; }
+    }
+    document.querySelectorAll('input[name="tax-scope"]').forEach(cb => {
+      cb.checked = types.includes(cb.value);
+    });
+
+    document.getElementById('tax-cancel-btn')?.classList.remove('hidden');
+    const submitText = document.getElementById('tax-submit-text');
+    if (submitText) submitText.textContent = 'Update Tax';
+
+    taxForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   if (taxForm) {
     taxForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const taxId = document.getElementById('tax-id').value;
       const name = document.getElementById('tax-name').value.trim();
       const percentage = parseFloat(document.getElementById('tax-percentage').value);
       const enabled = document.getElementById('tax-enabled').checked;
@@ -543,13 +604,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!name || isNaN(percentage)) return alert('Invalid inputs');
 
       try {
-        await window.apiFetch('/taxes', {
-          method: 'POST',
-          body: JSON.stringify({ name, percentage, enabled, orderTypes })
-        });
-        showToast('✅ Tax saved!');
-        taxForm.reset();
-        document.getElementById('tax-enabled').checked = true; // Reset default
+        if (taxId) {
+          await window.apiFetch(`/taxes/${taxId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name, percentage, enabled, orderTypes })
+          });
+          showToast('✅ Tax updated!');
+        } else {
+          await window.apiFetch('/taxes', {
+            method: 'POST',
+            body: JSON.stringify({ name, percentage, enabled, orderTypes })
+          });
+          showToast('✅ Tax saved!');
+        }
+        resetTaxForm();
         loadTaxes();
       } catch (e) {
         alert('Error saving tax: ' + e.message);
@@ -560,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.handleDeleteTax = async function (id) {
     if (!confirm('Delete this tax?')) return;
     try {
-      await window.apiFetch(`/api/taxes/${id}`, { method: 'DELETE' });
+      await window.apiFetch(`/taxes/${id}`, { method: 'DELETE' });
       showToast('🗑️ Tax deleted');
       loadTaxes();
     } catch (e) {

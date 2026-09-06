@@ -605,6 +605,7 @@
                 Add New Tax
               </h4>
               <form id="tax-form" class="space-y-4">
+                <input type="hidden" id="tax-id" value="">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tax Name</label>
@@ -651,12 +652,16 @@
                   </label>
                 </div>
 
-                <div class="flex justify-end mt-4">
-                  <button
+                <div class="flex justify-end items-center gap-2 mt-4">
+                  <button type="button" id="tax-cancel-btn" onclick="resetTaxForm()"
+                    class="hidden px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-sm transition-all">
+                    Cancel
+                  </button>
+                  <button id="tax-submit-btn"
                     class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-2"
                     type="submit">
                     <span class="material-symbols-outlined text-[18px]">save</span>
-                    Save Tax
+                    <span id="tax-submit-text">Save Tax</span>
                   </button>
                 </div>
               </form>

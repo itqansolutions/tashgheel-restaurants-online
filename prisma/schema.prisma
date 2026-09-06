@@ -306,16 +306,17 @@ model Expense {
 }
 
 model DeliveryZone {
-  id        String   @id @default(uuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  branchId  String?
-  branch    Branch?  @relation(fields: [branchId], references: [id])
-  name      String
-  fee       Float    @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id])
+  name        String
+  fee         Float    @default(0)
+  coordinates Json?    // Geo coordinates, polygon or center/radius
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([tenantId, branchId, name])
 }
