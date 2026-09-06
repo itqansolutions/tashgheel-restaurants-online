@@ -1096,13 +1096,15 @@
       }
     }
 
-    // Auto-open on login or fresh session
-    document.addEventListener('DOMContentLoaded', () => {
-      if (sessionStorage.getItem('showOrderModePicker') === 'true') {
-        sessionStorage.removeItem('showOrderModePicker');
-        setTimeout(openOrderModeModal, 300);
-      }
-    });
+    // Auto-open EVERY time the POS page is opened
+    function triggerOrderModeOnOpen() {
+      setTimeout(openOrderModeModal, 200);
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', triggerOrderModeOnOpen);
+    } else {
+      triggerOrderModeOnOpen();
+    }
   </script>
 
   <!-- Scripts -->
