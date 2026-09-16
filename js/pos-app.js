@@ -2251,40 +2251,58 @@ async function processSale(method) {
     }
   } else if (currentOnlineOrderId) {
     // ☁️ Update Existing Online Order
-    window.apiFetch(`/sales/${currentOnlineOrderId}`, {
+    try {
+      const res = await window.apiFetch(`/sales/${currentOnlineOrderId}`, {
         method: 'PATCH',
         body: JSON.stringify({
-            status: 'finished',
-            kitchenStatus: 'completed',
-            method: method,
-            splitCash: splitCash,
-            splitCard: splitCard,
-            shiftId: currentShift ? (currentShift.id || currentShift._id) : null,
-            cashier: cashierName,
-            salesman: salesman,
-            tax: parseFloat(taxTotal) || 0,
-            date: new Date().toISOString()
+          status: 'finished',
+          kitchenStatus: 'completed',
+          method: method,
+          splitCash: splitCash,
+          splitCard: splitCard,
+          shiftId: currentShift ? (currentShift.id || currentShift._id) : null,
+          cashier: cashierName,
+          salesman: salesman,
+          tax: parseFloat(taxTotal) || 0,
+          date: new Date().toISOString()
         })
-    }).then(res => {
-        if (res.success) {
-            currentOnlineOrderId = null;
-            fetchOnlineOrders();
-        }
-    }).catch(e => console.error('Failed to update online order', e));
+      });
+      if (res && res.success) {
+        currentOnlineOrderId = null;
+        if (typeof fetchOnlineOrders === 'function') fetchOnlineOrders();
+      }
+    } catch (e) {
+      console.error('Failed to update online order:', e);
+    }
   } else {
     window.DB.saveSale(sale);
   }
 
   // Cache receipt for printing
-  localStorage.setItem(sale.id, JSON.stringify(sale));
+  try {
+    localStorage.setItem(sale.id, JSON.stringify(sale));
+  } catch (e) {
+    console.warn('Could not cache receipt to localStorage:', e);
+  }
 
-  printReceipt(sale);
+  // Safely attempt receipt print
+  try {
+    printReceipt(sale);
+  } catch (err) {
+    console.error('Print receipt error:', err);
+  }
 
+  // Reset cart & inputs
   cart = [];
   globalDiscountType = 'none';
   globalDiscountValue = 0;
-  document.getElementById('orderNoteInput').value = '';
-  // Reset taxes for next order? Or keep same? Keeping same is usually better UX.
+  const noteInput = document.getElementById('orderNoteInput');
+  if (noteInput) noteInput.value = '';
+  
+  if (typeof clearSelectedCustomer === 'function' && orderType === 'delivery') {
+    clearSelectedCustomer();
+  }
+
   updateCartDisplay();
 
   // Feedback
@@ -2295,7 +2313,9 @@ async function processSale(method) {
   }
 
   // Optimize: Delay heavy refresh
-  setTimeout(() => loadProducts(), 100);
+  setTimeout(() => {
+    if (typeof loadProducts === 'function') loadProducts();
+  }, 100);
 }
 
 // Helper: Simple Toast (if not exists globally)
@@ -2644,9 +2664,38 @@ window.printStoredReceipt = function (receiptId) {
     </html>
   `;
 
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(html);
-  printWindow.document.close();
+  try {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      return;
+    }
+  } catch (e) {
+    console.warn('Popup blocked for printing, falling back to hidden iframe:', e);
+  }
+
+  // Fallback: Use hidden iframe to trigger print without popup blocker issues
+  try {
+    let iframe = document.getElementById('receiptPrintIframe');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'receiptPrintIframe';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+    }
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+  } catch (err) {
+    console.error('Print failed:', err);
+  }
 };
 
 function confirmLogout() {

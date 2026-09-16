@@ -480,7 +480,7 @@ router.post('/sales', async (req, res) => {
         const saleData = req.body;
         if (!saleData || !saleData.items) return res.status(400).json({ error: 'Invalid Sale Data' });
 
-        const activeShift = await prisma.shift.findFirst({
+        let activeShift = await prisma.shift.findFirst({
             where: {
                 tenantId: req.tenantId,
                 branchId: req.branchId,
@@ -491,6 +491,18 @@ router.post('/sales', async (req, res) => {
                 ]
             }
         });
+
+        // Fallback: If no shift specifically assigned to this user, check for any open shift in this branch
+        if (!activeShift) {
+            activeShift = await prisma.shift.findFirst({
+                where: {
+                    tenantId: req.tenantId,
+                    branchId: req.branchId,
+                    status: 'open'
+                }
+            });
+        }
+
         if (!activeShift) return res.status(403).json({ error: 'No open shift found. Please open or join a shift first.' });
 
         // Cost Snapshot
