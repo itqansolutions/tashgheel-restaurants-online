@@ -3023,26 +3023,17 @@ async function fetchOnlineOrders() {
         }
 
         window.latestOnlineOrders = orderList;
+
+        // If the modal is currently open or new unacknowledged orders arrived, update the modal list immediately!
+        renderOnlineOrdersList();
     } catch (e) {
         console.warn('Failed to fetch online orders', e);
     }
 }
 
-function openOnlineOrders() {
-    stopTitleBlink();
-    const modal = document.getElementById('onlineOrdersModal');
+function renderOnlineOrdersList() {
     const list = document.getElementById('onlineOrdersList');
-    modal.style.display = 'flex';
-
-    // Mark current orders as acknowledged
-    if (window.latestOnlineOrders && window.latestOnlineOrders.length > 0) {
-        try {
-            const currentIds = window.latestOnlineOrders.map(o => String(o.id || o._id));
-            let existing = JSON.parse(localStorage.getItem('pos_acknowledged_online_orders') || '[]');
-            const combined = Array.from(new Set([...existing, ...currentIds]));
-            localStorage.setItem('pos_acknowledged_online_orders', JSON.stringify(combined.slice(-200)));
-        } catch (e) {}
-    }
+    if (!list) return;
 
     if (!window.latestOnlineOrders || window.latestOnlineOrders.length === 0) {
         list.innerHTML = `<p class="text-slate-400 text-sm py-10 text-center">No pending online orders.</p>`;
@@ -3062,6 +3053,24 @@ function openOnlineOrders() {
             </button>
         </div>
     `).join('');
+}
+
+function openOnlineOrders() {
+    stopTitleBlink();
+    const modal = document.getElementById('onlineOrdersModal');
+    if (modal) modal.style.display = 'flex';
+
+    // Mark current orders as acknowledged
+    if (window.latestOnlineOrders && window.latestOnlineOrders.length > 0) {
+        try {
+            const currentIds = window.latestOnlineOrders.map(o => String(o.id || o._id));
+            let existing = JSON.parse(localStorage.getItem('pos_acknowledged_online_orders') || '[]');
+            const combined = Array.from(new Set([...existing, ...currentIds]));
+            localStorage.setItem('pos_acknowledged_online_orders', JSON.stringify(combined.slice(-200)));
+        } catch (e) {}
+    }
+
+    renderOnlineOrdersList();
 }
 
 function resumeOnlineOrder(orderId) {
@@ -3250,5 +3259,27 @@ window.addEventListener('SystemDataReady', () => {
   fetchOnlineOrders();
   if (!window._onlineOrdersPollTimer) {
     window._onlineOrdersPollTimer = setInterval(fetchOnlineOrders, 5000);
+  }
+});
+
+// ⚡ Instant Cross-Tab Order Alerts (BroadcastChannel & localStorage StorageEvent)
+try {
+  if (typeof BroadcastChannel !== 'undefined') {
+    const ordersChannel = new BroadcastChannel('tashgheel_orders_channel');
+    ordersChannel.onmessage = (event) => {
+      if (event && event.data && event.data.type === 'NEW_ONLINE_ORDER') {
+        console.log('⚡ Instant online order received via BroadcastChannel');
+        fetchOnlineOrders();
+      }
+    };
+  }
+} catch (e) {
+  console.warn('BroadcastChannel setup error:', e);
+}
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'pos_new_online_order_ping' && e.newValue) {
+    console.log('⚡ Instant online order received via StorageEvent');
+    fetchOnlineOrders();
   }
 });

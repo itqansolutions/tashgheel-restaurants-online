@@ -837,6 +837,25 @@ async function submitOrder(e) {
             saveCart();
             closeCheckout();
 
+            // 🔔 Broadcast to POS (via BroadcastChannel & localStorage storage event)
+            try {
+                const orderNotification = {
+                    type: 'NEW_ONLINE_ORDER',
+                    orderId: result.orderId,
+                    total: result.total,
+                    customerName: customer.name,
+                    timestamp: Date.now()
+                };
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const bc = new BroadcastChannel('tashgheel_orders_channel');
+                    bc.postMessage(orderNotification);
+                    setTimeout(() => bc.close(), 1000);
+                }
+                localStorage.setItem('pos_new_online_order_ping', JSON.stringify(orderNotification));
+            } catch (notifyErr) {
+                console.warn('Cross-tab notify error:', notifyErr);
+            }
+
             document.getElementById('successOrderId').textContent = `#${result.orderId.slice(-6).toUpperCase()}`;
             document.getElementById('successModal').classList.remove('hidden');
             document.getElementById('successModal').classList.add('flex');
