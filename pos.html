@@ -1192,17 +1192,23 @@
   <script src="js/pos-app.js"></script>
   <!-- Cart Float / Overlay Feature -->
   <script>
-    (function () {
-      const sidebar  = document.getElementById('cartSidebar');
-      const backdrop = document.getElementById('cartOverlayBackdrop');
+    document.addEventListener('DOMContentLoaded', function () {
+      const sidebar     = document.getElementById('cartSidebar');
+      const backdrop    = document.getElementById('cartOverlayBackdrop');
       const resizeHandle = document.getElementById('cartResizeHandle');
+
+      if (!sidebar || !backdrop || !resizeHandle) {
+        console.warn('Cart float: required elements not found.');
+        return;
+      }
+
       let isFloating = false;
 
       /* ── Toggle ─────────────────────────────────────────── */
       window.toggleCartFloat = function () {
         isFloating = !isFloating;
+
         if (isFloating) {
-          // Compute centred starting position
           const vw = window.innerWidth;
           const vh = window.innerHeight;
           const w  = Math.round(vw * 0.92);
@@ -1210,17 +1216,14 @@
           const l  = Math.round((vw - w) / 2);
           const t  = Math.round((vh - h) / 2);
 
-          sidebar.style.width  = w + 'px';
-          sidebar.style.height = h + 'px';
-          sidebar.style.left   = l + 'px';
-          sidebar.style.top    = t + 'px';
-          sidebar.style.bottom = 'auto';
-          sidebar.style.right  = 'auto';
-          sidebar.classList.add('cart-floating');
-          backdrop.classList.add('active');
-          // make sure the cart is visible on md+
+          // Remove hidden, ensure flex display
           sidebar.classList.remove('hidden');
           sidebar.classList.add('flex');
+
+          // Apply floating styles
+          sidebar.style.cssText += ';width:' + w + 'px;height:' + h + 'px;left:' + l + 'px;top:' + t + 'px;bottom:auto;right:auto;';
+          sidebar.classList.add('cart-floating');
+          backdrop.classList.add('active');
         } else {
           _exitFloat();
         }
@@ -1230,12 +1233,20 @@
         isFloating = false;
         sidebar.classList.remove('cart-floating');
         backdrop.classList.remove('active');
-        // Reset inline geometry so sidebar returns to normal flow
-        ['width','height','left','top','bottom','right'].forEach(p => sidebar.style[p] = '');
+        ['width', 'height', 'left', 'top', 'bottom', 'right'].forEach(function (p) {
+          sidebar.style[p] = '';
+        });
       }
 
+      // Clicking backdrop closes the overlay
+      backdrop.addEventListener('click', function () {
+        if (isFloating) _exitFloat();
+      });
+
       /* ── Drag (mouse + touch) ────────────────────────────── */
-      const dragHandle = sidebar.querySelector('.cart-drag-handle');
+      function getDragHandle() {
+        return sidebar.querySelector('.cart-drag-handle');
+      }
 
       function startDrag(startX, startY) {
         if (!isFloating) return;
@@ -1244,66 +1255,71 @@
         const offY = startY - rect.top;
 
         function onMove(cx, cy) {
-          let newL = cx - offX;
-          let newT = cy - offY;
-          // Clamp to viewport
-          newL = Math.max(0, Math.min(window.innerWidth  - sidebar.offsetWidth,  newL));
-          newT = Math.max(0, Math.min(window.innerHeight - sidebar.offsetHeight, newT));
+          var newL = Math.max(0, Math.min(window.innerWidth  - sidebar.offsetWidth,  cx - offX));
+          var newT = Math.max(0, Math.min(window.innerHeight - sidebar.offsetHeight, cy - offY));
           sidebar.style.left = newL + 'px';
           sidebar.style.top  = newT + 'px';
         }
 
         function onMouseMove(e) { onMove(e.clientX, e.clientY); }
-        function onTouchMove(e) { onMove(e.touches[0].clientX, e.touches[0].clientY); }
+        function onTouchMove(e) { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); }
         function stop() {
           document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup',   stop);
+          document.removeEventListener('mouseup', stop);
           document.removeEventListener('touchmove', onTouchMove);
-          document.removeEventListener('touchend',  stop);
-          dragHandle.style.cursor = '';
+          document.removeEventListener('touchend', stop);
         }
 
-        dragHandle.style.cursor = 'grabbing';
         document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup',   stop);
+        document.addEventListener('mouseup', stop);
         document.addEventListener('touchmove', onTouchMove, { passive: true });
-        document.addEventListener('touchend',  stop);
+        document.addEventListener('touchend', stop);
       }
 
-      dragHandle.addEventListener('mousedown',  e => { if (e.button === 0) startDrag(e.clientX, e.clientY); });
-      dragHandle.addEventListener('touchstart', e => startDrag(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+      // Attach drag listeners to the sidebar header (delegated so it works even if DOM was mutated)
+      sidebar.addEventListener('mousedown', function (e) {
+        var handle = getDragHandle();
+        if (handle && handle.contains(e.target) && e.button === 0) {
+          // Don't drag when clicking buttons inside the header
+          if (e.target.closest('button')) return;
+          startDrag(e.clientX, e.clientY);
+        }
+      });
+      sidebar.addEventListener('touchstart', function (e) {
+        var handle = getDragHandle();
+        if (handle && handle.contains(e.target) && e.touches[0]) {
+          if (e.target.closest('button')) return;
+          startDrag(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
 
       /* ── Resize (bottom-right corner) ───────────────────── */
-      resizeHandle.addEventListener('mousedown', e => {
+      resizeHandle.addEventListener('mousedown', function (e) {
         if (!isFloating) return;
         e.preventDefault();
         e.stopPropagation();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startW = sidebar.offsetWidth;
-        const startH = sidebar.offsetHeight;
+        var startX = e.clientX, startY = e.clientY;
+        var startW = sidebar.offsetWidth, startH = sidebar.offsetHeight;
 
         function onMouseMove(e) {
-          let nw = Math.max(320, startW + (e.clientX - startX));
-          let nh = Math.max(400, startH + (e.clientY - startY));
-          nw = Math.min(window.innerWidth  * 0.98, nw);
-          nh = Math.min(window.innerHeight * 0.96, nh);
+          var nw = Math.min(window.innerWidth  * 0.98, Math.max(320, startW + (e.clientX - startX)));
+          var nh = Math.min(window.innerHeight * 0.96, Math.max(400, startH + (e.clientY - startY)));
           sidebar.style.width  = nw + 'px';
           sidebar.style.height = nh + 'px';
         }
         function stop() {
           document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup',   stop);
+          document.removeEventListener('mouseup', stop);
         }
         document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup',   stop);
+        document.addEventListener('mouseup', stop);
       });
 
       /* ── Escape key closes overlay ───────────────────────── */
-      document.addEventListener('keydown', e => {
+      document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && isFloating) _exitFloat();
       });
-    })();
+    });
   </script>
 
 </body>
