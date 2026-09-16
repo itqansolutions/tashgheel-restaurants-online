@@ -640,7 +640,7 @@ window.confirmTransfer = async function () {
 let _restockPurchaseType = 'credit';  // 'credit' | 'paid_now'
 let _restockPaymentMethod = 'cash';   // 'cash' | 'card' | 'mobile'
 
-window.openRestockModal = function (id) {
+window.openRestockModal = async function (id) {
     const ing = window.DB.getIngredient(id);
     if (!ing) return;
 
@@ -649,6 +649,38 @@ window.openRestockModal = function (id) {
     document.getElementById('restock-vendor-id').value = ing.vendorId || '';
     document.getElementById('restock-ingredient-name').value = ing.name || '';
     document.getElementById('restock-ingredient-unit').value = ing.unit || '';
+
+    // Populate Vendor dropdown
+    const vendorSelect = document.getElementById('restock-vendor-select');
+    if (vendorSelect) {
+        let vendors = (window.DataCache && window.DataCache['vendors']) || [];
+        if (vendors.length === 0 && window.apiFetch) {
+            try {
+                const res = await window.apiFetch('/parties/vendors');
+                if (Array.isArray(res)) vendors = res;
+            } catch (e) {
+                vendors = window.DB.getVendors();
+            }
+        } else if (vendors.length === 0) {
+            vendors = window.DB.getVendors();
+        }
+
+        vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
+        vendors.forEach(v => {
+            const opt = document.createElement('option');
+            const vId = v.id || v._id;
+            opt.value = vId;
+            opt.textContent = v.name;
+            if (ing.vendorId && (vId == ing.vendorId || v.name == ing.vendorId)) {
+                opt.selected = true;
+            }
+            vendorSelect.appendChild(opt);
+        });
+
+        vendorSelect.onchange = function() {
+            document.getElementById('restock-vendor-id').value = this.value;
+        };
+    }
 
     // Current stock for active branch
     const activeBranchId = getActiveBranchId();
@@ -744,7 +776,12 @@ window.confirmRestock = async function () {
     const ing = window.DB.getIngredient(id);
     if (!ing) return alert('Ingredient not found.');
 
-    const vendorId = document.getElementById('restock-vendor-id').value || ing.vendorId || null;
+    const vendorSelect = document.getElementById('restock-vendor-select');
+    const vendorId = (vendorSelect ? vendorSelect.value : '') || document.getElementById('restock-vendor-id').value || ing.vendorId || null;
+
+    if (_restockPurchaseType === 'credit' && !vendorId) {
+        return alert('Please select a vendor when restocking on credit.');
+    }
 
     try {
         const response = await window.apiFetch('/inventory/restock', {
@@ -782,9 +819,28 @@ window.confirmRestock = async function () {
             ing.cost = newUnitCost;
         }
         ing.lastRestockDate = new Date().toISOString();
+        if (vendorId) ing.vendorId = vendorId;
         window.DB.saveIngredient(ing);
 
         const totalCost = (qty * newUnitCost).toFixed(2);
+
+        // Also update local vendor balance in cache so Vendors page shows it right away
+        if (vendorId && _restockPurchaseType === 'credit') {
+            const addedDebt = parseFloat(totalCost);
+            if (window.DataCache && Array.isArray(window.DataCache['vendors'])) {
+                const targetV = window.DataCache['vendors'].find(v => (v.id || v._id) == vendorId || v.name == vendorId);
+                if (targetV) targetV.credit = (parseFloat(targetV.credit) || 0) + addedDebt;
+            }
+            const secVendors = window.EnhancedSecurity ? window.EnhancedSecurity.getSecureData('vendors') : null;
+            if (Array.isArray(secVendors)) {
+                const targetV = secVendors.find(v => (v.id || v._id) == vendorId || v.name == vendorId);
+                if (targetV) {
+                    targetV.credit = (parseFloat(targetV.credit) || 0) + addedDebt;
+                    window.EnhancedSecurity.storeSecureData('vendors', secVendors);
+                }
+            }
+        }
+
         const typeLabel = _restockPurchaseType === 'credit' ? 'Credit' : `Paid (${_restockPaymentMethod})`;
         window.showToast
             ? window.showToast(`✅ Restocked! ${qty} ${ing.unit} added. Total: ${totalCost} [${typeLabel}]`, 'success')

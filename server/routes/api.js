@@ -897,13 +897,27 @@ router.post('/inventory/restock', async (req, res) => {
             const ingData = await tx.data.findUnique({
                 where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } }
             });
-            if (!ingData) throw new Error('Ingredients data not found');
 
-            let ingredients = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
-            if (!Array.isArray(ingredients)) throw new Error('Invalid ingredients data');
+            let ingredients = [];
+            if (ingData && ingData.value) {
+                ingredients = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
+                if (!Array.isArray(ingredients)) ingredients = [];
+            }
 
-            const idx = ingredients.findIndex(i => String(i.id) === String(ingredientId));
-            if (idx === -1) throw new Error(`Ingredient ${ingredientId} not found`);
+            let idx = ingredients.findIndex(i => String(i.id) === String(ingredientId));
+            if (idx === -1) {
+                // Ingredient record doesn't exist in server DB yet: initialize it
+                ingredients.push({
+                    id: isNaN(ingredientId) ? ingredientId : parseInt(ingredientId),
+                    name: ingredientName || 'Raw Material',
+                    unit: ingredientUnit || 'units',
+                    cost: parseFloat(unitCost),
+                    stock: 0,
+                    stockByBranch: {},
+                    vendorId: vendorId || null
+                });
+                idx = ingredients.length - 1;
+            }
 
             // Branch-aware stock update
             if (!ingredients[idx].stockByBranch) ingredients[idx].stockByBranch = {};
@@ -927,10 +941,12 @@ router.post('/inventory/restock', async (req, res) => {
             ingredients[idx].stock = Object.values(ingredients[idx].stockByBranch)
                 .reduce((sum, v) => sum + parseFloat(v || 0), 0);
             ingredients[idx].lastRestockDate = new Date().toISOString();
+            if (vendorId) ingredients[idx].vendorId = vendorId;
 
-            await tx.data.update({
+            await tx.data.upsert({
                 where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } },
-                data: { value: JSON.stringify(ingredients), updatedAt: new Date() }
+                update: { value: JSON.stringify(ingredients), updatedAt: new Date() },
+                create: { key: 'ingredients', tenantId: req.tenantId, value: JSON.stringify(ingredients) }
             });
 
             // 2. Log as InventoryAdjustment (PURCHASE)
@@ -1012,7 +1028,13 @@ router.post('/inventory/restock', async (req, res) => {
                 // 5. Update Vendor.credit: credit purchase increases debt, paid_now has no net change
                 if (purchaseType === 'credit') {
                     await tx.vendor.updateMany({
-                        where: { id: vendorId, tenantId: req.tenantId },
+                        where: {
+                            tenantId: req.tenantId,
+                            OR: [
+                                { id: String(vendorId) },
+                                { name: String(vendorId) }
+                            ]
+                        },
                         data: { credit: { increment: totalCost } }
                     });
                 }

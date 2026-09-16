@@ -133,7 +133,13 @@ router.post('/vendors/:id/transactions', async (req, res) => {
             // Update vendor credit balance
             const delta = type === 'purchase' ? parseFloat(amount) : -parseFloat(amount);
             await tx.vendor.updateMany({
-                where: { id: vendorId, tenantId: req.tenantId },
+                where: {
+                    tenantId: req.tenantId,
+                    OR: [
+                        { id: String(vendorId) },
+                        { name: String(vendorId) }
+                    ]
+                },
                 data: { credit: { increment: delta } }
             });
         });

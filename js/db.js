@@ -161,13 +161,25 @@ window.DB = window.DB || {
             ingredients.push(ingredient);
         }
 
-        return window.EnhancedSecurity.storeSecureData('ingredients', ingredients);
+        const success = window.EnhancedSecurity.storeSecureData('ingredients', ingredients);
+        // 🚀 SYNC TO SERVER
+        if (window.electronAPI && window.electronAPI.saveData) {
+            window.electronAPI.saveData('ingredients', ingredients);
+        }
+        this._syncToCloud('ingredients', ingredients);
+        return success;
     },
 
     deleteIngredient: function (id) {
         const ingredients = this.getIngredients();
         const filtered = ingredients.filter(i => i.id !== id);
-        return window.EnhancedSecurity.storeSecureData('ingredients', filtered);
+        const success = window.EnhancedSecurity.storeSecureData('ingredients', filtered);
+        // 🚀 SYNC TO SERVER
+        if (window.electronAPI && window.electronAPI.saveData) {
+            window.electronAPI.saveData('ingredients', filtered);
+        }
+        this._syncToCloud('ingredients', filtered);
+        return success;
     },
 
     getIngredient: function (id) {

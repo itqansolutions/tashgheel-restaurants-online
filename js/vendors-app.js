@@ -45,6 +45,14 @@ async function initVendorsApp() {
     window.addEventListener('languageChanged', () => {
         renderVendors();
     });
+
+    // Auto refresh when returning to page
+    window.addEventListener('focus', () => {
+        renderVendors();
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) renderVendors();
+    });
 }
 
 async function renderVendors() {
