@@ -1188,9 +1188,23 @@ async function saveCheckCustomerAddress() {
 // ===================== SPLIT PAYMENT SYSTEM =====================
 window.openSplitPaymentModal = function() {
   if (cart.length === 0) return;
-  document.getElementById('splitTotalLabel').textContent = `${currentGrandTotal.toFixed(2)} ${t('currency') || 'EGP'}`;
-  document.getElementById('splitCashInput').value = currentGrandTotal.toFixed(2);
-  document.getElementById('splitCardInput').value = 0;
+  const total = Math.round((currentGrandTotal || 0) * 100) / 100;
+  const totalLabel = document.getElementById('splitTotalLabel');
+  if (totalLabel) totalLabel.textContent = `${total.toFixed(2)} ${t('currency') || 'EGP'}`;
+
+  const cashInput = document.getElementById('splitCashInput');
+  const cardInput = document.getElementById('splitCardInput');
+  if (cashInput) {
+    cashInput.value = total.toFixed(2);
+    cashInput.max = total.toFixed(2);
+    cashInput.min = '0';
+  }
+  if (cardInput) {
+    cardInput.value = '0.00';
+    cardInput.max = total.toFixed(2);
+    cardInput.min = '0';
+  }
+
   document.getElementById('splitPaymentModal').style.display = 'flex';
   calculateSplitDifference();
 };
@@ -1199,35 +1213,135 @@ window.closeSplitPaymentModal = function() {
   document.getElementById('splitPaymentModal').style.display = 'none';
 };
 
+window.onSplitCashInput = function() {
+  const total = Math.round((currentGrandTotal || 0) * 100) / 100;
+  const cashEl = document.getElementById('splitCashInput');
+  const cardEl = document.getElementById('splitCardInput');
+  if (!cashEl || !cardEl) return;
+
+  const rawVal = cashEl.value.trim();
+  if (rawVal === '') {
+    cardEl.value = total.toFixed(2);
+    calculateSplitDifference();
+    return;
+  }
+
+  let cash = parseFloat(rawVal);
+  if (isNaN(cash) || cash < 0) {
+    cash = 0;
+  }
+  if (cash > total) {
+    cash = total;
+    cashEl.value = total.toFixed(2);
+  }
+
+  const card = Math.max(0, Math.round((total - cash) * 100) / 100);
+  cardEl.value = card.toFixed(2);
+  calculateSplitDifference();
+};
+
+window.onSplitCardInput = function() {
+  const total = Math.round((currentGrandTotal || 0) * 100) / 100;
+  const cashEl = document.getElementById('splitCashInput');
+  const cardEl = document.getElementById('splitCardInput');
+  if (!cashEl || !cardEl) return;
+
+  const rawVal = cardEl.value.trim();
+  if (rawVal === '') {
+    cashEl.value = total.toFixed(2);
+    calculateSplitDifference();
+    return;
+  }
+
+  let card = parseFloat(rawVal);
+  if (isNaN(card) || card < 0) {
+    card = 0;
+  }
+  if (card > total) {
+    card = total;
+    cardEl.value = total.toFixed(2);
+  }
+
+  const cash = Math.max(0, Math.round((total - card) * 100) / 100);
+  cashEl.value = cash.toFixed(2);
+  calculateSplitDifference();
+};
+
+window.onSplitCashBlur = function() {
+  const cashEl = document.getElementById('splitCashInput');
+  if (!cashEl) return;
+  if (cashEl.value.trim() === '' || isNaN(parseFloat(cashEl.value))) {
+    cashEl.value = '0.00';
+  } else {
+    cashEl.value = parseFloat(cashEl.value).toFixed(2);
+  }
+  window.onSplitCashInput();
+};
+
+window.onSplitCardBlur = function() {
+  const cardEl = document.getElementById('splitCardInput');
+  if (!cardEl) return;
+  if (cardEl.value.trim() === '' || isNaN(parseFloat(cardEl.value))) {
+    cardEl.value = '0.00';
+  } else {
+    cardEl.value = parseFloat(cardEl.value).toFixed(2);
+  }
+  window.onSplitCardInput();
+};
+
 window.calculateSplitDifference = function() {
-  const cash = parseFloat(document.getElementById('splitCashInput').value || 0);
-  const card = parseFloat(document.getElementById('splitCardInput').value || 0);
-  const diff = currentGrandTotal - (cash + card);
+  const total = Math.round((currentGrandTotal || 0) * 100) / 100;
+  const cash = parseFloat(document.getElementById('splitCashInput')?.value || 0) || 0;
+  const card = parseFloat(document.getElementById('splitCardInput')?.value || 0) || 0;
+  const sum = Math.round((cash + card) * 100) / 100;
+  const diff = Math.round((total - sum) * 100) / 100;
 
   const label = document.getElementById('splitDiffLabel');
   const banner = document.getElementById('splitDiffBanner');
   const confirmBtn = document.getElementById('splitConfirmBtn');
 
   if (Math.abs(diff) < 0.01) {
-    banner.style.background = '#e8f5e9';
-    banner.style.color = '#2e7d32';
-    label.textContent = `✓ Amount matches Grand Total`;
-    confirmBtn.disabled = false;
-    confirmBtn.style.opacity = '1';
-  } else {
-    banner.style.background = '#ffebee';
-    banner.style.color = '#c62828';
-    if (diff > 0) {
-      label.textContent = `Remaining: ${diff.toFixed(2)} ${t('currency') || 'EGP'}`;
-    } else {
-      label.textContent = `Overage: ${Math.abs(diff).toFixed(2)} ${t('currency') || 'EGP'}`;
+    if (banner) {
+      banner.style.background = '#e8f5e9';
+      banner.style.color = '#2e7d32';
     }
-    confirmBtn.disabled = true;
-    confirmBtn.style.opacity = '0.5';
+    if (label) label.textContent = `✓ ${t('amount_matches_total') || 'Amount matches Grand Total'}`;
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.style.opacity = '1';
+      confirmBtn.style.cursor = 'pointer';
+    }
+  } else {
+    if (banner) {
+      banner.style.background = '#ffebee';
+      banner.style.color = '#c62828';
+    }
+    if (label) {
+      if (diff > 0) {
+        label.textContent = `${t('remaining') || 'Remaining'}: ${diff.toFixed(2)} ${t('currency') || 'EGP'}`;
+      } else {
+        label.textContent = `${t('overage') || 'Overage'}: ${Math.abs(diff).toFixed(2)} ${t('currency') || 'EGP'}`;
+      }
+    }
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.style.opacity = '0.5';
+      confirmBtn.style.cursor = 'not-allowed';
+    }
   }
 };
 
 window.confirmSplitPayment = function() {
+  const total = Math.round((currentGrandTotal || 0) * 100) / 100;
+  const cash = parseFloat(document.getElementById('splitCashInput')?.value || 0) || 0;
+  const card = parseFloat(document.getElementById('splitCardInput')?.value || 0) || 0;
+  const sum = Math.round((cash + card) * 100) / 100;
+
+  if (Math.abs(sum - total) > 0.01) {
+    alert(t('split_must_equal_total') || `Total paid (${sum.toFixed(2)}) must equal the receipt total (${total.toFixed(2)}) exactly.`);
+    return;
+  }
+
   document.getElementById('splitPaymentModal').style.display = 'none';
   processSale('split');
 };
@@ -2034,6 +2148,15 @@ async function processSale(method) {
   const fee = (orderType === 'delivery' && typeof currentDeliveryFee !== 'undefined') ? currentDeliveryFee : 0;
   const grandTotal = totalAfterDiscount + taxTotal + fee;
 
+  if (isSplit) {
+    const totalSplit = Math.round((splitCash + splitCard) * 100) / 100;
+    const roundedGrandTotal = Math.round(grandTotal * 100) / 100;
+    if (Math.abs(totalSplit - roundedGrandTotal) > 0.01) {
+      alert(t('split_must_equal_total') || `Split payment total (${totalSplit.toFixed(2)}) must match grand total (${roundedGrandTotal.toFixed(2)}).`);
+      return;
+    }
+  }
+
   const receiptNo = getNextReceiptNumber(); // Ensure this helper exists or use Date.now() fallback if not
 
   const sale = {
@@ -2357,8 +2480,9 @@ window.printStoredReceipt = function (receiptId) {
 
   // Delivery Fee HTML
   let deliveryHtml = '';
-  if (receipt.deliveryFee > 0) {
-    deliveryHtml = `<p>${t('delivery_fee') || 'Delivery'}: ${receipt.deliveryFee.toFixed(2)}</p>`;
+  const delFeeNum = parseFloat(receipt.deliveryFee || 0);
+  if (delFeeNum > 0) {
+    deliveryHtml = `<p style="display:flex; justify-content:space-between;"><span>${t('delivery_fee') || 'Delivery'}:</span> <span>${delFeeNum.toFixed(2)}</span></p>`;
   }
 
   const dateFormatted = new Date(receipt.date).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
@@ -2466,10 +2590,14 @@ window.printStoredReceipt = function (receiptId) {
     <p>${t('waiter') || 'Waiter'}: ${receipt.salesman || '-'}</p>
     
     ${receipt.tableId ? `<p><strong>${t('table') || 'Table'}: ${receipt.tableName}</strong></p>` : ''}
-    ${receipt.customer ? `<p><strong>${t('customer') || 'Customer'}: ${receipt.customer.name}</strong></p>` : ''}
+    ${receipt.customer ? `
+      <p><strong>${t('customer') || 'Customer'}: ${receipt.customer.name}</strong></p>
+      ${receipt.customer.mobile ? `<p>${t('mobile') || 'Mobile'}: ${receipt.customer.mobile}</p>` : ''}
+      ${receipt.customer.address ? `<p>${t('address') || 'Address'}: ${typeof receipt.customer.address === 'object' ? formatAddress(receipt.customer.address) : receipt.customer.address}</p>` : ''}
+    ` : ''}
     
     <p>${t('date') || 'Date'}: ${dateFormatted}</p>
-    <p>${t('method') || 'Method'}: ${paymentMap[receipt.method] || '-'}</p>
+    <p>${t('method') || 'Method'}: ${receipt.method === 'split' ? `${t('split') || 'Split'} (${t('cash') || 'Cash'}: ${(parseFloat(receipt.splitCash) || 0).toFixed(2)}, ${t('card') || 'Card'}: ${(parseFloat(receipt.splitCard) || 0).toFixed(2)})` : (paymentMap[receipt.method] || receipt.method || '-')}</p>
 
     <table>
   <thead>
@@ -2736,19 +2864,23 @@ function resumeOnlineOrder(orderId) {
     if (typeof toggleOrderType === 'function') toggleOrderType();
 
     // Set Customer Info if Delivery
-    if (order.orderType === 'delivery' && order.customer) {
-        // Mocking selection for simplicity
-        currentCustomer = { 
-            id: order.customer.mobile, 
-            name: order.customer.name, 
-            mobile: order.customer.mobile 
-        };
-        selectedAddress = order.customer.address;
-        const selDisp = document.getElementById('selectedCustomerDisplay');
-        if (selDisp) {
-            selDisp.style.display = 'block';
-            document.getElementById('selCustName').textContent = currentCustomer.name;
-            document.getElementById('selCustMobile').textContent = currentCustomer.mobile;
+    if (order.orderType === 'delivery') {
+        if (typeof order.deliveryFee !== 'undefined' && order.deliveryFee !== null) {
+            currentDeliveryFee = parseFloat(order.deliveryFee) || 0;
+        }
+        if (order.customer) {
+            currentCustomer = { 
+                id: order.customer.id || order.customer.mobile, 
+                name: order.customer.name, 
+                mobile: order.customer.mobile 
+            };
+            selectedAddress = order.customer.address;
+            const selDisp = document.getElementById('selectedCustomerDisplay');
+            if (selDisp) {
+                selDisp.style.display = 'block';
+                document.getElementById('selCustName').textContent = currentCustomer.name;
+                document.getElementById('selCustMobile').textContent = currentCustomer.mobile;
+            }
         }
     }
 
@@ -2759,16 +2891,84 @@ function resumeOnlineOrder(orderId) {
 function printReceiptPreview() {
     if (cart.length === 0) return alert('Cart is empty');
 
-    // Simple temporary object for printing
+    const orderType = document.querySelector('input[name="orderType"]:checked')?.value || 'take_away';
+    const salesmanSelect = document.getElementById('salesmanSelect');
+    const salesman = salesmanSelect?.value || '';
+    const tableSelect = document.getElementById('tableSelect');
+    const tableId = tableSelect?.value || null;
+    const tableName = tableId ? (tableSelect.options[tableSelect.selectedIndex]?.text || '') : null;
+
+    // Resolve Cashier Name
+    const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : {};
+    let cashierName = currentUser.username || "Staff";
+    if (window.DB && window.DB.getEmployees) {
+      const employees = window.DB.getEmployees();
+      const linkedEmp = employees.find(e => e.linkedUser === currentUser.username);
+      if (linkedEmp) cashierName = linkedEmp.name;
+    }
+
+    // Recalculate totals matching updateCartSummary / processSale
+    let subtotal = 0;
+    let discountTotal = 0;
+    cart.forEach(item => {
+      let itemTotal = item.qty * item.price;
+      let disc = 0;
+      if (item.discount?.type === "percent") disc = itemTotal * (item.discount.value / 100);
+      else if (item.discount?.type === "value") disc = item.discount.value;
+      subtotal += itemTotal;
+      discountTotal += disc;
+    });
+
+    let globalDiscountAmt = 0;
+    const currentSubTotalAfterItemDiscounts = subtotal - discountTotal;
+    if (globalDiscountType === "percent") {
+      globalDiscountAmt = currentSubTotalAfterItemDiscounts * (globalDiscountValue / 100);
+    } else if (globalDiscountType === "value") {
+      globalDiscountAmt = globalDiscountValue;
+    }
+    discountTotal += globalDiscountAmt;
+
+    const totalAfterDiscount = subtotal - discountTotal;
+
+    const appliedTaxes = (currentOrderTaxes || []).map(tax => ({
+      id: tax._id || tax.id,
+      name: tax.name,
+      percentage: tax.percentage,
+      amount: totalAfterDiscount * (tax.percentage / 100)
+    }));
+    const taxTotal = appliedTaxes.reduce((sum, t) => sum + t.amount, 0);
+
+    const fee = (orderType === 'delivery' && typeof currentDeliveryFee !== 'undefined') ? (parseFloat(currentDeliveryFee) || 0) : 0;
+    const grandTotal = totalAfterDiscount + taxTotal + fee;
+
+    // Full object for preview printing
     const previewSale = {
+        id: 'preview_receipt',
         receiptNo: 'PREVIEW',
         date: new Date().toISOString(),
         items: cart,
-        total: parseFloat(document.getElementById('cartTotal').textContent.split(': ')[1]) || 0,
-        subtotal: parseFloat(document.getElementById('cartSubtotal').textContent) || 0,
-        discount: parseFloat(document.getElementById('cartDiscount').textContent.replace('- ', '')) || 0,
-        cashier: (window.getCurrentUser ? window.getCurrentUser().username : 'Staff'),
-        orderType: document.querySelector('input[name="orderType"]:checked')?.value || 'take_away'
+        total: parseFloat(grandTotal.toFixed(2)),
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        discount: parseFloat(discountTotal.toFixed(2)),
+        tax: parseFloat(taxTotal.toFixed(2)),
+        appliedTaxes: appliedTaxes,
+        deliveryFee: parseFloat(fee.toFixed(2)),
+        cashier: cashierName,
+        salesman: salesman,
+        orderType: orderType,
+        tableId: tableId,
+        tableName: tableName,
+        method: 'cash',
+        customer: (orderType === 'delivery' && currentCustomer) ? {
+          id: currentCustomer.id,
+          name: currentCustomer.name,
+          mobile: currentCustomer.mobile,
+          address: selectedAddress
+        } : (currentCustomer ? {
+          id: currentCustomer.id,
+          name: currentCustomer.name,
+          mobile: currentCustomer.mobile
+        } : null)
     };
 
     // Use existing print stored receipt if possible

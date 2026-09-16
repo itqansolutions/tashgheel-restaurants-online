@@ -681,13 +681,13 @@
 
       <div class="mb-3 text-left">
         <label class="block text-slate-400 text-xs font-bold mb-1">Cash Portion (EGP)</label>
-        <input id="splitCashInput" type="number" step="0.01" value="0" oninput="calculateSplitDifference()"
+        <input id="splitCashInput" type="number" step="0.01" min="0" value="0" oninput="onSplitCashInput()" onblur="onSplitCashBlur()"
           class="w-full bg-slate-800 border-2 border-slate-700 rounded-xl p-2.5 text-white font-bold text-center outline-none focus:border-amber-500">
       </div>
 
       <div class="mb-4 text-left">
         <label class="block text-slate-400 text-xs font-bold mb-1">Card Portion (EGP)</label>
-        <input id="splitCardInput" type="number" step="0.01" value="0" oninput="calculateSplitDifference()"
+        <input id="splitCardInput" type="number" step="0.01" min="0" value="0" oninput="onSplitCardInput()" onblur="onSplitCardBlur()"
           class="w-full bg-slate-800 border-2 border-slate-700 rounded-xl p-2.5 text-white font-bold text-center outline-none focus:border-amber-500">
       </div>
 
