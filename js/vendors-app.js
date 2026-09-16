@@ -60,36 +60,56 @@ async function renderVendors() {
     const vendors = await window.electronAPI.getVendors() || [];
     console.log('Vendors loaded:', vendors.length);
 
-    // Reconcile database credit with local transaction logs if they don't match
+    // Reconcile/sync transactions for each vendor
     for (let i = 0; i < vendors.length; i++) {
         const v = vendors[i];
         const vId = v.id || v._id;
-        const trans = window.DB.getVendorTransactions(vId) || [];
-        const totalLogValue = trans.reduce((sum, t) => {
-            let amt = parseFloat(t.amount) || 0;
-            if (t.type === 'payment') amt = -Math.abs(amt);
-            return sum + amt;
-        }, 0);
-        
-        const currentCredit = parseFloat(v.credit) || 0;
-        if (Math.abs(currentCredit - totalLogValue) > 0.01) {
-            console.log(`Reconciling vendor ${v.name} (${vId}): DB credit is ${currentCredit}, calculated transactions sum is ${totalLogValue}`);
-            v.credit = totalLogValue;
-            // Update in backend asynchronously
-            const vendorToSave = {
-                id: vId,
-                name: v.name,
-                mobile: v.mobile,
-                address: v.address,
-                credit: totalLogValue
-            };
-            window.electronAPI.saveVendor(vendorToSave).catch(err => {
-                console.error(`Failed to sync reconciled credit for vendor ${v.name}:`, err);
-            });
+        let trans = [];
+        if (window.apiFetch) {
+            try {
+                const serverTx = await window.apiFetch(`/parties/vendors/${vId}/transactions`);
+                if (Array.isArray(serverTx) && serverTx.length > 0) {
+                    trans = serverTx;
+                    // Cache transactions in local DB so reports and print work
+                    const allTrans = window.EnhancedSecurity.getSecureData('vendor_transactions') || [];
+                    const otherTrans = allTrans.filter(t => t.vendorId != vId);
+                    window.EnhancedSecurity.storeSecureData('vendor_transactions', [...otherTrans, ...trans]);
+                }
+            } catch (e) {
+                trans = window.DB.getVendorTransactions(vId) || [];
+            }
+        } else {
+            trans = window.DB.getVendorTransactions(vId) || [];
+        }
+
+        if (trans.length > 0) {
+            const totalLogValue = trans.reduce((sum, t) => {
+                let amt = parseFloat(t.amount) || 0;
+                if (t.type === 'payment') amt = -Math.abs(amt);
+                return sum + amt;
+            }, 0);
+
+            const currentCredit = parseFloat(v.credit) || 0;
+            if (Math.abs(currentCredit - totalLogValue) > 0.01) {
+                console.log(`Syncing vendor ${v.name} (${vId}): DB credit is ${currentCredit}, calculated transactions sum is ${totalLogValue}`);
+                v.credit = totalLogValue;
+                const vendorToSave = {
+                    id: vId,
+                    name: v.name,
+                    mobile: v.mobile,
+                    address: v.address,
+                    credit: totalLogValue
+                };
+                window.electronAPI.saveVendor(vendorToSave).catch(err => {
+                    console.error(`Failed to sync reconciled credit for vendor ${v.name}:`, err);
+                });
+            }
         }
     }
 
-    // Sync to local DB to ensure other parts (modals, reports) work with up-to-date vendor credit
+    // Sync to local DB & window.DataCache to ensure other parts (modals, reports) work with up-to-date vendor credit
+    if (!window.DataCache) window.DataCache = {};
+    window.DataCache['vendors'] = vendors;
     window.EnhancedSecurity.storeSecureData('vendors', vendors);
 
     container.innerHTML = '';
@@ -225,7 +245,7 @@ function openPaymentModal(vendorId) {
     document.getElementById('paymentModal').style.display = 'flex';
 }
 
-function handlePaymentSubmit(e) {
+async function handlePaymentSubmit(e) {
     e.preventDefault();
 
     const vendorId = document.getElementById('paymentVendorId').value;
@@ -235,6 +255,23 @@ function handlePaymentSubmit(e) {
     if (amount <= 0) {
         alert(t('payment_amount_error'));
         return;
+    }
+
+    if (window.apiFetch) {
+        try {
+            await window.apiFetch(`/parties/vendors/${vendorId}/transactions`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'payment',
+                    amount: amount,
+                    description: notes || 'Manual Payment',
+                    method: 'cash',
+                    date: new Date().toISOString().split('T')[0]
+                })
+            });
+        } catch (err) {
+            console.warn('Backend payment save failed, saving locally:', err);
+        }
     }
 
     window.DB.recordVendorPayment(vendorId, amount, notes);

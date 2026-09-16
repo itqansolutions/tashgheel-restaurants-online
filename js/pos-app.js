@@ -2616,18 +2616,67 @@ window.startNewShift = function (silent = false) {
 
 // ===================== ONLINE ORDERS & PREVIEW =====================
 
+// Notification sound for incoming online orders (pleasant two-tone chime)
+function playOnlineOrderSound() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        // Note 1: 587.33 Hz (D5)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+        gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.35);
+
+        // Note 2: 880 Hz (A5)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+        gain2.gain.setValueAtTime(0.35, ctx.currentTime + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(ctx.currentTime + 0.15);
+        osc2.stop(ctx.currentTime + 0.6);
+    } catch (e) {
+        console.warn('Audio notification unavailable:', e);
+    }
+}
+
+let _lastOnlineOrdersCount = -1;
+
 async function fetchOnlineOrders() {
     try {
         const orders = await window.apiFetch('/kitchen/online-pending');
         const badge = document.getElementById('online-orders-badge');
+        const orderCount = Array.isArray(orders) ? orders.length : 0;
+
         if (badge) {
-            if (orders && orders.length > 0) {
-                badge.textContent = orders.length;
+            if (orderCount > 0) {
+                badge.textContent = orderCount;
                 badge.style.display = 'flex';
             } else {
                 badge.style.display = 'none';
             }
         }
+
+        // 🔔 Sound notification when a new online order arrives
+        if (_lastOnlineOrdersCount >= 0 && orderCount > _lastOnlineOrdersCount) {
+            playOnlineOrderSound();
+            if (window.showToast) {
+                window.showToast(`🔔 New Online Order received! (${orderCount} pending)`, 'info');
+            }
+        }
+        _lastOnlineOrdersCount = orderCount;
+
         window.latestOnlineOrders = orders || [];
     } catch (e) {
         console.warn('Failed to fetch online orders', e);
@@ -2771,4 +2820,8 @@ window.addEventListener('SystemDataReady', () => {
     }
   }
   fetchOnlineOrders();
+  // Poll online orders every 10 seconds for real-time sound notification & badge update
+  if (!window._onlineOrdersPollTimer) {
+    window._onlineOrdersPollTimer = setInterval(fetchOnlineOrders, 10000);
+  }
 });

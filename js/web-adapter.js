@@ -800,6 +800,14 @@
         saveData: async (key, value) => {
             try {
                 const cleanKey = key.replace('.json', '');
+                // 🚀 Sync client cache immediately so UI reflects additions/edits without page reload
+                if (!window.DataCache) window.DataCache = {};
+                window.DataCache[cleanKey] = value;
+                try {
+                    const bk = _getOfflineBackupKey(cleanKey);
+                    localStorage.setItem(bk, JSON.stringify(value));
+                } catch(e) {}
+
                 const result = await apiFetch(`/data/save`, {
                     method: 'POST',
                     body: JSON.stringify({ key: cleanKey, value: value })
@@ -847,7 +855,6 @@
         },
 
         // Reporting
-        // Reporting
         getLiveReport: async () => {
             try {
                 return await apiFetch(`/reports/live`);
@@ -862,12 +869,38 @@
         },
         saveVendor: async (vendor) => {
             try {
-                return await apiFetch(`/parties/vendors`, { method: 'POST', body: JSON.stringify(vendor) });
+                const saved = await apiFetch(`/parties/vendors`, { method: 'POST', body: JSON.stringify(vendor) });
+                // 🚀 Sync client cache & DB memory immediately
+                if (!window.DataCache) window.DataCache = {};
+                let currentVendors = window.DataCache['vendors'];
+                if (!Array.isArray(currentVendors)) {
+                    currentVendors = window.EnhancedSecurity?.getSecureData('vendors') || [];
+                }
+                const target = saved || vendor;
+                const targetId = target.id || target._id;
+                const idx = currentVendors.findIndex(v => (v.id || v._id) == targetId);
+                if (idx >= 0) {
+                    currentVendors[idx] = { ...currentVendors[idx], ...target };
+                } else {
+                    currentVendors.push(target);
+                }
+                window.DataCache['vendors'] = currentVendors;
+                try {
+                    localStorage.setItem(_getOfflineBackupKey('vendors'), JSON.stringify(currentVendors));
+                } catch(e) {}
+                return saved;
             } catch (err) { return { success: false, error: err }; }
         },
         deleteVendor: async (id) => {
             try {
-                return await apiFetch(`/parties/vendors/${id}`, { method: 'DELETE' });
+                const res = await apiFetch(`/parties/vendors/${id}`, { method: 'DELETE' });
+                if (window.DataCache && Array.isArray(window.DataCache['vendors'])) {
+                    window.DataCache['vendors'] = window.DataCache['vendors'].filter(v => (v.id || v._id) != id);
+                    try {
+                        localStorage.setItem(_getOfflineBackupKey('vendors'), JSON.stringify(window.DataCache['vendors']));
+                    } catch(e) {}
+                }
+                return res;
             } catch (err) { return { success: false, error: err }; }
         },
 
@@ -878,12 +911,38 @@
         },
         saveCustomer: async (customer) => {
             try {
-                return await apiFetch(`/parties/customers`, { method: 'POST', body: JSON.stringify(customer) });
+                const saved = await apiFetch(`/parties/customers`, { method: 'POST', body: JSON.stringify(customer) });
+                // 🚀 Sync client cache & DB memory immediately
+                if (!window.DataCache) window.DataCache = {};
+                let currentCusts = window.DataCache['customers'];
+                if (!Array.isArray(currentCusts)) {
+                    currentCusts = window.EnhancedSecurity?.getSecureData('customers') || [];
+                }
+                const target = saved || customer;
+                const targetId = target.id || target._id;
+                const idx = currentCusts.findIndex(c => (c.id || c._id) == targetId);
+                if (idx >= 0) {
+                    currentCusts[idx] = { ...currentCusts[idx], ...target };
+                } else {
+                    currentCusts.push(target);
+                }
+                window.DataCache['customers'] = currentCusts;
+                try {
+                    localStorage.setItem(_getOfflineBackupKey('customers'), JSON.stringify(currentCusts));
+                } catch(e) {}
+                return saved;
             } catch (err) { return { success: false, error: err }; }
         },
         deleteCustomer: async (id) => {
             try {
-                return await apiFetch(`/parties/customers/${id}`, { method: 'DELETE' });
+                const res = await apiFetch(`/parties/customers/${id}`, { method: 'DELETE' });
+                if (window.DataCache && Array.isArray(window.DataCache['customers'])) {
+                    window.DataCache['customers'] = window.DataCache['customers'].filter(c => (c.id || c._id) != id);
+                    try {
+                        localStorage.setItem(_getOfflineBackupKey('customers'), JSON.stringify(window.DataCache['customers']));
+                    } catch(e) {}
+                }
+                return res;
             } catch (err) { return { success: false, error: err }; }
         },
 
