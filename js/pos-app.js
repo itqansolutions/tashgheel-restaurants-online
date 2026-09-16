@@ -24,6 +24,164 @@ let currentOnlineOrderId = null;
 let currentDineInOrder = null;
 let currentGrandTotal = 0;
 
+// ===================== ONLINE ORDERS AUDIO CHIME SYSTEM =====================
+let _audioCtx = null;
+let _chimeAudio = null;
+
+// Create clean synthesized WAV chime Blob URL
+function getChimeAudio() {
+    if (_chimeAudio) return _chimeAudio;
+    try {
+        const sampleRate = 22050;
+        const duration = 1.2;
+        const numSamples = Math.floor(sampleRate * duration);
+        const buffer = new ArrayBuffer(44 + numSamples * 2);
+        const view = new DataView(buffer);
+
+        function writeStr(offset, str) {
+            for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+        }
+
+        writeStr(0, 'RIFF');
+        view.setUint32(4, 36 + numSamples * 2, true);
+        writeStr(8, 'WAVE');
+        writeStr(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); // PCM
+        view.setUint16(22, 1, true); // Mono
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, 'data');
+        view.setUint32(40, numSamples * 2, true);
+
+        // Sequence of chime tones (Ding-Dong ... Ding-Dong: E5 -> A5 -> E5 -> C6)
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            let sample = 0;
+            if (t >= 0.0 && t < 0.3) {
+                const dt = t;
+                const env = Math.exp(-dt * 7);
+                sample += Math.sin(2 * Math.PI * 659.25 * dt) * 0.6 * env;
+                sample += Math.sin(2 * Math.PI * 1318.5 * dt) * 0.15 * env;
+            }
+            if (t >= 0.22 && t < 0.6) {
+                const dt = t - 0.22;
+                const env = Math.exp(-dt * 6);
+                sample += Math.sin(2 * Math.PI * 880.0 * dt) * 0.7 * env;
+                sample += Math.sin(2 * Math.PI * 1760.0 * dt) * 0.2 * env;
+            }
+            if (t >= 0.60 && t < 0.9) {
+                const dt = t - 0.60;
+                const env = Math.exp(-dt * 7);
+                sample += Math.sin(2 * Math.PI * 659.25 * dt) * 0.6 * env;
+                sample += Math.sin(2 * Math.PI * 1318.5 * dt) * 0.15 * env;
+            }
+            if (t >= 0.82 && t < 1.2) {
+                const dt = t - 0.82;
+                const env = Math.exp(-dt * 5);
+                sample += Math.sin(2 * Math.PI * 1046.5 * dt) * 0.8 * env;
+                sample += Math.sin(2 * Math.PI * 2093.0 * dt) * 0.25 * env;
+            }
+
+            const clamped = Math.max(-1, Math.min(1, sample));
+            view.setInt16(44 + i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF, true);
+        }
+
+        const blob = new Blob([buffer], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        _chimeAudio = new Audio(url);
+        return _chimeAudio;
+    } catch (e) {
+        console.warn('WAV chime generation failed:', e);
+        return null;
+    }
+}
+
+// Unlock browser audio on any user interaction across the POS screen
+function unlockBrowserAudio() {
+    try {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtxClass) {
+            if (!_audioCtx) _audioCtx = new AudioCtxClass();
+            if (_audioCtx && _audioCtx.state === 'suspended') {
+                _audioCtx.resume();
+            }
+        }
+        const audio = getChimeAudio();
+        if (audio && audio.paused && audio.currentTime === 0) {
+            audio.volume = 0;
+            const p = audio.play();
+            if (p !== undefined) {
+                p.then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = 1;
+                }).catch(() => {});
+            }
+        }
+    } catch (e) {}
+}
+['click', 'touchstart', 'keydown', 'mousedown'].forEach(evt => {
+    document.addEventListener(evt, unlockBrowserAudio, { passive: true });
+});
+
+// Dual-channel chime playback: Web Audio API + HTML5 Audio fallback
+async function playOnlineOrderSound() {
+    unlockBrowserAudio();
+
+    // 1. Try Web Audio API
+    try {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtxClass) {
+            if (!_audioCtx || _audioCtx.state === 'closed') {
+                _audioCtx = new AudioCtxClass();
+            }
+            if (_audioCtx.state === 'suspended') {
+                await _audioCtx.resume();
+            }
+
+            const now = _audioCtx.currentTime;
+            function scheduleNote(freq, startTime, duration, vol) {
+                const osc = _audioCtx.createOscillator();
+                const gain = _audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(vol, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                osc.connect(gain);
+                gain.connect(_audioCtx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            }
+
+            scheduleNote(659.25, now, 0.35, 0.5);
+            scheduleNote(880.00, now + 0.22, 0.45, 0.6);
+            scheduleNote(659.25, now + 0.60, 0.35, 0.5);
+            scheduleNote(1046.50, now + 0.82, 0.55, 0.7);
+        }
+    } catch (e) {
+        console.warn('Web Audio error:', e);
+    }
+
+    // 2. Play HTML5 Audio as companion / fallback
+    try {
+        const audio = getChimeAudio();
+        if (audio) {
+            audio.volume = 1;
+            audio.currentTime = 0;
+            const p = audio.play();
+            if (p !== undefined) {
+                p.catch(err => console.warn('HTML5 audio play blocked:', err));
+            }
+        }
+    } catch (e) {
+        console.warn('HTML5 Audio error:', e);
+    }
+}
+window.playOnlineOrderSound = playOnlineOrderSound;
+
 // Translation Helper using global translations
 const t = (key) => {
   const lang = localStorage.getItem('pos_language') || 'en';
@@ -2795,164 +2953,6 @@ window.startNewShift = function (silent = false) {
 };
 
 // ===================== ONLINE ORDERS NOTIFICATION & PREVIEW =====================
-
-// Global audio context and HTML5 Audio instance
-let _audioCtx = null;
-let _chimeAudio = null;
-
-// Create clean synthesized WAV chime Blob URL
-function getChimeAudio() {
-    if (_chimeAudio) return _chimeAudio;
-    try {
-        const sampleRate = 22050;
-        const duration = 1.2;
-        const numSamples = Math.floor(sampleRate * duration);
-        const buffer = new ArrayBuffer(44 + numSamples * 2);
-        const view = new DataView(buffer);
-
-        function writeStr(offset, str) {
-            for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-        }
-
-        writeStr(0, 'RIFF');
-        view.setUint32(4, 36 + numSamples * 2, true);
-        writeStr(8, 'WAVE');
-        writeStr(12, 'fmt ');
-        view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true); // PCM
-        view.setUint16(22, 1, true); // Mono
-        view.setUint32(24, sampleRate, true);
-        view.setUint32(28, sampleRate * 2, true);
-        view.setUint16(32, 2, true);
-        view.setUint16(34, 16, true);
-        writeStr(36, 'data');
-        view.setUint32(40, numSamples * 2, true);
-
-        // Sequence of chime tones (Ding-Dong ... Ding-Dong: E5 -> A5 -> E5 -> C6)
-        for (let i = 0; i < numSamples; i++) {
-            const t = i / sampleRate;
-            let sample = 0;
-            if (t >= 0.0 && t < 0.3) {
-                const dt = t;
-                const env = Math.exp(-dt * 7);
-                sample += Math.sin(2 * Math.PI * 659.25 * dt) * 0.6 * env;
-                sample += Math.sin(2 * Math.PI * 1318.5 * dt) * 0.15 * env;
-            }
-            if (t >= 0.22 && t < 0.6) {
-                const dt = t - 0.22;
-                const env = Math.exp(-dt * 6);
-                sample += Math.sin(2 * Math.PI * 880.0 * dt) * 0.7 * env;
-                sample += Math.sin(2 * Math.PI * 1760.0 * dt) * 0.2 * env;
-            }
-            if (t >= 0.60 && t < 0.9) {
-                const dt = t - 0.60;
-                const env = Math.exp(-dt * 7);
-                sample += Math.sin(2 * Math.PI * 659.25 * dt) * 0.6 * env;
-                sample += Math.sin(2 * Math.PI * 1318.5 * dt) * 0.15 * env;
-            }
-            if (t >= 0.82 && t < 1.2) {
-                const dt = t - 0.82;
-                const env = Math.exp(-dt * 5);
-                sample += Math.sin(2 * Math.PI * 1046.5 * dt) * 0.8 * env;
-                sample += Math.sin(2 * Math.PI * 2093.0 * dt) * 0.25 * env;
-            }
-
-            const clamped = Math.max(-1, Math.min(1, sample));
-            view.setInt16(44 + i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF, true);
-        }
-
-        const blob = new Blob([buffer], { type: 'audio/wav' });
-        const url = URL.createObjectURL(blob);
-        _chimeAudio = new Audio(url);
-        return _chimeAudio;
-    } catch (e) {
-        console.warn('WAV chime generation failed:', e);
-        return null;
-    }
-}
-
-// Unlock browser audio on any user interaction across the POS screen
-function unlockBrowserAudio() {
-    try {
-        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtxClass) {
-            if (!_audioCtx) _audioCtx = new AudioCtxClass();
-            if (_audioCtx && _audioCtx.state === 'suspended') {
-                _audioCtx.resume();
-            }
-        }
-        const audio = getChimeAudio();
-        if (audio && audio.paused && audio.currentTime === 0) {
-            audio.volume = 0;
-            const p = audio.play();
-            if (p !== undefined) {
-                p.then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    audio.volume = 1;
-                }).catch(() => {});
-            }
-        }
-    } catch (e) {}
-}
-['click', 'touchstart', 'keydown', 'mousedown'].forEach(evt => {
-    document.addEventListener(evt, unlockBrowserAudio, { passive: true });
-});
-
-// Dual-channel chime playback: Web Audio API + HTML5 Audio fallback
-async function playOnlineOrderSound() {
-    unlockBrowserAudio();
-
-    // 1. Try Web Audio API
-    try {
-        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtxClass) {
-            if (!_audioCtx || _audioCtx.state === 'closed') {
-                _audioCtx = new AudioCtxClass();
-            }
-            if (_audioCtx.state === 'suspended') {
-                await _audioCtx.resume();
-            }
-
-            const now = _audioCtx.currentTime;
-            function scheduleNote(freq, startTime, duration, vol) {
-                const osc = _audioCtx.createOscillator();
-                const gain = _audioCtx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(freq, startTime);
-                gain.gain.setValueAtTime(vol, startTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-                osc.connect(gain);
-                gain.connect(_audioCtx.destination);
-                osc.start(startTime);
-                osc.stop(startTime + duration);
-            }
-
-            scheduleNote(659.25, now, 0.35, 0.5);
-            scheduleNote(880.00, now + 0.22, 0.45, 0.6);
-            scheduleNote(659.25, now + 0.60, 0.35, 0.5);
-            scheduleNote(1046.50, now + 0.82, 0.55, 0.7);
-        }
-    } catch (e) {
-        console.warn('Web Audio error:', e);
-    }
-
-    // 2. Play HTML5 Audio as companion / fallback
-    try {
-        const audio = getChimeAudio();
-        if (audio) {
-            audio.volume = 1;
-            audio.currentTime = 0;
-            const p = audio.play();
-            if (p !== undefined) {
-                p.catch(err => console.warn('HTML5 audio play blocked:', err));
-            }
-        }
-    } catch (e) {
-        console.warn('HTML5 Audio error:', e);
-    }
-}
-window.playOnlineOrderSound = playOnlineOrderSound;
 
 let _titleBlinkTimer = null;
 let _originalDocTitle = document.title || 'Tashgheel POS';
