@@ -750,12 +750,23 @@ router.get('/kitchen/orders', async (req, res) => {
 // 1.1 Get Pending Online Orders (For POS)
 router.get('/kitchen/online-pending', async (req, res) => {
     try {
+        const branchFilter = req.branchId ? {
+            OR: [
+                { branchId: req.branchId },
+                { branchId: null }
+            ]
+        } : {};
+
         const orders = await prisma.sale.findMany({
             where: {
                 tenantId: req.tenantId,
-                branchId: req.branchId,
-                source: 'online_store',
-                status: 'pending'
+                ...branchFilter,
+                OR: [
+                    { source: 'online_store', status: 'pending' },
+                    { source: 'online_store', kitchenStatus: 'pending' },
+                    { source: 'aggregator', kitchenStatus: 'pending' },
+                    { source: 'online', status: 'pending' }
+                ]
             },
             include: { items: true },
             orderBy: { date: 'desc' }

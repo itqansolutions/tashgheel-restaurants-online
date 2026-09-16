@@ -875,7 +875,13 @@
   <div id="onlineOrdersModal" class="modal">
     <div class="modal-content" style="width: 500px;">
       <div class="flex justify-between items-center mb-4 border-b pb-2">
-        <h3 class="font-bold">🌐 Online Orders</h3>
+        <div class="flex items-center gap-2">
+          <h3 class="font-bold">🌐 Online Orders</h3>
+          <button onclick="playOnlineOrderSound()" type="button" title="Test Notification Sound"
+            class="px-2 py-0.5 text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-md flex items-center gap-1 font-bold text-slate-700 dark:text-slate-200 transition-colors">
+            <span class="material-symbols-outlined text-[14px]">volume_up</span> Test Sound
+          </button>
+        </div>
         <button onclick="document.getElementById('onlineOrdersModal').style.display='none'">x</button>
       </div>
       <div id="onlineOrdersList" class="max-h-96 overflow-y-auto space-y-2">

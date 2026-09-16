@@ -80,8 +80,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // ☁️ Online Orders Polling
-  setInterval(fetchOnlineOrders, 30000);
+  // ☁️ Online Orders Polling (Every 5s for instant notification)
+  if (window._onlineOrdersPollTimer) clearInterval(window._onlineOrdersPollTimer);
+  window._onlineOrdersPollTimer = setInterval(fetchOnlineOrders, 5000);
   fetchOnlineOrders();
 });
 
@@ -2742,80 +2743,256 @@ window.startNewShift = function (silent = false) {
   }
 };
 
-// ===================== ONLINE ORDERS & PREVIEW =====================
+// ===================== ONLINE ORDERS NOTIFICATION & PREVIEW =====================
 
-// Notification sound for incoming online orders (pleasant two-tone chime)
-function playOnlineOrderSound() {
+// Global audio context and HTML5 Audio instance
+let _audioCtx = null;
+let _chimeAudio = null;
+
+// Create clean synthesized WAV chime Blob URL
+function getChimeAudio() {
+    if (_chimeAudio) return _chimeAudio;
     try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        
-        // Note 1: 587.33 Hz (D5)
-        const osc1 = ctx.createOscillator();
-        const gain1 = ctx.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
-        gain1.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-        osc1.connect(gain1);
-        gain1.connect(ctx.destination);
-        osc1.start(ctx.currentTime);
-        osc1.stop(ctx.currentTime + 0.35);
+        const sampleRate = 22050;
+        const duration = 1.2;
+        const numSamples = Math.floor(sampleRate * duration);
+        const buffer = new ArrayBuffer(44 + numSamples * 2);
+        const view = new DataView(buffer);
 
-        // Note 2: 880 Hz (A5)
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
-        gain2.gain.setValueAtTime(0.35, ctx.currentTime + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.start(ctx.currentTime + 0.15);
-        osc2.stop(ctx.currentTime + 0.6);
+        function writeStr(offset, str) {
+            for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+        }
+
+        writeStr(0, 'RIFF');
+        view.setUint32(4, 36 + numSamples * 2, true);
+        writeStr(8, 'WAVE');
+        writeStr(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); // PCM
+        view.setUint16(22, 1, true); // Mono
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, 'data');
+        view.setUint32(40, numSamples * 2, true);
+
+        // Sequence of chime tones (Ding-Dong ... Ding-Dong: E5 -> A5 -> E5 -> C6)
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            let sample = 0;
+            if (t >= 0.0 && t < 0.3) {
+                const dt = t;
+                const env = Math.exp(-dt * 7);
+                sample += Math.sin(2 * Math.PI * 659.25 * dt) * 0.6 * env;
+                sample += Math.sin(2 * Math.PI * 1318.5 * dt) * 0.15 * env;
+            }
+            if (t >= 0.22 && t < 0.6) {
+                const dt = t - 0.22;
+                const env = Math.exp(-dt * 6);
+                sample += Math.sin(2 * Math.PI * 880.0 * dt) * 0.7 * env;
+                sample += Math.sin(2 * Math.PI * 1760.0 * dt) * 0.2 * env;
+            }
+            if (t >= 0.60 && t < 0.9) {
+                const dt = t - 0.60;
+                const env = Math.exp(-dt * 7);
+                sample += Math.sin(2 * Math.PI * 659.25 * dt) * 0.6 * env;
+                sample += Math.sin(2 * Math.PI * 1318.5 * dt) * 0.15 * env;
+            }
+            if (t >= 0.82 && t < 1.2) {
+                const dt = t - 0.82;
+                const env = Math.exp(-dt * 5);
+                sample += Math.sin(2 * Math.PI * 1046.5 * dt) * 0.8 * env;
+                sample += Math.sin(2 * Math.PI * 2093.0 * dt) * 0.25 * env;
+            }
+
+            const clamped = Math.max(-1, Math.min(1, sample));
+            view.setInt16(44 + i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF, true);
+        }
+
+        const blob = new Blob([buffer], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        _chimeAudio = new Audio(url);
+        return _chimeAudio;
     } catch (e) {
-        console.warn('Audio notification unavailable:', e);
+        console.warn('WAV chime generation failed:', e);
+        return null;
     }
 }
 
-let _lastOnlineOrdersCount = -1;
+// Unlock browser audio on any user interaction across the POS screen
+function unlockBrowserAudio() {
+    try {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtxClass) {
+            if (!_audioCtx) _audioCtx = new AudioCtxClass();
+            if (_audioCtx && _audioCtx.state === 'suspended') {
+                _audioCtx.resume();
+            }
+        }
+        const audio = getChimeAudio();
+        if (audio && audio.paused && audio.currentTime === 0) {
+            audio.volume = 0;
+            const p = audio.play();
+            if (p !== undefined) {
+                p.then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = 1;
+                }).catch(() => {});
+            }
+        }
+    } catch (e) {}
+}
+['click', 'touchstart', 'keydown', 'mousedown'].forEach(evt => {
+    document.addEventListener(evt, unlockBrowserAudio, { passive: true });
+});
+
+// Dual-channel chime playback: Web Audio API + HTML5 Audio fallback
+async function playOnlineOrderSound() {
+    unlockBrowserAudio();
+
+    // 1. Try Web Audio API
+    try {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtxClass) {
+            if (!_audioCtx || _audioCtx.state === 'closed') {
+                _audioCtx = new AudioCtxClass();
+            }
+            if (_audioCtx.state === 'suspended') {
+                await _audioCtx.resume();
+            }
+
+            const now = _audioCtx.currentTime;
+            function scheduleNote(freq, startTime, duration, vol) {
+                const osc = _audioCtx.createOscillator();
+                const gain = _audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(vol, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                osc.connect(gain);
+                gain.connect(_audioCtx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            }
+
+            scheduleNote(659.25, now, 0.35, 0.5);
+            scheduleNote(880.00, now + 0.22, 0.45, 0.6);
+            scheduleNote(659.25, now + 0.60, 0.35, 0.5);
+            scheduleNote(1046.50, now + 0.82, 0.55, 0.7);
+        }
+    } catch (e) {
+        console.warn('Web Audio error:', e);
+    }
+
+    // 2. Play HTML5 Audio as companion / fallback
+    try {
+        const audio = getChimeAudio();
+        if (audio) {
+            audio.volume = 1;
+            audio.currentTime = 0;
+            const p = audio.play();
+            if (p !== undefined) {
+                p.catch(err => console.warn('HTML5 audio play blocked:', err));
+            }
+        }
+    } catch (e) {
+        console.warn('HTML5 Audio error:', e);
+    }
+}
+window.playOnlineOrderSound = playOnlineOrderSound;
+
+let _titleBlinkTimer = null;
+let _originalDocTitle = document.title || 'Tashgheel POS';
+
+function startTitleBlink(count) {
+    if (_titleBlinkTimer) clearInterval(_titleBlinkTimer);
+    let state = false;
+    _titleBlinkTimer = setInterval(() => {
+        state = !state;
+        document.title = state ? `🔔 (${count}) NEW ORDER! - Tashgheel POS` : _originalDocTitle;
+    }, 1000);
+}
+
+function stopTitleBlink() {
+    if (_titleBlinkTimer) {
+        clearInterval(_titleBlinkTimer);
+        _titleBlinkTimer = null;
+    }
+    document.title = _originalDocTitle;
+}
 
 async function fetchOnlineOrders() {
     try {
         const orders = await window.apiFetch('/kitchen/online-pending');
         const badge = document.getElementById('online-orders-badge');
-        const orderCount = Array.isArray(orders) ? orders.length : 0;
+        const orderList = Array.isArray(orders) ? orders : [];
+        const orderCount = orderList.length;
 
         if (badge) {
             if (orderCount > 0) {
                 badge.textContent = orderCount;
                 badge.style.display = 'flex';
+                badge.classList.remove('hidden');
             } else {
                 badge.style.display = 'none';
+                badge.classList.add('hidden');
+                stopTitleBlink();
             }
         }
 
-        // 🔔 Sound notification when a new online order arrives
-        if (_lastOnlineOrdersCount >= 0 && orderCount > _lastOnlineOrdersCount) {
+        // Check against acknowledged order IDs in localStorage
+        let acknowledgedIds = [];
+        try {
+            acknowledgedIds = JSON.parse(localStorage.getItem('pos_acknowledged_online_orders') || '[]');
+        } catch (e) {
+            acknowledgedIds = [];
+        }
+        const ackSet = new Set(acknowledgedIds.map(String));
+
+        // Find any order that has NOT been acknowledged yet
+        const unacknowledged = orderList.filter(o => !ackSet.has(String(o.id || o._id)));
+
+        if (unacknowledged.length > 0) {
+            // 🔔 Chime and visual notifications!
             playOnlineOrderSound();
             if (window.showToast) {
-                window.showToast(`🔔 New Online Order received! (${orderCount} pending)`, 'info');
+                const latest = unacknowledged[0];
+                const custName = latest.customer?.name ? ` from ${latest.customer.name}` : '';
+                window.showToast(`🔔 New Online Order #${latest.receiptNo}${custName} (${orderCount} pending)`, 'info');
             }
-        }
-        _lastOnlineOrdersCount = orderCount;
+            startTitleBlink(orderCount);
 
-        window.latestOnlineOrders = orders || [];
+            // Mark these as acknowledged in storage so we only chime once per new order
+            const newAckList = [...acknowledgedIds, ...unacknowledged.map(o => String(o.id || o._id))];
+            try {
+                localStorage.setItem('pos_acknowledged_online_orders', JSON.stringify(newAckList.slice(-200)));
+            } catch (e) {}
+        }
+
+        window.latestOnlineOrders = orderList;
     } catch (e) {
         console.warn('Failed to fetch online orders', e);
     }
 }
 
 function openOnlineOrders() {
+    stopTitleBlink();
     const modal = document.getElementById('onlineOrdersModal');
     const list = document.getElementById('onlineOrdersList');
     modal.style.display = 'flex';
-    
+
+    // Mark current orders as acknowledged
+    if (window.latestOnlineOrders && window.latestOnlineOrders.length > 0) {
+        try {
+            const currentIds = window.latestOnlineOrders.map(o => String(o.id || o._id));
+            let existing = JSON.parse(localStorage.getItem('pos_acknowledged_online_orders') || '[]');
+            const combined = Array.from(new Set([...existing, ...currentIds]));
+            localStorage.setItem('pos_acknowledged_online_orders', JSON.stringify(combined.slice(-200)));
+        } catch (e) {}
+    }
+
     if (!window.latestOnlineOrders || window.latestOnlineOrders.length === 0) {
         list.innerHTML = `<p class="text-slate-400 text-sm py-10 text-center">No pending online orders.</p>`;
         return;
@@ -3020,8 +3197,7 @@ window.addEventListener('SystemDataReady', () => {
     }
   }
   fetchOnlineOrders();
-  // Poll online orders every 10 seconds for real-time sound notification & badge update
   if (!window._onlineOrdersPollTimer) {
-    window._onlineOrdersPollTimer = setInterval(fetchOnlineOrders, 10000);
+    window._onlineOrdersPollTimer = setInterval(fetchOnlineOrders, 5000);
   }
 });
