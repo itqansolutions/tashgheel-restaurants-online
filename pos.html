@@ -1205,8 +1205,8 @@
           // Compute centred starting position
           const vw = window.innerWidth;
           const vh = window.innerHeight;
-          const w  = Math.min(420, vw * 0.92);
-          const h  = Math.min(680, vh * 0.92);
+          const w  = Math.round(vw * 0.92);
+          const h  = Math.round(vh * 0.92);
           const l  = Math.round((vw - w) / 2);
           const t  = Math.round((vh - h) / 2);
 
