@@ -1209,19 +1209,24 @@
         isFloating = !isFloating;
 
         if (isFloating) {
-          const vw = window.innerWidth;
-          const vh = window.innerHeight;
-          const w  = Math.round(vw * 0.92);
-          const h  = Math.round(vh * 0.92);
-          const l  = Math.round((vw - w) / 2);
-          const t  = Math.round((vh - h) / 2);
+          var vw = window.innerWidth;
+          var vh = window.innerHeight;
+          var w  = Math.round(vw * 0.92);
+          var h  = Math.round(vh * 0.92);
+          var l  = Math.round((vw - w) / 2);
+          var t  = Math.round((vh - h) / 2);
 
           // Remove hidden, ensure flex display
           sidebar.classList.remove('hidden');
           sidebar.classList.add('flex');
 
-          // Apply floating styles
-          sidebar.style.cssText += ';width:' + w + 'px;height:' + h + 'px;left:' + l + 'px;top:' + t + 'px;bottom:auto;right:auto;';
+          // Use setProperty('important') to beat any !important in media queries
+          sidebar.style.setProperty('width',  w + 'px', 'important');
+          sidebar.style.setProperty('height', h + 'px', 'important');
+          sidebar.style.setProperty('left',   l + 'px', 'important');
+          sidebar.style.setProperty('top',    t + 'px', 'important');
+          sidebar.style.setProperty('bottom', 'auto',   'important');
+          sidebar.style.setProperty('right',  'auto',   'important');
           sidebar.classList.add('cart-floating');
           backdrop.classList.add('active');
         } else {
@@ -1234,9 +1239,10 @@
         sidebar.classList.remove('cart-floating');
         backdrop.classList.remove('active');
         ['width', 'height', 'left', 'top', 'bottom', 'right'].forEach(function (p) {
-          sidebar.style[p] = '';
+          sidebar.style.removeProperty(p);
         });
       }
+
 
       // Clicking backdrop closes the overlay
       backdrop.addEventListener('click', function () {
@@ -1304,8 +1310,8 @@
         function onMouseMove(e) {
           var nw = Math.min(window.innerWidth  * 0.98, Math.max(320, startW + (e.clientX - startX)));
           var nh = Math.min(window.innerHeight * 0.96, Math.max(400, startH + (e.clientY - startY)));
-          sidebar.style.width  = nw + 'px';
-          sidebar.style.height = nh + 'px';
+          sidebar.style.setProperty('width',  nw + 'px', 'important');
+          sidebar.style.setProperty('height', nh + 'px', 'important');
         }
         function stop() {
           document.removeEventListener('mousemove', onMouseMove);
