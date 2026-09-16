@@ -125,6 +125,65 @@
         position: relative !important;
       }
     }
+
+    /* ===== Cart Floating / Overlay Mode ===== */
+    #cartOverlayBackdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      z-index: 8000;
+      backdrop-filter: blur(2px);
+    }
+    #cartOverlayBackdrop.active { display: block; }
+
+    #cartSidebar.cart-floating {
+      position: fixed !important;
+      z-index: 8100 !important;
+      border-radius: 16px !important;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.35) !important;
+      border: 1px solid rgba(148,163,184,0.25) !important;
+      min-width: 320px;
+      min-height: 400px;
+      max-width: 98vw;
+      max-height: 96vh;
+      overflow: hidden !important;
+    }
+
+    /* Drag handle — the header bar */
+    #cartSidebar.cart-floating .cart-drag-handle {
+      cursor: grab !important;
+      user-select: none;
+    }
+    #cartSidebar.cart-floating .cart-drag-handle:active { cursor: grabbing !important; }
+
+    /* Resize handle — bottom-right corner */
+    #cartResizeHandle {
+      display: none;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      z-index: 10;
+    }
+    #cartResizeHandle::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      width: 10px;
+      height: 10px;
+      border-right: 3px solid #94a3b8;
+      border-bottom: 3px solid #94a3b8;
+      border-radius: 0 0 3px 0;
+    }
+    #cartSidebar.cart-floating #cartResizeHandle { display: block; }
+
+    /* Expand button icon flip when active */
+    #cartExpandBtn .expand-icon { transition: transform 0.2s; }
+    #cartSidebar.cart-floating #cartExpandBtn .expand-icon { transform: rotate(180deg); }
   </style>
 </head>
 
@@ -288,10 +347,15 @@
     </div>
   </main>
 
+  <!-- Cart Overlay Backdrop -->
+  <div id="cartOverlayBackdrop" onclick="toggleCartFloat()"></div>
+
   <!-- Right Sidebar (Cart) -->
   <aside id="cartSidebar"
     class="hidden md:flex w-96 h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex-col shrink-0 transition-all duration-300 z-50">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
+    <!-- Resize handle (visible only in floating mode) -->
+    <div id="cartResizeHandle"></div>
+    <div class="cart-drag-handle p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
       <h2 class="text-base font-black flex items-center gap-2">
         <button onclick="toggleCart()" class="md:hidden mr-2 text-slate-500 hover:text-slate-800">
           <span class="material-symbols-outlined">arrow_back</span>
@@ -299,10 +363,20 @@
         <span class="material-symbols-outlined text-xl">shopping_basket</span>
         <span id="cartTitle" data-i18n-key="cart_title">Current Order</span>
       </h2>
-      <button class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded flex items-center gap-1"
-        onclick="openPendingOrders()">
-        ⏳ <span id="pendingOrdersBtn">0</span>
-      </button>
+      <div class="flex items-center gap-1.5">
+        <!-- Expand / Float Cart button -->
+        <button id="cartExpandBtn"
+          onclick="toggleCartFloat()"
+          title="Expand cart — drag to move, corner to resize"
+          class="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold">
+          <span class="material-symbols-outlined text-base expand-icon">open_in_full</span>
+          <span class="hidden sm:inline">Expand</span>
+        </button>
+        <button class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded flex items-center gap-1"
+          onclick="openPendingOrders()">
+          ⏳ <span id="pendingOrdersBtn">0</span>
+        </button>
+      </div>
     </div>
 
     <!-- Scrollable Cart Area (Order settings, note, and items list) -->
@@ -1116,6 +1190,121 @@
   <script src="js/shared-nav.js"></script>
   <script src="js/translations.js"></script>
   <script src="js/pos-app.js"></script>
+  <!-- Cart Float / Overlay Feature -->
+  <script>
+    (function () {
+      const sidebar  = document.getElementById('cartSidebar');
+      const backdrop = document.getElementById('cartOverlayBackdrop');
+      const resizeHandle = document.getElementById('cartResizeHandle');
+      let isFloating = false;
+
+      /* ── Toggle ─────────────────────────────────────────── */
+      window.toggleCartFloat = function () {
+        isFloating = !isFloating;
+        if (isFloating) {
+          // Compute centred starting position
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          const w  = Math.min(420, vw * 0.92);
+          const h  = Math.min(680, vh * 0.92);
+          const l  = Math.round((vw - w) / 2);
+          const t  = Math.round((vh - h) / 2);
+
+          sidebar.style.width  = w + 'px';
+          sidebar.style.height = h + 'px';
+          sidebar.style.left   = l + 'px';
+          sidebar.style.top    = t + 'px';
+          sidebar.style.bottom = 'auto';
+          sidebar.style.right  = 'auto';
+          sidebar.classList.add('cart-floating');
+          backdrop.classList.add('active');
+          // make sure the cart is visible on md+
+          sidebar.classList.remove('hidden');
+          sidebar.classList.add('flex');
+        } else {
+          _exitFloat();
+        }
+      };
+
+      function _exitFloat() {
+        isFloating = false;
+        sidebar.classList.remove('cart-floating');
+        backdrop.classList.remove('active');
+        // Reset inline geometry so sidebar returns to normal flow
+        ['width','height','left','top','bottom','right'].forEach(p => sidebar.style[p] = '');
+      }
+
+      /* ── Drag (mouse + touch) ────────────────────────────── */
+      const dragHandle = sidebar.querySelector('.cart-drag-handle');
+
+      function startDrag(startX, startY) {
+        if (!isFloating) return;
+        const rect = sidebar.getBoundingClientRect();
+        const offX = startX - rect.left;
+        const offY = startY - rect.top;
+
+        function onMove(cx, cy) {
+          let newL = cx - offX;
+          let newT = cy - offY;
+          // Clamp to viewport
+          newL = Math.max(0, Math.min(window.innerWidth  - sidebar.offsetWidth,  newL));
+          newT = Math.max(0, Math.min(window.innerHeight - sidebar.offsetHeight, newT));
+          sidebar.style.left = newL + 'px';
+          sidebar.style.top  = newT + 'px';
+        }
+
+        function onMouseMove(e) { onMove(e.clientX, e.clientY); }
+        function onTouchMove(e) { onMove(e.touches[0].clientX, e.touches[0].clientY); }
+        function stop() {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup',   stop);
+          document.removeEventListener('touchmove', onTouchMove);
+          document.removeEventListener('touchend',  stop);
+          dragHandle.style.cursor = '';
+        }
+
+        dragHandle.style.cursor = 'grabbing';
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup',   stop);
+        document.addEventListener('touchmove', onTouchMove, { passive: true });
+        document.addEventListener('touchend',  stop);
+      }
+
+      dragHandle.addEventListener('mousedown',  e => { if (e.button === 0) startDrag(e.clientX, e.clientY); });
+      dragHandle.addEventListener('touchstart', e => startDrag(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+
+      /* ── Resize (bottom-right corner) ───────────────────── */
+      resizeHandle.addEventListener('mousedown', e => {
+        if (!isFloating) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startW = sidebar.offsetWidth;
+        const startH = sidebar.offsetHeight;
+
+        function onMouseMove(e) {
+          let nw = Math.max(320, startW + (e.clientX - startX));
+          let nh = Math.max(400, startH + (e.clientY - startY));
+          nw = Math.min(window.innerWidth  * 0.98, nw);
+          nh = Math.min(window.innerHeight * 0.96, nh);
+          sidebar.style.width  = nw + 'px';
+          sidebar.style.height = nh + 'px';
+        }
+        function stop() {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup',   stop);
+        }
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup',   stop);
+      });
+
+      /* ── Escape key closes overlay ───────────────────────── */
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && isFloating) _exitFloat();
+      });
+    })();
+  </script>
 
 </body>
 
