@@ -2257,10 +2257,12 @@ async function processSale(method) {
             status: 'finished',
             kitchenStatus: 'completed',
             method: method,
+            splitCash: splitCash,
+            splitCard: splitCard,
             shiftId: currentShift ? (currentShift.id || currentShift._id) : null,
             cashier: cashierName,
             salesman: salesman,
-            appliedTaxes: appliedTaxes,
+            tax: parseFloat(taxTotal) || 0,
             date: new Date().toISOString()
         })
     }).then(res => {

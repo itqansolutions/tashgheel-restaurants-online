@@ -659,7 +659,7 @@ router.post('/sales/refund/:id', async (req, res) => {
 router.patch('/sales/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const updateData = req.body;
+        const updateData = req.body || {};
 
         const sale = await prisma.sale.findUnique({
             where: { id }
@@ -667,15 +667,45 @@ router.patch('/sales/:id', async (req, res) => {
 
         if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Sale not found' });
 
-        // Merge existing items if necessary or replace?
-        // For online order finalization, we usually just update status, method, shiftId, etc.
+        const prismaData = {};
+
+        if (updateData.status !== undefined) prismaData.status = updateData.status;
+        if (updateData.kitchenStatus !== undefined) prismaData.kitchenStatus = updateData.kitchenStatus;
+        if (updateData.method !== undefined) prismaData.method = updateData.method;
+        if (updateData.cashier !== undefined) prismaData.cashier = updateData.cashier;
+        if (updateData.salesman !== undefined) prismaData.salesman = updateData.salesman;
+        if (updateData.note !== undefined) prismaData.note = updateData.note;
+        if (updateData.receiptNo !== undefined) prismaData.receiptNo = updateData.receiptNo;
+        if (updateData.total !== undefined) prismaData.total = parseFloat(updateData.total);
+        if (updateData.subtotal !== undefined) prismaData.subtotal = parseFloat(updateData.subtotal);
+        if (updateData.discount !== undefined) prismaData.discount = parseFloat(updateData.discount);
+        if (updateData.deliveryFee !== undefined) prismaData.deliveryFee = parseFloat(updateData.deliveryFee);
+        if (updateData.tax !== undefined) prismaData.tax = parseFloat(updateData.tax);
+        if (updateData.splitCash !== undefined) prismaData.splitCash = parseFloat(updateData.splitCash);
+        if (updateData.splitCard !== undefined) prismaData.splitCard = parseFloat(updateData.splitCard);
+        if (updateData.orderType !== undefined) prismaData.orderType = updateData.orderType;
+        if (updateData.tableId !== undefined) prismaData.tableId = updateData.tableId;
+        if (updateData.tableName !== undefined) prismaData.tableName = updateData.tableName;
+        if (updateData.customer !== undefined) prismaData.customer = updateData.customer;
+        if (updateData.date) prismaData.date = new Date(updateData.date);
+
+        // Connect Shift relation properly in Prisma
+        const targetShiftId = updateData.shiftId || (updateData.shift?.id);
+        if (targetShiftId) {
+            prismaData.shift = { connect: { id: targetShiftId } };
+        } else if (updateData.shiftId === null) {
+            prismaData.shift = { disconnect: true };
+        }
+
         const updated = await prisma.sale.update({
             where: { id },
-            data: {
-                ...updateData,
-                date: updateData.date ? new Date(updateData.date) : undefined
-            }
+            data: prismaData
         });
+
+        // Also update daily summary if finalizing sale
+        if (prismaData.status === 'finished') {
+            updateDailySummary(req, updated).catch(e => console.error('Summary Update Error:', e));
+        }
 
         res.json({ success: true, sale: updated });
     } catch (err) {
