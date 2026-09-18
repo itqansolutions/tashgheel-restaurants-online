@@ -1026,19 +1026,34 @@ router.post('/inventory/restock', async (req, res) => {
                 });
 
                 // 5. Update Vendor.credit: credit purchase increases debt, paid_now has no net change
-                if (purchaseType === 'credit') {
-                    await tx.vendor.updateMany({
+                if (vendorId) {
+                    // Find vendor by UUID first, fallback to name match
+                    const foundVendor = await tx.vendor.findFirst({
                         where: {
                             tenantId: req.tenantId,
                             OR: [
                                 { id: String(vendorId) },
                                 { name: String(vendorId) }
                             ]
-                        },
-                        data: { credit: { increment: totalCost } }
+                        }
                     });
+
+                    console.log(`[Restock] vendorId=${vendorId}, purchaseType=${purchaseType}, foundVendor=${foundVendor?.id || 'NOT FOUND'}, totalCost=${totalCost}`);
+
+                    if (foundVendor) {
+                        if (purchaseType === 'credit') {
+                            // Credit purchase: increase vendor debt
+                            await tx.vendor.update({
+                                where: { id: foundVendor.id },
+                                data: { credit: { increment: totalCost } }
+                            });
+                            console.log(`[Restock] ✅ Vendor ${foundVendor.name} credit incremented by ${totalCost}`);
+                        }
+                        // paid_now: no net credit change (purchase + payment cancel out)
+                    } else {
+                        console.warn(`[Restock] ⚠️ Vendor not found in DB for vendorId=${vendorId}, tenantId=${req.tenantId}. Transactions saved but Vendor.credit NOT updated.`);
+                    }
                 }
-                // paid_now: no net credit change (purchase + payment cancel out)
             }
         });
 

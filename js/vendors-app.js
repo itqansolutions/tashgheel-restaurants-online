@@ -73,11 +73,13 @@ async function renderVendors() {
         const v = vendors[i];
         const vId = v.id || v._id;
         let trans = [];
+        let serverTxFetched = false;
         if (window.apiFetch) {
             try {
                 const serverTx = await window.apiFetch(`/parties/vendors/${vId}/transactions`);
-                if (Array.isArray(serverTx) && serverTx.length > 0) {
+                if (Array.isArray(serverTx)) {
                     trans = serverTx;
+                    serverTxFetched = true;
                     // Cache transactions in local DB so reports and print work
                     const allTrans = window.EnhancedSecurity.getSecureData('vendor_transactions') || [];
                     const otherTrans = allTrans.filter(t => t.vendorId != vId);
@@ -90,7 +92,8 @@ async function renderVendors() {
             trans = window.DB.getVendorTransactions(vId) || [];
         }
 
-        if (trans.length > 0) {
+        // Always reconcile if we got server data (even empty = credit should be 0)
+        if (serverTxFetched || trans.length > 0) {
             const totalLogValue = trans.reduce((sum, t) => {
                 let amt = parseFloat(t.amount) || 0;
                 if (t.type === 'payment') amt = -Math.abs(amt);
@@ -98,8 +101,10 @@ async function renderVendors() {
             }, 0);
 
             const currentCredit = parseFloat(v.credit) || 0;
+            console.log(`[Vendors] ${v.name} (${vId}): DB credit=${currentCredit.toFixed(2)}, transactions sum=${totalLogValue.toFixed(2)}, txCount=${trans.length}`);
+
             if (Math.abs(currentCredit - totalLogValue) > 0.01) {
-                console.log(`Syncing vendor ${v.name} (${vId}): DB credit is ${currentCredit}, calculated transactions sum is ${totalLogValue}`);
+                console.log(`[Vendors] 🔄 Syncing ${v.name}: ${currentCredit.toFixed(2)} → ${totalLogValue.toFixed(2)}`);
                 v.credit = totalLogValue;
                 const vendorToSave = {
                     id: vId,
