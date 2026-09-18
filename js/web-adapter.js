@@ -702,7 +702,10 @@
                                 return JSON.parse(text);
                             }
                         } else {
-                            console.warn('❌ Token Refresh Failed. Session expired.');
+                            console.warn('❌ Token Refresh Failed. Session expired. Redirecting to login...');
+                            if (!window.location.pathname.includes('index.html') && !window.location.pathname.includes('login')) {
+                                window.location.href = '/index.html?expired=1';
+                            }
                         }
                     } catch (refreshErr) {
                         console.error('⚠️ Error during token refresh attempt:', refreshErr);

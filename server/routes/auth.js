@@ -44,7 +44,7 @@ const generateTokens = (user, tenantId) => {
         }
     };
 
-    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' });
+    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
     const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: '7d' });
 
     return { accessToken, refreshToken };
