@@ -950,20 +950,23 @@ router.post('/inventory/restock', async (req, res) => {
             });
 
             // 2. Log as InventoryAdjustment (PURCHASE)
-            await tx.inventoryAdjustment.create({
-                data: {
-                    tenantId: req.tenantId,
-                    branchId: req.branchId,
-                    itemId: String(ingredientId),
-                    type: 'PURCHASE',
-                    qty: parseFloat(qty),
-                    unitCost: parseFloat(unitCost),
-                    totalCost,
-                    reason: notes || (purchaseType === 'credit' ? 'Credit Purchase' : `Cash Purchase — paid ${paymentMethod || 'cash'}`),
-                    referenceId: vendorId ? `VENDOR-${vendorId}` : null,
-                    createdBy: req.userId
-                }
-            });
+            // Note: createdById is a required relation FK to User — must use correct field name
+            if (req.userId) {
+                await tx.inventoryAdjustment.create({
+                    data: {
+                        tenantId: req.tenantId,
+                        branchId: req.branchId,
+                        itemId: String(ingredientId),
+                        type: 'PURCHASE',
+                        qty: parseFloat(qty),
+                        unitCost: parseFloat(unitCost),
+                        totalCost,
+                        reason: notes || (purchaseType === 'credit' ? 'Credit Purchase' : `Cash Purchase — paid ${paymentMethod || 'cash'}`),
+                        referenceId: vendorId ? `VENDOR-${vendorId}` : null,
+                        createdById: req.userId   // ✅ Fixed: was 'createdBy' (wrong field name — caused full tx rollback)
+                    }
+                });
+            }
 
             // 3. Create Expense record (always — credit or paid)
             await tx.expense.create({

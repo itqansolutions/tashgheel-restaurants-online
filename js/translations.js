@@ -38,6 +38,7 @@ const translations = {
     add_expense: { en: "➕ Add Expense", ar: "➕ إضافة مصروف" },
     expenses_list: { en: "📋 Expenses List", ar: "📋 قائمة المصاريف" },
     seller: { en: "Seller", ar: "البائع" },
+    seller_optional: { en: "Seller (Optional)", ar: "البائع (اختياري)" },
     method: { en: "Payment Method", ar: "طريقة الدفع" },
     cash: { en: "Cash", ar: "نقدي" },
     card: { en: "Card", ar: "بطاقة" },

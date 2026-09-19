@@ -90,6 +90,7 @@ function renderVendorReport() {
     const historyTable = document.getElementById('paymentHistoryTable');
     historyTable.innerHTML = '';
 
+    const payments = transactions.filter(t => t.type === 'payment'); // ✅ Fixed: was referencing undefined `payments`
     if (payments.length === 0) {
         historyTable.innerHTML = '<tr><td colspan="4" style="text-align:center;">No payments recorded.</td></tr>';
     } else {

@@ -325,7 +325,7 @@
           <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
           <input id="productSearch"
             class="w-full pl-10 pr-12 py-2.5 bg-white dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary shadow-sm text-sm"
-            placeholder="Search products..." data-i18n-placeholder="search_products" type="text" />
+            placeholder="Search products..." data-i18n-placeholder="search_products" type="text" autocomplete="off" />
           <button onclick="scanBarcode()" id="scanBtn"
             class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary">
             <span class="material-symbols-outlined text-lg">qr_code_scanner</span>
@@ -427,7 +427,7 @@
       <div id="deliverySection" class="p-2 bg-slate-50 border border-slate-200 rounded text-xs dark:bg-slate-800 dark:border-slate-700 shrink-0"
         style="display:none;">
         <div class="flex gap-1 mb-2">
-          <input type="text" id="custSearchPos" placeholder="Phone/Name..." class="flex-1 p-1 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+          <input type="text" id="custSearchPos" placeholder="Phone/Name..." autocomplete="off" class="flex-1 p-1 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100">
           <button onclick="searchCustomerPos()" class="bg-primary text-white p-1 rounded">🔍</button>
         </div>
         <div id="selectedCustomerDisplay" style="display:none;"

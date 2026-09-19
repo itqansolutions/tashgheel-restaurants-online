@@ -262,7 +262,7 @@ function loadInventory() {
 }
 
 // === FORM HANDLING ===
-function handleSaveMaterial(e) {
+async function handleSaveMaterial(e) {
     e.preventDefault();
 
     const id = document.getElementById('material-id').value;
@@ -281,10 +281,11 @@ function handleSaveMaterial(e) {
 
     const activeBranchId = getActiveBranchId();
     const existingIngredient = id ? window.DB.getIngredient(id) : null;
+    const isNew = !id;
 
     // Merge stockByBranch: keep existing branch stocks, set current branch stock for new items
     let stockByBranch = existingIngredient?.stockByBranch || {};
-    if (!id && activeBranchId) {
+    if (isNew && activeBranchId) {
         // New material: initialise stock for the current branch
         stockByBranch[activeBranchId] = isNaN(stock) ? 0 : stock;
     }
@@ -301,7 +302,55 @@ function handleSaveMaterial(e) {
         expirationDate: expDate || null
     };
 
+    // If NEW material with initial stock > 0 and vendor selected,
+    // let /inventory/restock add the initial stock on server & local DB to avoid double-adding.
+    if (isNew && stock > 0 && vendorId) {
+        material.stock = 0;
+        if (activeBranchId) {
+            material.stockByBranch[activeBranchId] = 0;
+        }
+    }
+
     window.DB.saveIngredient(material);
+
+    // 🟢 If NEW material with initial stock > 0 and a vendor is selected,
+    // record it as a purchase in the vendor's ledger (same as Restock flow).
+    if (isNew && stock > 0 && vendorId && window.apiFetch) {
+        try {
+            await window.apiFetch('/inventory/restock', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ingredientId: material.id,
+                    ingredientName: name,
+                    ingredientUnit: unit,
+                    vendorId,
+                    qty: stock,
+                    unitCost: cost,
+                    purchaseType: 'credit',   // Initial stock treated as credit purchase
+                    paymentMethod: null,
+                    notes: 'Initial stock on material creation'
+                })
+            });
+
+            // Update local DB to reflect the new stock and vendorId
+            const savedMat = window.DB.getIngredient(material.id);
+            if (savedMat) {
+                if (!savedMat.stockByBranch) savedMat.stockByBranch = {};
+                const bKey = activeBranchId || 'default';
+                savedMat.stockByBranch[bKey] = stock;
+                savedMat.stock = stock;
+                savedMat.vendorId = vendorId;
+                window.DB.saveIngredient(savedMat);
+            }
+        } catch (err) {
+            console.error('[SaveMaterial] Failed to record vendor purchase for initial stock:', err);
+            // Fallback: restore entered stock if API restock failed
+            material.stock = stock;
+            if (activeBranchId) material.stockByBranch[activeBranchId] = stock;
+            window.DB.saveIngredient(material);
+        }
+    }
+
     resetForm();
     loadInventory();
     alert(id ? 'Material Updated' : 'Material Added');

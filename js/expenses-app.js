@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const amount = parseFloat(document.getElementById('expenseAmount').value);
     const method = document.getElementById('expenseMethod').value;
 
-    if (!date || !seller || !desc || isNaN(amount) || amount <= 0) {
+    if (!date || !desc || isNaN(amount) || amount <= 0) {
       alert(t("Please fill all fields correctly", "يرجى ملء جميع الحقول بشكل صحيح"));
       return;
     }
