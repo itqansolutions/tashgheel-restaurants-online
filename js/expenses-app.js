@@ -64,21 +64,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === Add Expense (Server) ===
   window.addExpense = async function () {
-    const date = expenseDateInput.value;
-    const seller = sellerSelect.value;
-    const desc = document.getElementById('expenseDesc').value.trim();
-    const amount = parseFloat(document.getElementById('expenseAmount').value);
-    const method = document.getElementById('expenseMethod').value;
+    const dateInput = document.getElementById('expenseDate');
+    const date = (dateInput && dateInput.value) ? dateInput.value : new Date().toISOString().split('T')[0];
+    const seller = sellerSelect ? (sellerSelect.value || '') : '';
+    const desc = (document.getElementById('expenseDesc')?.value || '').trim();
+    const amountVal = document.getElementById('expenseAmount')?.value;
+    const amount = parseFloat(amountVal);
+    const method = document.getElementById('expenseMethod')?.value || 'cash';
 
-    if (!date || !desc || isNaN(amount) || amount <= 0) {
-      alert(t("Please fill all fields correctly", "يرجى ملء جميع الحقول بشكل صحيح"));
+    // Seller is completely OPTIONAL — only validate description and amount
+    if (!desc) {
+      alert(t("Please enter a description", "يرجى كتابة وصف المصروف"));
+      return;
+    }
+    if (isNaN(amount) || amount <= 0) {
+      alert(t("Please enter a valid amount", "يرجى كتابة مبلغ صحيح للمصروف"));
       return;
     }
 
     try {
       const payload = {
         date,
-        seller,
+        seller: seller || null,
         description: desc,
         amount,
         method,
@@ -95,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       loadExpenses();
       clearForm();
-      // Removed: alert('Saved'); to keep flow smooth, validation is enough
     } catch (err) {
       console.error("Failed to save expense:", err);
       alert(t("Failed to save expense", "فشل حفظ المصروف") + ": " + err.message);
