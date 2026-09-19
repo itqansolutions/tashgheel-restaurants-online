@@ -108,7 +108,11 @@ async function loadVendors() {
         opt.setAttribute('data-name', v.name);
         select.appendChild(opt);
     });
-    if (currentVal) select.value = currentVal;
+    if (currentVal) {
+        select.value = currentVal;
+    } else if (vendors.length === 1) {
+        select.value = vendors[0].id || vendors[0]._id;
+    }
 }
 
 // Safe Float Parsing Helper
@@ -273,13 +277,23 @@ async function handleSaveMaterial(e) {
     const unit = document.getElementById('material-unit').value.trim();
     const cost = parseFloat(document.getElementById('material-cost').value);
     const stock = parseFloat(document.getElementById('material-stock').value || 0);
-    const vendorId = document.getElementById('material-vendor').value;
+    let vendorId = document.getElementById('material-vendor').value;
     const minStock = parseFloat(document.getElementById('material-min').value);
     const expDate = document.getElementById('material-exp').value;
 
     if (!name || isNaN(cost)) {
         alert('Please fill required fields (Name, Cost)');
         return;
+    }
+
+    // Auto-detect vendor if only 1 vendor exists in system and none was selected
+    if (!vendorId) {
+        const availVendors = (window.DataCache && window.DataCache['vendors']) || (window.DB && window.DB.getVendors()) || [];
+        if (availVendors.length === 1) {
+            vendorId = availVendors[0].id || availVendors[0]._id;
+            const vendorSelect = document.getElementById('material-vendor');
+            if (vendorSelect) vendorSelect.value = vendorId;
+        }
     }
 
     const activeBranchId = getActiveBranchId();
@@ -354,8 +368,23 @@ async function handleSaveMaterial(e) {
             }
         }
 
-        // 3. Post to backend restock endpoint to persist in database
+        // 3. Post to backend vendor transactions endpoint directly to guarantee vendor balance update
         if (window.apiFetch) {
+            try {
+                await window.apiFetch(`/parties/vendors/${vendorId}/transactions`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        type: 'purchase',
+                        amount: purchaseTotal,
+                        description: `Purchase: ${name} (${purchasedQty} ${unit} × ${cost.toFixed(2)})`,
+                        date: new Date().toISOString().split('T')[0],
+                        method: 'credit'
+                    })
+                });
+            } catch (txErr) {
+                console.error('[SaveMaterial] Failed to record vendor transaction on server:', txErr);
+            }
+
             try {
                 await window.apiFetch('/inventory/restock', {
                     method: 'POST',
@@ -372,15 +401,15 @@ async function handleSaveMaterial(e) {
                         branchId: activeBranchId
                     })
                 });
-
-                // Refresh vendors from server if electronAPI available
-                if (window.electronAPI && window.electronAPI.getVendors) {
-                    window.electronAPI.getVendors().then(vList => {
-                        if (vList && window.DataCache) window.DataCache['vendors'] = vList;
-                    }).catch(() => {});
-                }
             } catch (err) {
-                console.error('[SaveMaterial] Failed to record vendor restock on server:', err);
+                console.warn('[SaveMaterial] Restock notice:', err);
+            }
+
+            // Refresh vendors from server if electronAPI available
+            if (window.electronAPI && window.electronAPI.getVendors) {
+                window.electronAPI.getVendors().then(vList => {
+                    if (vList && window.DataCache) window.DataCache['vendors'] = vList;
+                }).catch(() => {});
             }
         }
     }

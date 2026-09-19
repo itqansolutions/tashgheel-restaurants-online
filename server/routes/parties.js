@@ -6,9 +6,116 @@ const prisma = require('../prisma');
 router.get('/vendors', async (req, res) => {
     try {
         const { tenantId } = req;
-        const vendors = await prisma.vendor.findMany({
+        let vendors = await prisma.vendor.findMany({
             where: { tenantId }
         });
+
+        // Auto-reconciliation: ensure vendor credit reflects actual ledger transactions or raw material stock
+        if (Array.isArray(vendors) && vendors.length > 0) {
+            let ingredients = [];
+            try {
+                const ingData = await prisma.data.findUnique({
+                    where: { key_tenantId: { key: 'ingredients', tenantId } }
+                });
+                if (ingData && ingData.value) {
+                    const parsed = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
+                    if (Array.isArray(parsed)) ingredients = parsed;
+                }
+            } catch (e) {}
+
+            for (const v of vendors) {
+                try {
+                    const txKey = `vendor_transactions_${v.id}`;
+                    let txData = await prisma.data.findUnique({
+                        where: { key_tenantId: { key: txKey, tenantId } }
+                    });
+                    let transactions = [];
+                    if (txData && txData.value) {
+                        transactions = typeof txData.value === 'string' ? JSON.parse(txData.value) : txData.value;
+                    }
+                    if (!Array.isArray(transactions) || transactions.length === 0) {
+                        const altTxKey = `vendor_transactions_${v.name}`;
+                        const altData = await prisma.data.findUnique({
+                            where: { key_tenantId: { key: altTxKey, tenantId } }
+                        });
+                        if (altData && altData.value) {
+                            const parsedAlt = typeof altData.value === 'string' ? JSON.parse(altData.value) : altData.value;
+                            if (Array.isArray(parsedAlt) && parsedAlt.length > 0) {
+                                transactions = parsedAlt;
+                            }
+                        }
+                    }
+
+                    if (Array.isArray(transactions) && transactions.length > 0) {
+                        const ledgerBalance = transactions.reduce((sum, t) => {
+                            const amt = parseFloat(t.amount) || 0;
+                            return t.type === 'payment' ? sum - amt : sum + amt;
+                        }, 0);
+                        if (Math.abs((parseFloat(v.credit) || 0) - ledgerBalance) > 0.01) {
+                            await prisma.vendor.update({
+                                where: { id: v.id },
+                                data: { credit: ledgerBalance }
+                            });
+                            v.credit = ledgerBalance;
+                        }
+                    } else if ((parseFloat(v.credit) || 0) === 0 && ingredients.length > 0) {
+                        // Check if raw materials in stock belong to this vendor
+                        const matched = ingredients.filter(m =>
+                            (m.vendorId == v.id || m.vendorId == v.name || (!m.vendorId && vendors.length === 1)) &&
+                            (parseFloat(m.stock) > 0)
+                        );
+                        if (matched.length > 0) {
+                            const totalStockCost = matched.reduce((sum, m) => {
+                                return sum + (parseFloat(m.stock) || 0) * (parseFloat(m.cost) || 0);
+                            }, 0);
+
+                            if (totalStockCost > 0) {
+                                const newTx = [{
+                                    id: `${Date.now()}-stock-purchase`,
+                                    vendorId: v.id,
+                                    type: 'purchase',
+                                    amount: totalStockCost,
+                                    description: `Stock Purchase: ${matched.map(m => `${m.name} (${m.stock} ${m.unit || ''} × ${(parseFloat(m.cost) || 0).toFixed(2)})`).join(', ')}`,
+                                    date: new Date().toISOString().split('T')[0],
+                                    method: 'credit',
+                                    createdAt: new Date().toISOString()
+                                }];
+
+                                await prisma.data.upsert({
+                                    where: { key_tenantId: { key: txKey, tenantId } },
+                                    update: { value: JSON.stringify(newTx), updatedAt: new Date() },
+                                    create: { key: txKey, tenantId, value: JSON.stringify(newTx) }
+                                });
+
+                                await prisma.vendor.update({
+                                    where: { id: v.id },
+                                    data: { credit: totalStockCost }
+                                });
+                                v.credit = totalStockCost;
+
+                                // Update vendorId in ingredients blob if needed
+                                let updatedIng = false;
+                                matched.forEach(m => {
+                                    if (!m.vendorId) {
+                                        m.vendorId = v.id;
+                                        updatedIng = true;
+                                    }
+                                });
+                                if (updatedIng) {
+                                    await prisma.data.update({
+                                        where: { key_tenantId: { key: 'ingredients', tenantId } },
+                                        data: { value: JSON.stringify(ingredients), updatedAt: new Date() }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } catch (vSyncErr) {
+                    console.warn(`[VendorSync] Error syncing vendor ${v.id}:`, vSyncErr.message);
+                }
+            }
+        }
+
         res.json(vendors);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -108,6 +215,44 @@ router.get('/vendors/:id/transactions', async (req, res) => {
                     if (Array.isArray(altTx) && altTx.length > 0) {
                         transactions = altTx;
                     }
+                }
+
+                // If still empty, check if ingredients exist in inventory for this vendor
+                if (!Array.isArray(transactions) || transactions.length === 0) {
+                    try {
+                        const ingData = await prisma.data.findUnique({
+                            where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } }
+                        });
+                        if (ingData && ingData.value) {
+                            const parsedIng = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
+                            if (Array.isArray(parsedIng)) {
+                                const matched = parsedIng.filter(m =>
+                                    (m.vendorId == vendor.id || m.vendorId == vendor.name || !m.vendorId) &&
+                                    (parseFloat(m.stock) > 0)
+                                );
+                                if (matched.length > 0) {
+                                    const totalCost = matched.reduce((sum, m) => sum + (parseFloat(m.stock) || 0) * (parseFloat(m.cost) || 0), 0);
+                                    if (totalCost > 0) {
+                                        transactions = [{
+                                            id: `${Date.now()}-stock-purchase`,
+                                            vendorId: vendor.id,
+                                            type: 'purchase',
+                                            amount: totalCost,
+                                            description: `Stock Purchase: ${matched.map(m => `${m.name} (${m.stock} ${m.unit || ''} × ${(parseFloat(m.cost) || 0).toFixed(2)})`).join(', ')}`,
+                                            date: new Date().toISOString().split('T')[0],
+                                            method: 'credit',
+                                            createdAt: new Date().toISOString()
+                                        }];
+                                        await prisma.data.upsert({
+                                            where: { key_tenantId: { key: `vendor_transactions_${vendor.id}`, tenantId: req.tenantId } },
+                                            update: { value: JSON.stringify(transactions), updatedAt: new Date() },
+                                            create: { key: `vendor_transactions_${vendor.id}`, tenantId: req.tenantId, value: JSON.stringify(transactions) }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch (ingErr) {}
                 }
             }
         }

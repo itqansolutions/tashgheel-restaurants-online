@@ -17,6 +17,57 @@ router.post('/data/save', async (req, res) => {
         // Use storage.saveData so values are always serialized as strings,
         // consistent with how public-api.js reads them via storage.readData
         await storage.saveData(key, value, tid);
+
+        // When raw materials/ingredients are saved, ensure vendor credit & ledger are updated
+        if (key === 'ingredients' && Array.isArray(value)) {
+            try {
+                const vendors = await prisma.vendor.findMany({ where: { tenantId: tid } });
+                if (vendors.length > 0) {
+                    for (const v of vendors) {
+                        const matched = value.filter(m =>
+                            (m.vendorId == v.id || m.vendorId == v.name || (!m.vendorId && vendors.length === 1)) &&
+                            (parseFloat(m.stock) > 0)
+                        );
+                        if (matched.length > 0) {
+                            const totalCost = matched.reduce((sum, m) => sum + (parseFloat(m.stock) || 0) * (parseFloat(m.cost) || 0), 0);
+                            const txKey = `vendor_transactions_${v.id}`;
+                            const existingData = await prisma.data.findUnique({
+                                where: { key_tenantId: { key: txKey, tenantId: tid } }
+                            });
+                            let txs = [];
+                            if (existingData && existingData.value) {
+                                txs = typeof existingData.value === 'string' ? JSON.parse(existingData.value) : existingData.value;
+                            }
+                            if (!Array.isArray(txs) || txs.length === 0) {
+                                const newTx = [{
+                                    id: `${Date.now()}-stock-purchase`,
+                                    vendorId: v.id,
+                                    type: 'purchase',
+                                    amount: totalCost,
+                                    description: `Stock Purchase: ${matched.map(m => `${m.name} (${m.stock} ${m.unit || ''} × ${(parseFloat(m.cost) || 0).toFixed(2)})`).join(', ')}`,
+                                    date: new Date().toISOString().split('T')[0],
+                                    method: 'credit',
+                                    createdAt: new Date().toISOString()
+                                }];
+                                await prisma.data.upsert({
+                                    where: { key_tenantId: { key: txKey, tenantId: tid } },
+                                    update: { value: JSON.stringify(newTx), updatedAt: new Date() },
+                                    create: { key: txKey, tenantId: tid, value: JSON.stringify(newTx) }
+                                });
+                                await prisma.vendor.update({
+                                    where: { id: v.id },
+                                    data: { credit: totalCost }
+                                });
+                                console.log(`[DataSave:Ingredients] Synced vendor ${v.name} credit to ${totalCost}`);
+                            }
+                        }
+                    }
+                }
+            } catch (vErr) {
+                console.warn('[DataSave:Ingredients] Vendor balance sync error:', vErr.message);
+            }
+        }
+
         res.json({ success: true });
     } catch (err) {
         console.error(`Error saving ${key}:`, err);

@@ -68,6 +68,19 @@ async function renderVendors() {
     const vendors = await window.electronAPI.getVendors() || [];
     console.log('Vendors loaded:', vendors.length);
 
+    // In web mode, ensure ingredients are cached so DB.getIngredients() has data
+    if (window.electronAPI && window.electronAPI.readData) {
+        try {
+            const ingData = await window.electronAPI.readData('ingredients');
+            if (ingData) {
+                const parsedIng = typeof ingData === 'string' ? JSON.parse(ingData) : ingData;
+                if (Array.isArray(parsedIng)) {
+                    window.EnhancedSecurity.storeSecureData('ingredients', parsedIng);
+                }
+            }
+        } catch (e) {}
+    }
+
     // Reconcile/sync transactions for each vendor
     for (let i = 0; i < vendors.length; i++) {
         const v = vendors[i];
