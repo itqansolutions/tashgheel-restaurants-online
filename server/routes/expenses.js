@@ -8,7 +8,10 @@ router.get('/', async (req, res) => {
         const { tenantId } = req;
         const { from, to, category, branchId: queryBranchId } = req.query;
 
-        const filter = { tenantId };
+        const filter = {
+            tenantId,
+            method: { not: 'credit' } // Unpaid credit purchases are vendor liabilities, not paid expenses
+        };
         
         // Use queryBranchId if 'all' isn't requested, or fallback to session branchId
         if (queryBranchId && queryBranchId !== 'all') {
@@ -24,6 +27,13 @@ router.get('/', async (req, res) => {
         }
 
         if (category) filter.category = category;
+
+        // One-time cleanup of any legacy credit purchase expense records
+        try {
+            await prisma.expense.deleteMany({
+                where: { tenantId, method: 'credit' }
+            });
+        } catch (e) {}
 
         const expenses = await prisma.expense.findMany({
             where: filter,

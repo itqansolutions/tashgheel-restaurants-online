@@ -168,6 +168,35 @@ router.post('/vendors/:id/transactions', async (req, res) => {
                 },
                 data: { credit: { increment: delta } }
             });
+
+            // 💰 If this is a vendor payment, record it as an Expense so it appears on expenses.html
+            if (type === 'payment') {
+                try {
+                    const vendor = await tx.vendor.findFirst({
+                        where: {
+                            tenantId: req.tenantId,
+                            OR: [{ id: String(vendorId) }, { name: String(vendorId) }]
+                        }
+                    });
+                    await tx.expense.create({
+                        data: {
+                            description: description || `Vendor Payment: ${vendor?.name || vendorId}`,
+                            amount: parseFloat(amount),
+                            date: today,
+                            seller: vendor?.name || String(vendorId),
+                            method: method || 'cash',
+                            notes: notes || null,
+                            category: 'Raw Materials',
+                            type: 'expense',
+                            tenantId: req.tenantId,
+                            branchId: req.branchId || vendor?.branchId || 'default',
+                            createdBy: req.userId || 'system'
+                        }
+                    });
+                } catch (expErr) {
+                    console.warn('[VendorPayment] Optional Expense record skipped:', expErr.message);
+                }
+            }
         });
 
         res.json({ success: true });

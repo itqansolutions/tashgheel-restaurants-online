@@ -149,8 +149,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
       });
 
-      // Combined
-      let allExpenses = [...serverExpenses.map(e => ({ ...e, source: 'manual' })), ...paymentExpenses];
+      // Combined (exclude unpaid credit purchases — only paid expenses and vendor payments appear here)
+      let allExpenses = [...serverExpenses.map(e => ({ ...e, source: 'manual' })), ...paymentExpenses]
+        .filter(e => e.method !== 'credit');
 
       // Client-side filtering for joined data
       allExpenses = allExpenses.filter(e => {

@@ -983,25 +983,38 @@ router.post('/inventory/restock', async (req, res) => {
                 }
             }
 
-            // 3. Create Expense record (always — credit or paid) - Safe execution
-            try {
-                await tx.expense.create({
-                    data: {
-                        description,
-                        amount: totalCost,
-                        date: today,
-                        seller: vendorId ? String(vendorId) : null,
-                        method: purchaseType === 'paid_now' ? (paymentMethod || 'cash') : 'credit',
-                        notes: notes || null,
-                        category: 'Raw Materials',
-                        type: 'expense',
-                        tenantId: req.tenantId,
-                        branchId: targetBranchId || req.branchId || 'default',
-                        createdBy: req.userId || 'system'
-                    }
-                });
-            } catch (expErr) {
-                console.warn('[Restock] Optional Expense record skipped:', expErr.message);
+            // 3. Create Expense record ONLY IF paid_now (Credit purchases do NOT create expense until actually paid to vendor)
+            if (purchaseType === 'paid_now') {
+                try {
+                    await tx.expense.create({
+                        data: {
+                            description,
+                            amount: totalCost,
+                            date: today,
+                            seller: vendorId ? String(vendorId) : null,
+                            method: paymentMethod || 'cash',
+                            notes: notes || null,
+                            category: 'Raw Materials',
+                            type: 'expense',
+                            tenantId: req.tenantId,
+                            branchId: targetBranchId || req.branchId || 'default',
+                            createdBy: req.userId || 'system'
+                        }
+                    });
+                } catch (expErr) {
+                    console.warn('[Restock] Optional Expense record skipped:', expErr.message);
+                }
+            } else {
+                // Credit purchase: Clean up any mistakenly recorded credit expense for raw materials
+                try {
+                    await tx.expense.deleteMany({
+                        where: {
+                            tenantId: req.tenantId,
+                            category: 'Raw Materials',
+                            method: 'credit'
+                        }
+                    });
+                } catch (delErr) {}
             }
 
             // 4. Vendor ledger & balance: update vendor credit & transaction log
