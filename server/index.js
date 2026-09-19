@@ -51,6 +51,9 @@ async function startServer() {
 
         // Start background jobs
         require('./jobs/orderCleanup');
+
+        // Auto-import customer backup for target tenant if pending
+        require('./utils/tenantDataImporter').autoImportCustomerData().catch(e => console.warn('[AutoImport]', e.message));
     } catch (err) {
         console.error('❌ Database Connection Error:', err.message);
         // In production, you might want to retry or exit

@@ -1,0 +1,3856 @@
+{
+  "pos_secure_license": {
+    "licenseKey": "NGRiM2IxYjIuTDBNZUFRTktYMGRVYkRaUVF4VlFXMGhMUFRJRVRrRkJBV2NmQ0FJQVBBNFFGbVFBUzE0RVdBWURDV2x4U1ZBVUFCbEhTWDBKQUEwYUFBUjlIaEpHVEM5R0JobDJMVG91SWp3c0tDbDlmMGNXRnhBUVIwbHNZMGxCS2dFRU0wWVNDQmN1Rms5QU9WaFJSRVUzQWdBQ2ZXbFVSVUZSVkZ4Q2IyRlJVazFER0E9PQ==",
+    "businessName": "Zenora",
+    "activated": true,
+    "activatedDate": "2026-05-14T20:37:06.533Z",
+    "systemFingerprint": "83e51c98-8baa-43d8-805c-450a86c0cfe6",
+    "type": "LIFETIME",
+    "expiryDate": "2026-06-13T20:37:06.533Z"
+  },
+  "pos_secure_users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "passwordHash": "IAgEIg9DU14=",
+      "role": "admin",
+      "fullName": "System Administrator",
+      "active": true,
+      "createdAt": "2026-04-07T09:08:39.919Z"
+    },
+    {
+      "id": 1775751243814,
+      "username": "ali",
+      "passwordHash": "cF5af1RE",
+      "role": "cashier",
+      "fullName": "test",
+      "allowedPages": [
+        "pos.html"
+      ],
+      "active": false,
+      "createdAt": "2026-04-09T16:14:03.814Z",
+      "createdBy": "admin",
+      "deletedAt": "2026-04-09T16:14:29.925Z",
+      "deletedBy": "admin"
+    },
+    {
+      "id": 1775751291165,
+      "username": "ali",
+      "passwordHash": "cF5af1RE",
+      "role": "admin",
+      "fullName": "alik",
+      "allowedPages": [
+        "kitchen.html",
+        "vendors.html",
+        "expenses.html",
+        "salesmen.html",
+        "pos.html",
+        "products.html",
+        "inventory.html",
+        "customers.html",
+        "receipts.html",
+        "reports.html",
+        "admin.html"
+      ],
+      "active": true,
+      "createdAt": "2026-04-09T16:14:51.165Z",
+      "createdBy": "admin"
+    }
+  ],
+  "pos_secure_customers": [
+    {
+      "id": 1778014345490,
+      "name": "عبدالله",
+      "mobile": "011026522373",
+      "notes": "راجل محترم",
+      "addresses": [
+        {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      ],
+      "createdAt": "2026-05-05T20:52:25.490Z"
+    }
+  ],
+  "pos_secure_vehicles": [],
+  "pos_secure_spare_parts": [
+    {
+      "id": 1775553021543,
+      "partNumber": "01",
+      "name": "Hawashi",
+      "category": "Meals",
+      "price": 150,
+      "cost": 100,
+      "image": "",
+      "stock": -29,
+      "allowAllAddons": false,
+      "allowedAddons": [
+        "1775553264509",
+        "1775553291991",
+        "1775560968721",
+        "1775560989317",
+        "1775561024599",
+        "1775561043114",
+        "1775561073200",
+        "1775561254365",
+        "1775571681626"
+      ],
+      "recipe": [],
+      "hasSizes": true,
+      "sizes": [
+        {
+          "id": 1775552975305,
+          "name": "Hawashi",
+          "code": "01",
+          "price": 150,
+          "priceDineIn": 150,
+          "priceDelivery": 150,
+          "cost": 150,
+          "recipe": []
+        },
+        {
+          "id": 1775553006498,
+          "name": "Hawashi Combo",
+          "code": "02",
+          "price": 170,
+          "priceDineIn": 170,
+          "priceDelivery": 170,
+          "cost": 100,
+          "recipe": []
+        }
+      ],
+      "isService": false,
+      "updatedAt": "2026-05-15T01:47:30.942Z"
+    },
+    {
+      "id": 1775553213628,
+      "partNumber": "05",
+      "name": "Kofta",
+      "category": "Meals",
+      "price": 120,
+      "cost": 70,
+      "image": "",
+      "stock": -16,
+      "allowAllAddons": false,
+      "allowedAddons": [
+        "1775553264509",
+        "1775553291991"
+      ],
+      "recipe": [],
+      "hasSizes": true,
+      "sizes": [
+        {
+          "id": 1775553177648,
+          "name": "Kofta",
+          "code": "120",
+          "price": 120,
+          "priceDineIn": 120,
+          "priceDelivery": 120,
+          "cost": 70,
+          "recipe": []
+        },
+        {
+          "id": 1775553209739,
+          "name": "Kofta Combo",
+          "code": "351",
+          "price": 150,
+          "priceDineIn": 150,
+          "priceDelivery": 150,
+          "cost": 100,
+          "recipe": []
+        }
+      ],
+      "isService": false,
+      "updatedAt": "2026-05-15T01:46:13.103Z"
+    },
+    {
+      "id": "1775553264509",
+      "partNumber": "02",
+      "name": "Pepsi",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -40,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": true,
+      "createdAt": "2026-04-07T09:14:24.509Z",
+      "updatedAt": "2026-05-15T01:46:13.106Z"
+    },
+    {
+      "id": "1775553291991",
+      "partNumber": "09",
+      "name": "Fries",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -15,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": true,
+      "createdAt": "2026-04-07T09:14:51.991Z",
+      "updatedAt": "2026-05-15T01:45:19.949Z"
+    },
+    {
+      "id": "1775560968721",
+      "partNumber": "01",
+      "name": "Pasta",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -4,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": true,
+      "createdAt": "2026-04-07T11:22:48.721Z",
+      "updatedAt": "2026-05-11T23:34:50.453Z"
+    },
+    {
+      "id": "1775560989317",
+      "partNumber": "",
+      "name": "Red Sauce",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -4,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": true,
+      "createdAt": "2026-04-07T11:23:09.318Z",
+      "updatedAt": "2026-05-11T23:34:50.455Z"
+    },
+    {
+      "id": "1775561024599",
+      "partNumber": "",
+      "name": "tesifn",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -3,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": false,
+      "createdAt": "2026-04-07T11:23:44.599Z",
+      "updatedAt": "2026-05-11T23:34:50.456Z"
+    },
+    {
+      "id": "1775561043114",
+      "partNumber": "",
+      "name": "test",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -2,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": true,
+      "createdAt": "2026-04-07T11:24:03.115Z",
+      "updatedAt": "2026-05-11T23:34:50.458Z"
+    },
+    {
+      "id": "1775561073200",
+      "partNumber": "",
+      "name": "sdfs",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -2,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": true,
+      "createdAt": "2026-04-07T11:24:33.200Z",
+      "updatedAt": "2026-05-11T23:34:50.459Z"
+    },
+    {
+      "id": "1775561254365",
+      "partNumber": "",
+      "name": "dsgdsg",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -2,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": false,
+      "createdAt": "2026-04-07T11:27:34.365Z",
+      "updatedAt": "2026-05-10T15:09:06.006Z"
+    },
+    {
+      "id": "1775571681626",
+      "partNumber": "",
+      "name": "steaks",
+      "category": "Add-ons / الإضافات",
+      "price": 0,
+      "cost": 0,
+      "image": "",
+      "stock": -2,
+      "allowAllAddons": false,
+      "allowedAddons": [
+        "1775553264509",
+        "1775553291991",
+        "1775560968721",
+        "1775560989317",
+        "1775561024599",
+        "1775561043114",
+        "1775561073200",
+        "1775561254365"
+      ],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": true,
+      "createdAt": "2026-04-07T14:21:21.627Z",
+      "updatedAt": "2026-05-10T15:09:06.008Z"
+    },
+    {
+      "id": 1778014564060,
+      "partNumber": "01",
+      "name": "بيتزا",
+      "category": "معجنات",
+      "price": 110,
+      "cost": 50,
+      "image": "",
+      "stock": -2,
+      "allowAllAddons": false,
+      "allowedAddons": [
+        "1775553291991",
+        "1775553264509",
+        "1775561043114",
+        "1778014620816"
+      ],
+      "recipe": [],
+      "hasSizes": true,
+      "sizes": [
+        {
+          "id": 1778014462980,
+          "name": "صغير",
+          "code": "022",
+          "price": 110,
+          "priceDineIn": 120,
+          "priceDelivery": 120,
+          "cost": 50,
+          "recipe": []
+        },
+        {
+          "id": 1778014485356,
+          "name": "كبير",
+          "code": "023",
+          "price": 120,
+          "priceDineIn": 130,
+          "priceDelivery": 130,
+          "cost": 60,
+          "recipe": []
+        }
+      ],
+      "isService": false,
+      "updatedAt": "2026-05-11T15:19:43.702Z"
+    },
+    {
+      "id": "1778014620816",
+      "partNumber": "02",
+      "name": "كاتشب",
+      "category": "Add-ons / الإضافات",
+      "price": 10,
+      "priceDineIn": 10,
+      "priceDelivery": 10,
+      "cost": 2,
+      "image": "",
+      "stock": -2,
+      "allowAllAddons": false,
+      "allowedAddons": [],
+      "recipe": [],
+      "hasSizes": false,
+      "sizes": [],
+      "isService": true,
+      "createdAt": "2026-05-05T20:57:00.816Z",
+      "updatedAt": "2026-05-05T21:06:02.257Z"
+    }
+  ],
+  "pos_secure_visits": [],
+  "pos_secure_vendors": [
+    {
+      "id": 1778014071913,
+      "name": "Ali Karam",
+      "mobile": "01126522373",
+      "address": "Shorouk",
+      "credit": 0,
+      "createdAt": "2026-05-05T20:47:51.914Z",
+      "updatedAt": "2026-05-05T20:50:57.557Z"
+    }
+  ],
+  "pos_secure_vendor_payments": [
+    {
+      "vendorId": 1778014071913,
+      "type": "payment",
+      "amount": 3100,
+      "description": "انستاباي",
+      "date": "2026-05-05",
+      "method": "cash",
+      "id": 1778014257556
+    }
+  ],
+  "pos_secure_vendor_transactions": [
+    {
+      "vendorId": "1778014071913",
+      "type": "purchase",
+      "amount": 100,
+      "description": "Initial Stock: طماطم (Qty: 10)",
+      "date": "2026-05-05",
+      "method": "credit",
+      "id": 1778014161306,
+      "createdAt": "2026-05-05T20:49:21.306Z"
+    },
+    {
+      "vendorId": "1778014071913",
+      "type": "purchase",
+      "amount": 1500,
+      "description": "Initial Stock: لحم (Qty: 10)",
+      "date": "2026-05-05",
+      "method": "credit",
+      "id": 1778014175745,
+      "createdAt": "2026-05-05T20:49:35.745Z"
+    },
+    {
+      "vendorId": "1778014071913",
+      "type": "purchase",
+      "amount": 1500,
+      "description": "Restock: لحم (10 x 150)",
+      "date": "2026-05-05",
+      "method": "credit",
+      "id": 1778014232574,
+      "createdAt": "2026-05-05T20:50:32.574Z"
+    },
+    {
+      "vendorId": 1778014071913,
+      "type": "payment",
+      "amount": 3100,
+      "description": "انستاباي",
+      "date": "2026-05-05",
+      "method": "cash",
+      "id": 1778014257557,
+      "createdAt": "2026-05-05T20:50:57.557Z"
+    }
+  ],
+  "pos_secure_sales": [
+    {
+      "id": "SH003#0007",
+      "orderNo": null,
+      "shiftId": "shift_1775252420165",
+      "date": "2026-04-07T09:18:20.458Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-04-07T09:18:20.463Z"
+    },
+    {
+      "id": "SH003#0009",
+      "orderNo": null,
+      "shiftId": "shift_1775252420165",
+      "date": "2026-04-07T12:14:08.854Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 120,
+      "subtotal": 120,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": []
+        },
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-04-07T12:14:08.857Z"
+    },
+    {
+      "id": "SH003#0010",
+      "orderNo": null,
+      "shiftId": "shift_1775252420165",
+      "date": "2026-04-07T13:37:49.705Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775560968721,
+              "name": "Pasta",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775561024599,
+              "name": "tesifn",
+              "price": 0,
+              "qty": 1
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-04-07T13:37:49.715Z"
+    },
+    {
+      "id": "SH003#0011",
+      "orderNo": null,
+      "shiftId": "shift_1775252420165",
+      "date": "2026-04-07T14:22:14.126Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 150,
+          "cost": 150,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi",
+          "addons": [
+            {
+              "id": 1775571681626,
+              "name": "steaks",
+              "price": 0,
+              "qty": 1
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-04-07T14:22:14.128Z"
+    },
+    {
+      "id": "SH004#0002",
+      "orderNo": 2,
+      "shiftId": "shift_1777127141940",
+      "date": "2026-05-05T18:39:56.716Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": []
+        }
+      ],
+      "createdAt": "2026-05-05T18:39:56.719Z"
+    },
+    {
+      "id": "SH004#0008",
+      "orderNo": 8,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T11:55:23.482Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 150,
+          "cost": 150,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-05T20:27:49.881Z",
+      "updatedAt": "2026-05-07T11:55:23.485Z"
+    },
+    {
+      "id": "SH005#0003",
+      "shiftId": "shift_1778012991077",
+      "date": "2026-05-05T21:00:40.788Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 290,
+      "subtotal": 290,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        },
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-05T21:00:40.794Z"
+    },
+    {
+      "id": "SH005#0006",
+      "shiftId": "shift_1778012991077",
+      "date": "2026-05-05T21:02:56.589Z",
+      "method": "cash",
+      "orderType": "dine_in",
+      "tableId": "1778014039473",
+      "tableName": "ترابيزة 1 (السعة: 5)",
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 180,
+      "subtotal": 170,
+      "discount": 7,
+      "globalDiscount": {
+        "type": "value",
+        "value": 7
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [
+        {
+          "name": "خدمة صالة",
+          "amount": 17
+        }
+      ],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-05T21:02:56.592Z"
+    },
+    {
+      "id": "SH005#0008",
+      "orderNo": 8,
+      "shiftId": "shift_1778012991077",
+      "date": "2026-05-05T21:06:02.255Z",
+      "method": "talabat_cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "partial_return",
+      "total": 260,
+      "subtotal": 260,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "كاتشب",
+          "qty": 1,
+          "price": 10,
+          "cost": 2,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        },
+        {
+          "code": "01",
+          "name": "بيتزا",
+          "qty": 1,
+          "price": 130,
+          "cost": 62,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "معجنات",
+          "note": "",
+          "sizeName": "كبير",
+          "addons": [
+            {
+              "id": 1778014620816,
+              "name": "كاتشب",
+              "price": 10,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        },
+        {
+          "code": "",
+          "name": "Red Sauce",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        },
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-05T21:06:02.262Z",
+      "returnReason": "باظت في الطريق",
+      "updatedAt": "2026-05-05T21:11:59.999Z"
+    },
+    {
+      "id": "SH006#0002",
+      "orderNo": 2,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-05T21:42:55.210Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-05T21:42:55.213Z"
+    },
+    {
+      "id": "SH006#0004",
+      "orderNo": 4,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-05T21:50:34.115Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "",
+          "name": "dsgdsg",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-05T21:50:34.117Z"
+    },
+    {
+      "id": "SH006#0005",
+      "orderNo": 5,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-05T21:50:58.924Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 120,
+      "subtotal": 120,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-05T21:50:58.925Z"
+    },
+    {
+      "id": "SH006#0011",
+      "orderNo": 11,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-05T22:19:18.746Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-05T22:19:18.750Z"
+    },
+    {
+      "id": "SH006#0013",
+      "orderNo": 13,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-05T22:20:59.044Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-05T22:20:59.048Z"
+    },
+    {
+      "id": "SH006#0016",
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:26:13.483Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-05T22:36:41.969Z",
+      "updatedAt": "2026-05-07T12:26:13.484Z"
+    },
+    {
+      "id": "SH006#0022",
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:44:32.240Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-05T23:19:08.436Z",
+      "updatedAt": "2026-05-07T12:44:32.242Z"
+    },
+    {
+      "id": "SH004#0004",
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-06T00:52:01.972Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-06T00:52:01.976Z"
+    },
+    {
+      "id": "SH006#0039",
+      "orderNo": 39,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-06T14:06:17.541Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 120,
+      "subtotal": 120,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        },
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T14:06:17.545Z"
+    },
+    {
+      "id": "SH004#0006",
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-06T14:10:32.414Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-06T14:10:32.415Z"
+    },
+    {
+      "id": "SH004#0003",
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-06T14:20:05.093Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "09",
+          "name": "Fries",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-06T14:20:05.096Z"
+    },
+    {
+      "id": "SH006#0052",
+      "orderNo": 52,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-06T15:34:37.883Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T15:34:37.884Z"
+    },
+    {
+      "id": "SH006#0054",
+      "orderNo": 54,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-06T18:16:43.850Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "09",
+          "name": "Fries",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T18:16:43.855Z"
+    },
+    {
+      "id": "SH006#0056",
+      "orderNo": 56,
+      "shiftId": "shift_1778016733071",
+      "date": "2026-05-06T18:23:46.308Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 120,
+      "subtotal": 120,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T18:23:46.309Z"
+    },
+    {
+      "id": "SH007#0002",
+      "orderNo": 2,
+      "shiftId": "shift_1778092234066",
+      "date": "2026-05-06T18:43:49.905Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T18:43:49.908Z"
+    },
+    {
+      "id": "SH007#0004",
+      "orderNo": 4,
+      "shiftId": "shift_1778092234066",
+      "date": "2026-05-06T18:45:38.281Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 120,
+      "subtotal": 120,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T18:45:38.285Z"
+    },
+    {
+      "id": "SH007#0006",
+      "orderNo": 6,
+      "shiftId": "shift_1778092234066",
+      "date": "2026-05-06T18:49:13.887Z",
+      "method": "talabat_visa",
+      "orderType": "delivery",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 180,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 30,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": {
+        "id": 1778014345490,
+        "name": "عبدالله",
+        "mobile": "011026522373",
+        "address": {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      },
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 150,
+          "cost": 150,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T18:49:13.889Z"
+    },
+    {
+      "id": "SH008#0001",
+      "orderNo": 1,
+      "shiftId": "shift_1778093653156",
+      "date": "2026-05-06T19:02:34.176Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 150,
+          "cost": 150,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T19:02:34.179Z"
+    },
+    {
+      "id": "SH008#0002",
+      "orderNo": 2,
+      "shiftId": "shift_1778093653156",
+      "date": "2026-05-06T19:03:01.934Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-06T19:03:01.941Z"
+    },
+    {
+      "id": 1773171370936,
+      "shiftId": "shift_1775391439786",
+      "date": "2026-05-06T19:38:11.469Z",
+      "method": "card",
+      "orderType": "delivery",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 180,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 30,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": {
+        "id": 1778014345490,
+        "name": "عبدالله",
+        "mobile": "011026522373",
+        "address": {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      },
+      "items": [
+        {
+          "code": "01",
+          "name": "Burger",
+          "qty": 1,
+          "price": 150,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Large",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-06T19:38:11.469Z"
+    },
+    {
+      "id": 1773231518820,
+      "shiftId": "shift_1775391439786",
+      "date": "2026-05-06T19:40:16.204Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 100,
+      "subtotal": 100,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "123",
+          "name": "Mokhito",
+          "qty": 1,
+          "price": 100,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Drinks",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-06T19:40:16.204Z"
+    },
+    {
+      "id": "SH008#0005",
+      "shiftId": "shift_1778093653156",
+      "date": "2026-05-06T19:49:39.014Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 290,
+      "subtotal": 290,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        },
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [],
+          "sentQty": 1
+        },
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775560989317,
+              "name": "Red Sauce",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-06T19:49:39.020Z"
+    },
+    {
+      "id": "SH008#0007",
+      "shiftId": "shift_1778093653156",
+      "date": "2026-05-06T19:51:36.691Z",
+      "method": "card",
+      "orderType": "delivery",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 200,
+      "subtotal": 170,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 30,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": {
+        "id": 1778014345490,
+        "name": "عبدالله",
+        "mobile": "011026522373",
+        "address": {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      },
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-06T19:51:36.695Z"
+    },
+    {
+      "id": "SH009#0007",
+      "orderNo": 7,
+      "shiftId": "shift_1778097197619",
+      "date": "2026-05-07T02:41:45.922Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-07T02:41:37.706Z",
+      "updatedAt": "2026-05-07T02:41:45.923Z"
+    },
+    {
+      "id": "SH005#0012",
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T11:31:01.703Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 150,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-07T11:31:01.712Z"
+    },
+    {
+      "id": "SH006#0006",
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:21:28.201Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 120,
+      "subtotal": 120,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 120,
+          "cost": 70,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-07T12:21:28.203Z"
+    },
+    {
+      "id": "SH010#0013",
+      "orderNo": 13,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:22:38.696Z",
+      "method": "cash",
+      "orderType": "delivery",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 200,
+      "subtotal": 170,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 30,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": {
+        "id": 1778014345490,
+        "name": "عبدالله",
+        "mobile": "011026522373",
+        "address": {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      },
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775560968721,
+              "name": "Pasta",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-07T12:22:38.702Z"
+    },
+    {
+      "id": "SH010#0017",
+      "orderNo": 17,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:42:15.631Z",
+      "method": "cash",
+      "orderType": "delivery",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 180,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 30,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": {
+        "id": 1778014345490,
+        "name": "عبدالله",
+        "mobile": "011026522373",
+        "address": {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      },
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 150,
+          "cost": 150,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-07T12:42:15.632Z"
+    },
+    {
+      "id": "SH006#0020",
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:43:33.007Z",
+      "method": "cash",
+      "orderType": "delivery",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 180,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 30,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": {
+        "id": 1778014345490,
+        "name": "عبدالله",
+        "mobile": "011026522373",
+        "address": {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      },
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 150,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-07T12:43:33.009Z"
+    },
+    {
+      "id": "SH010#0022",
+      "orderNo": 22,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:45:48.791Z",
+      "method": "card",
+      "orderType": "dine_in",
+      "tableId": "1777127208771",
+      "tableName": "table (السعة: 4)",
+      "cashier": "admin",
+      "salesman": "Ali",
+      "status": "finished",
+      "total": 187,
+      "subtotal": 170,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [
+        {
+          "name": "خدمة صالة",
+          "amount": 17
+        }
+      ],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-07T12:45:48.793Z"
+    },
+    {
+      "id": "SH006#0025",
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:46:43.980Z",
+      "method": "card",
+      "orderType": "dine_in",
+      "tableId": "1777127208771",
+      "tableName": "table (السعة: 4)",
+      "cashier": "admin",
+      "salesman": "Ali",
+      "status": "finished",
+      "total": 0,
+      "subtotal": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [
+        {
+          "name": "خدمة صالة",
+          "amount": 0
+        }
+      ],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "09",
+          "name": "Fries",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-07T12:46:43.981Z"
+    },
+    {
+      "id": "SH010#0025",
+      "orderNo": 25,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T12:56:56.094Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 150,
+          "cost": 150,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-07T12:56:56.096Z"
+    },
+    {
+      "id": "SH010#0027",
+      "orderNo": 27,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-07T13:11:12.738Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 150,
+          "cost": 150,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi",
+          "addons": [],
+          "sentQty": 0
+        },
+        {
+          "code": "02",
+          "name": "Pepsi",
+          "qty": 1,
+          "price": 0,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Add-ons / الإضافات",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 0
+        }
+      ],
+      "createdAt": "2026-05-07T13:11:12.739Z"
+    },
+    {
+      "id": "SH007#0027",
+      "orderNo": 27,
+      "shiftId": "shift_1775391439786",
+      "date": "2026-05-08T22:58:32.138Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "",
+          "name": "COUNTRY CHICKEN GRAVY Max WieghtCOUNTRY CHICKEN GRAVY Max Wieght",
+          "qty": 1,
+          "price": 150,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-08T22:58:32.141Z",
+      "updatedAt": "2026-05-08T22:58:47.161Z"
+    },
+    {
+      "id": "SH007#0033",
+      "orderNo": 33,
+      "shiftId": "shift_1775391439786",
+      "date": "2026-05-08T23:24:06.016Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "",
+          "name": "COUNTRY CHICKEN GRAVY Max WieghtCOUNTRY CHICKEN GRAVY Max Wieght",
+          "qty": 1,
+          "price": 150,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-08T23:24:06.018Z",
+      "updatedAt": "2026-05-08T23:24:07.706Z"
+    },
+    {
+      "id": "SH007#0034",
+      "orderNo": 34,
+      "shiftId": "shift_1775391439786",
+      "date": "2026-05-08T23:24:17.531Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "",
+          "name": "COUNTRY CHICKEN GRAVY Max WieghtCOUNTRY CHICKEN GRAVY Max Wieght",
+          "qty": 1,
+          "price": 150,
+          "cost": 0,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-08T23:24:17.531Z",
+      "updatedAt": "2026-05-08T23:24:19.191Z"
+    },
+    {
+      "id": "SH010#0049",
+      "orderNo": 49,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-10T15:09:05.988Z",
+      "method": "talabat_visa",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775560968721,
+              "name": "Pasta",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775560989317,
+              "name": "Red Sauce",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775561024599,
+              "name": "tesifn",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775561043114,
+              "name": "test",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775561073200,
+              "name": "sdfs",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775561254365,
+              "name": "dsgdsg",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775571681626,
+              "name": "steaks",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-10T15:09:06.009Z"
+    },
+    {
+      "id": "SH010#0064",
+      "orderNo": 64,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-11T15:19:43.702Z",
+      "method": "cash",
+      "orderType": "delivery",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 160,
+      "subtotal": 130,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 30,
+      "taxesAndFees": [],
+      "orderNote": "test",
+      "customer": {
+        "id": 1778014345490,
+        "name": "عبدالله",
+        "mobile": "011026522373",
+        "address": {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      },
+      "items": [
+        {
+          "code": "01",
+          "name": "بيتزا",
+          "qty": 1,
+          "price": 130,
+          "cost": 60,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "معجنات",
+          "note": "",
+          "sizeName": "كبير",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-11T15:19:43.703Z"
+    },
+    {
+      "id": "SH010#0042",
+      "orderNo": 42,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-11T23:34:46.203Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-11T23:34:46.209Z"
+    },
+    {
+      "id": "SH010#0046",
+      "orderNo": 46,
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-11T23:34:50.449Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775560968721,
+              "name": "Pasta",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775560989317,
+              "name": "Red Sauce",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775561024599,
+              "name": "tesifn",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775561043114,
+              "name": "test",
+              "price": 0,
+              "qty": 1
+            },
+            {
+              "id": 1775561073200,
+              "name": "sdfs",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-11T23:34:50.461Z"
+    },
+    {
+      "id": "SH010#0007",
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-11T23:36:22.119Z",
+      "method": "card",
+      "orderType": "dine_in",
+      "tableId": "1778014039473",
+      "tableName": "ترابيزة 1 (السعة: 5)",
+      "cashier": "admin",
+      "salesman": "Ali",
+      "status": "finished",
+      "total": 165,
+      "subtotal": 150,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [
+        {
+          "name": "خدمة صالة",
+          "amount": 15
+        }
+      ],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 150,
+          "cost": 150,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-11T23:36:22.120Z"
+    },
+    {
+      "id": "SH009#0006",
+      "shiftId": "shift_1778123050152",
+      "date": "2026-05-11T23:37:15.372Z",
+      "method": "talabat_visa",
+      "orderType": "delivery",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "Fawzy",
+      "status": "finished",
+      "total": 200,
+      "subtotal": 170,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 30,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": {
+        "id": 1778014345490,
+        "name": "عبدالله",
+        "mobile": "011026522373",
+        "address": {
+          "id": 1778014345491,
+          "area": "الشرابية",
+          "street": "طاهر غنيم",
+          "building": "1",
+          "floor": "2",
+          "apt": "2",
+          "extra": "بجوار سيد قطة"
+        }
+      },
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-11T23:37:15.374Z"
+    },
+    {
+      "id": "SH011#0020",
+      "orderNo": 20,
+      "shiftId": "shift_1778582128436",
+      "date": "2026-05-12T21:05:15.901Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-12T21:05:15.902Z"
+    },
+    {
+      "id": "SH012#0001",
+      "orderNo": 1,
+      "shiftId": "shift_1778808293170",
+      "date": "2026-05-15T01:25:02.879Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-15T01:24:59.535Z",
+      "updatedAt": "2026-05-15T01:25:26.055Z"
+    },
+    {
+      "id": "SH012#0003",
+      "orderNo": 3,
+      "shiftId": "shift_1778808293170",
+      "date": "2026-05-15T01:25:52.984Z",
+      "method": "talabat_visa",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 150,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-15T01:25:33.941Z",
+      "updatedAt": "2026-05-15T01:26:02.669Z"
+    },
+    {
+      "id": "SH012#0004",
+      "orderNo": 4,
+      "shiftId": "shift_1778808293170",
+      "date": "2026-05-15T01:26:10.140Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 150,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta Combo",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-15T01:26:10.140Z",
+      "updatedAt": "2026-05-15T01:26:18.401Z"
+    },
+    {
+      "id": "SH013#0001",
+      "orderNo": 1,
+      "shiftId": "shift_1778809445944",
+      "date": "2026-05-15T01:44:13.785Z",
+      "method": "talabat_cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-15T01:44:13.788Z",
+      "updatedAt": "2026-05-15T01:44:42.525Z"
+    },
+    {
+      "id": "SH013#0002",
+      "orderNo": 2,
+      "shiftId": "shift_1778809445944",
+      "date": "2026-05-15T01:45:19.947Z",
+      "method": "cash",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 150,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta Combo",
+          "addons": [
+            {
+              "id": 1775553291991,
+              "name": "Fries",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-15T01:45:19.950Z",
+      "updatedAt": "2026-05-15T01:45:47.208Z"
+    },
+    {
+      "id": "SH013#0003",
+      "orderNo": 3,
+      "shiftId": "shift_1778809445944",
+      "date": "2026-05-15T01:46:13.103Z",
+      "method": "talabat_visa",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 150,
+      "subtotal": 150,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "05",
+          "name": "Kofta",
+          "qty": 1,
+          "price": 150,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Kofta Combo",
+          "addons": [
+            {
+              "id": 1775553264509,
+              "name": "Pepsi",
+              "price": 0,
+              "qty": 1
+            }
+          ],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-15T01:46:13.107Z",
+      "updatedAt": "2026-05-15T01:46:40.347Z"
+    },
+    {
+      "id": "SH013#0004",
+      "orderNo": 4,
+      "shiftId": "shift_1778809445944",
+      "date": "2026-05-15T01:47:07.969Z",
+      "method": "card",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-15T01:47:07.971Z",
+      "updatedAt": "2026-05-15T01:47:21.255Z"
+    },
+    {
+      "id": "SH013#0005",
+      "orderNo": 5,
+      "shiftId": "shift_1778809445944",
+      "date": "2026-05-15T01:47:30.942Z",
+      "method": "talabat_visa",
+      "orderType": "take_away",
+      "tableId": null,
+      "tableName": null,
+      "cashier": "admin",
+      "salesman": "",
+      "status": "finished",
+      "total": 170,
+      "subtotal": 170,
+      "itemDiscount": 0,
+      "invoiceDiscount": 0,
+      "discount": 0,
+      "globalDiscount": {
+        "type": "value",
+        "value": 0
+      },
+      "paymentBreakdown": null,
+      "deliveryFee": 0,
+      "taxesAndFees": [],
+      "orderNote": "",
+      "customer": null,
+      "items": [
+        {
+          "code": "01",
+          "name": "Hawashi",
+          "qty": 1,
+          "price": 170,
+          "cost": 100,
+          "discount": {
+            "type": "none",
+            "value": 0
+          },
+          "category": "Meals",
+          "note": "",
+          "sizeName": "Hawashi Combo",
+          "addons": [],
+          "sentQty": 1
+        }
+      ],
+      "createdAt": "2026-05-15T01:47:30.943Z",
+      "updatedAt": "2026-05-15T01:47:44.063Z"
+    }
+  ],
+  "pos_secure_returns": [],
+  "pos_secure_expenses": [],
+  "pos_secure_ingredients": [
+    {
+      "id": 1778014161306,
+      "name": "طماطم",
+      "unit": "kg",
+      "cost": 10,
+      "stock": 10,
+      "vendorId": "1778014071913",
+      "createdAt": "2026-05-05T20:49:21.306Z"
+    },
+    {
+      "id": 1778014175744,
+      "name": "لحم",
+      "unit": "kg",
+      "cost": 150,
+      "stock": 20,
+      "vendorId": "1778014071913",
+      "createdAt": "2026-05-05T20:49:35.744Z",
+      "lastRestockDate": "2026-05-05T20:50:32.573Z",
+      "updatedAt": "2026-05-05T20:50:32.573Z"
+    },
+    {
+      "id": 1787339503560,
+      "name": "beef",
+      "unit": "kg",
+      "cost": 100,
+      "stock": 0,
+      "vendorId": "1778014071913",
+      "createdAt": "2026-08-21T19:11:43.560Z"
+    }
+  ],
+  "pos_secure_tables": [
+    {
+      "id": 1777127208771,
+      "name": "table",
+      "capacity": "4"
+    },
+    {
+      "id": 1778014039473,
+      "name": "ترابيزة 1",
+      "capacity": "5"
+    }
+  ],
+  "pos_secure_salesmen": [
+    {
+      "id": 1778014125810,
+      "name": "Fawzy",
+      "role": "Delivery Man",
+      "nationalId": "52063",
+      "mobile": "011265223730",
+      "baseSalary": 8000,
+      "workingDays": 26,
+      "shiftHours": 9,
+      "address": "دار السلام",
+      "createdAt": "2026-05-05T20:48:45.810Z",
+      "updatedAt": "2026-05-06T18:48:34.914Z"
+    },
+    {
+      "id": 1778157927583,
+      "name": "Ali",
+      "role": "Waiter",
+      "nationalId": "",
+      "mobile": "",
+      "baseSalary": 8000,
+      "workingDays": 26,
+      "shiftHours": 9,
+      "address": "",
+      "createdAt": "2026-05-07T12:45:27.583Z"
+    }
+  ],
+  "pos_secure_delivery_areas": [
+    {
+      "id": 1778014288775,
+      "name": "شروق",
+      "fee": 25,
+      "createdAt": "2026-05-05T20:51:28.775Z"
+    },
+    {
+      "id": 1778014295517,
+      "name": "الشرابية",
+      "fee": 30,
+      "createdAt": "2026-05-05T20:51:35.517Z"
+    },
+    {
+      "id": 1778014301184,
+      "name": "المعادي",
+      "fee": 35,
+      "createdAt": "2026-05-05T20:51:41.184Z"
+    }
+  ],
+  "pos_secure_products": [],
+  "pos_secure_categories": [
+    "Add-ons / الإضافات",
+    "Appetizers",
+    "Desserts",
+    "Drinks",
+    "Meals",
+    "معجنات"
+  ],
+  "pos_secure_kitchen_printers": [],
+  "pos_secure_shop_settings": {
+    "shopName": "Hamza",
+    "shopAddress": "Sharabya",
+    "footerMessage": "Hamza Hamoza",
+    "actionPassword": "1234",
+    "receiptPrinter": "Microsoft Print to PDF",
+    "shopLogo": "data:image/jpeg;base64,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"
+  },
+  "pos_secure_employees": [],
+  "pos_secure_waste_logs": [],
+  "pos_secure_audit_logs": [],
+  "pos_secure_pendingOrders": [],
+  "shopName": "Hamza",
+  "shopAddress": "Sharabya",
+  "footerMessage": "Hamza Hamoza",
+  "shopLogo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCABZALQDASIAAhEBAxEB/8QAGwABAAIDAQEAAAAAAAAAAAAAAAQGAQIFAwf/xAA3EAACAQMDAQUFBgYDAQAAAAABAgMABBEFEiExBhMiQVEUM2FykRUyVXGB0RYjQlKhwSRiouH/xAAYAQEBAQEBAAAAAAAAAAAAAAAAAQMCBP/EACMRAQABAwQCAwEBAAAAAAAAAAABAgOhERNT0TEyEkJSBGH/2gAMAwEAAhEDEQA/APuclzdx3NwosGkgjijaJ0kXdK5LBlwSMbQEOSed3wqQJHM7R9w4QAESZXac5yOueMDy8x8apvbfW9V0+7t7eynWzhaPvDcMB423YKjIxwOa6nZ+/wBW1Xs5BNJ3UVzuKmV1yJFH9QA9f/temv8AlrpsxemY0lxFcTV8XZuprqJIzbWnfs0qq6mQLtQnlvjjrivVpHDhRC5H9wK4H+ag+2XENx3M7QFiFPh3YUY8RJx9K9Vvg8qhJIGjbAU7jknHpivK7TaVEHt4cn/jsu3gZIOeeen5ULaj3vEVr3eTz3jZxjj+n1qiXSsDOBnr8KzQKUpQKUpQKUpQKUoeRigdaVGW1kVQq3Dogj2bVA8J4wRx5YP1rzSxlRsm7lc92V7xsbgSR6DHlVE2lRUtZlue9a8lZNoBjIXGfXpmvF4R7dITdvEz7ZAkeMkAY5yDx+VQn/HQpXOzHPK7rf3EZXa7ReEbR1AIK55rTdGuqQot1cqY0C+zoo7puvJ8OfoR0qTMQREyk3XvR8tKXXvR8tKyq8qxdxPcXMMT2kE1ryXaXBKnywDXrGZF2ILYIgDAYYYUA4Ax8R9K4usXHaHT5byfToEv43hHs0BUDu5FVyQTkZVtqj82HkDXThbVGubgTJarAHAhK7izLs6n0O//AAK3mdY0cxGiBNa3l5bStdWGJzKVTuLor4B91s+vJ4qbNYRyMpMDku2+QrMRg4x69Kh2txr0EUovrSOY+Iq8EgznyAXA4z6nI881HtpO16uWng05lKjC7zwefMDz4/1UWXRjtjGzWq2DC2Jz3huCc859c9aiiznkkMcumyCIqsR/5nhChicgZznmvKS97SNcQpFp0OAcysX2qcAZAJzwTnHHQV09EhvbfRbSHUpe9vUjAmfduy3nz50HjHp6y35lntHXDblf2gkAjGMKD0OM/X1rod5Ll/5PRwq+Icrxlv0yePhXrSgjLPdESFrTaVxtHeA7vX8q9oWd4g0kfdvzld2cc+tb0oFKUoFKUoFKUoFKUoFKUoFKUoIl170fLSl170fLSsavKozjXjq0myTThp2P5YaNzKDt8zuxjd8OlYl+3xHP3R04uYgIdyOAsnmW55XzwMHyyetbJpRi1LULxdUv83qovcNKGjgKrjMSkHaTnJ8iecVvBYNBpUNkNUu3khQILt3RpTxjLZXax/Nfj1rZEdl7Rm2UrNpazgDcDDIyk4OceMY5x69D68bomv48dxpuRt+7A/P9x+/x8Bzj41KFo/fxul/cqqsWePKMsmfI5UkAf9SKiPos0jQvJrWpmSGZpVZXjTIIxsZVQKyjyyM/Gg9lGr7E3NZbv68I2P05rYHVBFFn2RpBIO9wGAKYOccnBzjrnjNb2NnNaJtm1G6vD/dOIwf/AAi1LoFKUoFKUoFKUoFKUoFKUoFKUoFKUoFKUoIl170fLSl170fLSsavKq5qdh2P1vXpbbUY1bUbORXIaSSI7pVRAwIIDZARcjODx1zXg/Z/sEJtWj9mtFkEq3d+VlYGJxlg5IPgPiJ4xkH0rt6jrOo2Vy6waBd3kCMqmWKRBnOMkKTkgZ/wag6f2juptZaz/hTUrWOWMTtduihGfuwdrYOd3AXn0rZEmzuOz+naksdsiQTXcceyXYwSYHcVVWPBPJOB5VNuNdsLV4RLI4imztnEbGIEHGC4GAc+RNRF7QXQtbd5dB1FJ5k3CFUD7PgzA4U0t+0UtzdiFdD1SNDIiCWWHYuDnLHPQD/dB7ntLpK6j7A12FuAjSFSpACqAS2emMHr515XXavSbOa2jklmPtRIgaOB2WUhQ3hIGDwRj1PHWu3gHqKUFduu3GhWTwJcTzpJPbi6jT2aTcY/Fk4x5BWJHkBk1onbzs/JLBElzMXmliiUezv1kyUzxwCASCeMc1Zawyq6FHUMrDBBGQRQV1O3Ghy2jXUcly8IjEoZbWQ713BSV48WCQDjp510pNd02BVM90sLOGKpKCrMFJBIB5I4/WujSg4N72y0SwtPaZbl3jGN/dQvIY8ru8YUErx615R9t9IliEqR6gYc4MvsE2wHGeTtwOKsdKCNp9/b6nYQX1qzNBOodCylSR+R5FSaUoFKUoFKUoFKUoFKUoIl170fLSsXXvR8tKyq8jJF/wB/c4a2MRC9xkNuB/q3fD0xW9yt2Uf2Z4g+07O8Bxu8s48q49/pmqXmoTyWurvbxAhRGAcA7R8ag3eg9oBaSmPtJLE4XhxGXx+nnXsi1RMazXGWE3a4q0iicLFIuo75O6kttmF2BlOc85z8OmKmV86mttZhgRpO2+0zsywt3BwSv3h+hVq7i6Br4Ubu0EhPmdp/ekWrc/eMpN25H0nC00qsfYOu/j8n0P70+wdd/H5Pof3rrZt8kZ6Teucc47WelVj7B138fk+h/euVrCXWlxGO87bRWErFQpkYbhubAO0npnz6dT5VNm3yRnpd65xzjtfKV86t7bWLiGfue3BmKRd6GigLAK24Bhj7wzG+MdfpW1hZ60Tul7Zy3CjcSVtWVcJuVvF0+8p8/L41Nuj9xld2v8Th9DpVQsdP1TUrGG9s+0jTW0y7o5FU4YfqakfYOu/j8n0P711s2+SM9Od65xzjtZ6VXLfRdaimDSa28i4YbcHqQQPP15rz+wdd/H5Pof3qbNvX3jPS71zT0nHaz0qpz6RrNtCZZe0EoQEAkIzdSAOB+fXyrniO/kuCV7XARxyvbshRgTKpAIyfIZHI45602bfJGejeucc47XylU2ytNR1LvPY+0zzLGcMyq23PPQ9D08v91L+wdd/H5Pof3q7NvkjPSb1zjnHaz0quTaLrUgj2a26bUCtwfEfXrUG90PtBFC038UPBFGpZ2MZPA5Pn6A1ztUae8Z6Xdua+k47XGlUfS9K1y9iMsfa6S5WOR43Ii2gsDjH6dPjXQOk6vayQzXGsPPEs0e6Mg+LLgetJtUaa/OMrF2vXT4Th3Lv3o+WlLv3o+WleSfLdLCgEkAAk5PxrNKVoNTGhxlF46cVtSlApSlArR4YpDl40Y/8AZQa3pQarGi/dRRxjgVkKoGAox6YrNKDCqFUKoAA6ACs0pQKUpQK17tP7F656VtSgwqqgwqgD0ArNKUChAIwRkGlKDAUKMKAPyFYdFddrqGGQcEeYOR/mtqUEO796PlpS796PlpXE+R//2Q==",
+  "pos_language": "ar"
+}

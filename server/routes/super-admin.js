@@ -266,4 +266,19 @@ router.put('/tenants/:id/password', checkSuperAdmin, async (req, res) => {
     }
 });
 
+// @route   POST /api/super-admin/import-itqan-demo
+router.post('/import-itqan-demo', async (req, res) => {
+    try {
+        const { importCustomerData, TARGET_TENANT_ID } = require('../utils/tenantDataImporter');
+        const force = req.body?.force === true;
+        const tenantId = req.body?.tenantId || TARGET_TENANT_ID;
+        const result = await importCustomerData(tenantId, req.body?.data || null, force);
+        res.json(result);
+    } catch (err) {
+        console.error('Import error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 module.exports = router;
+
