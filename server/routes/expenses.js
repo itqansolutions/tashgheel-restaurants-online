@@ -16,12 +16,11 @@ router.get('/', async (req, res) => {
         // Use queryBranchId if 'all' isn't requested, or fallback to session branchId
         if (queryBranchId && queryBranchId !== 'all') {
             filter.branchId = queryBranchId;
-        } else if (req.branchId && queryBranchId !== 'all') {
-            // Include session branch, default branch, or general expenses
+        } else if (req.branchId && req.branchId !== 'all' && queryBranchId !== 'all') {
+            // Include session branch or default branch
             filter.OR = [
                 { branchId: req.branchId },
-                { branchId: 'default' },
-                { branchId: null }
+                { branchId: 'default' }
             ];
         }
 
