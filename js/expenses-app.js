@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // === Sellers Loading ===
-  function loadSellers() {
+  async function loadSellers() {
     let salesmen = [];
     if (window.DB && typeof window.DB.getSalesmen === 'function') {
       salesmen = window.DB.getSalesmen();
@@ -58,6 +58,26 @@ document.addEventListener('DOMContentLoaded', () => {
       sellerSelect.appendChild(opt);
 
       const opt2 = opt.cloneNode(true);
+      filterSeller.appendChild(opt2);
+    });
+
+    // Also include vendors in dropdowns so vendor payments can be filtered or categorized
+    let vendors = (window.DataCache && window.DataCache['vendors']) || (window.DB && window.DB.getVendors()) || [];
+    if (vendors.length === 0 && window.electronAPI && window.electronAPI.getVendors) {
+      try {
+        vendors = await window.electronAPI.getVendors() || [];
+      } catch (e) {}
+    }
+    vendors.forEach(v => {
+      if (!v.name || salesmen.some(s => s.name === v.name)) return;
+      const opt = document.createElement("option");
+      opt.value = v.name;
+      opt.textContent = `${v.name} (${t('Vendor', 'مورد')})`;
+      sellerSelect.appendChild(opt);
+
+      const opt2 = document.createElement("option");
+      opt2.value = v.name;
+      opt2.textContent = `${v.name} (${t('Vendor', 'مورد')})`;
       filterSeller.appendChild(opt2);
     });
   }
@@ -125,44 +145,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      // 1. Fetch Manual Expenses from Server
+      // 1. Fetch Expenses from Server
       const selectedDate = document.getElementById('filterDate').value;
       const selectedSeller = filterSeller.value;
 
       let url = '/expenses?';
       if (selectedDate) url += `from=${selectedDate}&to=${selectedDate}&`;
-      if (selectedSeller) url += `category=General&`; // Basic filtering, refine if needed
 
-      const serverExpenses = await window.apiFetch(url);
+      const serverExpenses = (await window.apiFetch(url)) || [];
 
       // 2. Vendor Payments (from DB - Local Cache of Secure Data)
-      // These are effectively "auto" expenses
-      // Ideally we fetch these from server too, but for now we keep hybrid to match logic
       const vendorPayments = window.DB?.getVendorPayments() || [];
-      const vendors = window.DB?.getVendors() || [];
+      const vendors = (window.DataCache && window.DataCache['vendors']) || window.DB?.getVendors() || [];
 
       const paymentExpenses = vendorPayments.map(vp => {
-        const vendor = vendors.find(v => v.id === vp.vendorId);
+        const vendor = vendors.find(v => (v.id || v._id) == vp.vendorId || v.name == vp.vendorId);
         return {
           id: vp.id,
           date: vp.date,
-          seller: vendor?.name || t('Vendor', 'مورد'),
+          seller: vendor?.name || String(vp.vendorId || t('Vendor', 'مورد')),
           description: t('Vendor Payment', 'دفعة مورد') + (vp.notes ? ` - ${vp.notes}` : ''),
-          amount: vp.amount,
+          amount: parseFloat(vp.amount),
           method: 'cash',
           type: 'vendor_payment',
           source: 'auto'
         };
       });
 
+      // Avoid duplicating serverExpenses that are already vendor_payment
+      const existingSignatures = new Set(serverExpenses.map(e => `${e.date}-${e.seller}-${parseFloat(e.amount).toFixed(2)}`));
+      const uniqueLocalPayments = paymentExpenses.filter(p => !existingSignatures.has(`${p.date}-${p.seller}-${parseFloat(p.amount).toFixed(2)}`));
+
       // Combined (exclude unpaid credit purchases — only paid expenses and vendor payments appear here)
-      let allExpenses = [...serverExpenses.map(e => ({ ...e, source: 'manual' })), ...paymentExpenses]
-        .filter(e => e.method !== 'credit');
+      let allExpenses = [...serverExpenses.map(e => ({
+        ...e,
+        source: e.type === 'vendor_payment' ? 'auto' : 'manual'
+      })), ...uniqueLocalPayments].filter(e => e.method !== 'credit');
 
       // Client-side filtering for joined data
       allExpenses = allExpenses.filter(e => {
         const matchDate = selectedDate ? e.date === selectedDate : true;
-        const matchSeller = selectedSeller ? e.seller === selectedSeller : true;
+        const matchSeller = selectedSeller ? (e.seller === selectedSeller || (e.description && e.description.includes(selectedSeller))) : true;
         return matchDate && matchSeller;
       }).sort((a, b) => new Date(b.date) - new Date(a.date));
 

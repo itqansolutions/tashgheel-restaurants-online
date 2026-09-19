@@ -323,6 +323,17 @@ router.post('/vendors/:id/transactions', async (req, res) => {
                             OR: [{ id: String(vendorId) }, { name: String(vendorId) }]
                         }
                     });
+
+                    // Resolve a valid branchId for this tenant
+                    let expBranchId = req.branchId || vendor?.branchId;
+                    if (!expBranchId || expBranchId === 'default') {
+                        const fallbackBranch = await tx.branch.findFirst({
+                            where: { tenantId: req.tenantId },
+                            select: { id: true }
+                        });
+                        expBranchId = fallbackBranch?.id || 'default';
+                    }
+
                     await tx.expense.create({
                         data: {
                             description: description || `Vendor Payment: ${vendor?.name || vendorId}`,
@@ -332,14 +343,15 @@ router.post('/vendors/:id/transactions', async (req, res) => {
                             method: method || 'cash',
                             notes: notes || null,
                             category: 'Raw Materials',
-                            type: 'expense',
+                            type: 'vendor_payment',
                             tenantId: req.tenantId,
-                            branchId: req.branchId || vendor?.branchId || 'default',
+                            branchId: expBranchId,
                             createdBy: req.userId || 'system'
                         }
                     });
+                    console.log(`[VendorPayment] ✅ Expense recorded for ${vendor?.name || vendorId}: ${amount} EGP`);
                 } catch (expErr) {
-                    console.warn('[VendorPayment] Optional Expense record skipped:', expErr.message);
+                    console.warn('[VendorPayment] Expense record skipped:', expErr.message);
                 }
             }
         });

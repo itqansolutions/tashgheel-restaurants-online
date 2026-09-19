@@ -307,6 +307,7 @@ async function handlePaymentSubmit(e) {
     e.preventDefault();
 
     const vendorId = document.getElementById('paymentVendorId').value;
+    const vendorName = document.getElementById('paymentVendorName')?.value || '';
     const amount = parseFloat(document.getElementById('paymentAmount').value);
     const notes = document.getElementById('paymentNotes').value.trim();
 
@@ -315,6 +316,9 @@ async function handlePaymentSubmit(e) {
         return;
     }
 
+    const today = new Date().toISOString().split('T')[0];
+    const description = `Vendor Payment: ${vendorName || vendorId}${notes ? ' - ' + notes : ''}`;
+
     if (window.apiFetch) {
         try {
             await window.apiFetch(`/parties/vendors/${vendorId}/transactions`, {
@@ -322,9 +326,10 @@ async function handlePaymentSubmit(e) {
                 body: JSON.stringify({
                     type: 'payment',
                     amount: amount,
-                    description: notes || 'Manual Payment',
+                    description: description,
                     method: 'cash',
-                    date: new Date().toISOString().split('T')[0]
+                    date: today,
+                    notes: notes || null
                 })
             });
         } catch (err) {
@@ -333,6 +338,19 @@ async function handlePaymentSubmit(e) {
     }
 
     window.DB.recordVendorPayment(vendorId, amount, notes);
+
+    // Also cache in vendor_payments for local/offline access
+    if (window.EnhancedSecurity) {
+        const vp = window.EnhancedSecurity.getSecureData('vendor_payments') || [];
+        vp.push({
+            id: `${Date.now()}-payment`,
+            vendorId: vendorId,
+            amount: amount,
+            date: today,
+            notes: notes || ''
+        });
+        window.EnhancedSecurity.storeSecureData('vendor_payments', vp);
+    }
 
     alert(t('payment_recorded'));
     closeModal('paymentModal');

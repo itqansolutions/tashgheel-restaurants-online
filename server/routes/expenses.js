@@ -17,7 +17,12 @@ router.get('/', async (req, res) => {
         if (queryBranchId && queryBranchId !== 'all') {
             filter.branchId = queryBranchId;
         } else if (req.branchId && queryBranchId !== 'all') {
-            filter.branchId = req.branchId;
+            // Include session branch, default branch, or general expenses
+            filter.OR = [
+                { branchId: req.branchId },
+                { branchId: 'default' },
+                { branchId: null }
+            ];
         }
 
         if (from || to) {
@@ -48,17 +53,26 @@ router.get('/', async (req, res) => {
 // POST /api/expenses
 router.post('/', async (req, res) => {
     try {
-        const { description, amount, date, seller, method, notes, category } = req.body;
+        const { description, amount, date, seller, method, notes, category, type } = req.body;
         const { branchId, tenantId, username } = req; // auth middleware sets req.username
 
         if (!description || !amount || !date) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        let targetBranchId = branchId;
+        if (!targetBranchId || targetBranchId === 'default') {
+            const fallbackBranch = await prisma.branch.findFirst({
+                where: { tenantId },
+                select: { id: true }
+            });
+            targetBranchId = fallbackBranch?.id || 'default';
+        }
+
         const activeShift = await prisma.shift.findFirst({
             where: {
                 tenantId,
-                branchId,
+                branchId: targetBranchId,
                 status: 'open',
                 OR: [
                     { cashierId: req.userId },
@@ -72,12 +86,13 @@ router.post('/', async (req, res) => {
                 description,
                 amount: parseFloat(amount),
                 date: String(date),
-                seller,
-                method,
-                notes,
-                category,
+                seller: seller || null,
+                method: method || 'cash',
+                notes: notes || null,
+                category: category || 'General',
+                type: type || 'expense',
                 tenantId,
-                branchId,
+                branchId: targetBranchId,
                 shiftId: activeShift ? activeShift.id : null,
                 createdBy: username || 'system'
             }
