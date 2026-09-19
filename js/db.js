@@ -342,14 +342,18 @@ window.DB = window.DB || {
         return window.EnhancedSecurity.storeSecureData('vendors', filtered);
     },
 
-    // Update vendor credit (add to debt when purchasing parts)
+    // Update vendor credit (add to debt when purchasing parts or ingredients)
     updateVendorCredit: function (vendorId, amount) {
         const vendors = this.getVendors();
-        const index = vendors.findIndex(v => v.id == vendorId);
+        const index = vendors.findIndex(v => (v.id || v._id) == vendorId || v.name == vendorId);
         if (index >= 0) {
             vendors[index].credit = (parseFloat(vendors[index].credit) || 0) + parseFloat(amount);
             vendors[index].updatedAt = new Date().toISOString();
             
+            // Sync to global memory cache
+            if (!window.DataCache) window.DataCache = {};
+            window.DataCache['vendors'] = vendors;
+
             // Sync to backend if available
             if (window.electronAPI && window.electronAPI.saveVendor) {
                 const vendorToSave = { ...vendors[index] };
@@ -367,7 +371,7 @@ window.DB = window.DB || {
     getVendorTransactions: function (vendorId) {
         const trans = window.EnhancedSecurity.getSecureData('vendor_transactions') || [];
         if (vendorId) {
-            return trans.filter(t => t.vendorId == vendorId);
+            return trans.filter(t => t.vendorId == vendorId || (t.vendorId && String(t.vendorId).toLowerCase() === String(vendorId).toLowerCase()));
         }
         return trans;
     },

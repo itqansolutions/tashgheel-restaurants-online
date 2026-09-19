@@ -144,6 +144,78 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupMobileNav();
+
+    // 🛡️ Bulletproof Global Autofill Neutralizer:
+    // Prevent Chromium/Edge/Safari/password managers from filling search inputs with saved login credentials (e.g. 'admin')
+    try {
+        if (!document.getElementById('prevent-autofill-decoy')) {
+            const decoy = document.createElement('div');
+            decoy.id = 'prevent-autofill-decoy';
+            decoy.style.cssText = 'position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none;';
+            decoy.setAttribute('aria-hidden', 'true');
+            decoy.innerHTML = `
+                <input type="text" name="fake_username_autofill" tabindex="-1" autocomplete="username">
+                <input type="password" name="fake_password_autofill" tabindex="-1" autocomplete="current-password">
+            `;
+            document.body.prepend(decoy);
+        }
+
+        const searchSelector = '#searchBox, #productSearch, #custSearchPos, #receiptSearch, #item-search, [type="search"], input[placeholder*="Search" i], input[placeholder*="search" i], input[placeholder*="بحث" i]';
+        
+        function sanitizeSearchInputs() {
+            const inputs = document.querySelectorAll(searchSelector);
+            inputs.forEach(input => {
+                input.setAttribute('autocomplete', 'chrome-off');
+                input.setAttribute('autocorrect', 'off');
+                input.setAttribute('spellcheck', 'false');
+
+                // Apply readonly guard to block browser credential autofill
+                if (!input._autofillGuarded) {
+                    input._autofillGuarded = true;
+                    input._userInteracted = false;
+
+                    // If input isn't actively focused, make it readonly
+                    if (document.activeElement !== input) {
+                        input.setAttribute('readonly', 'readonly');
+                    }
+
+                    const unlock = () => {
+                        input.removeAttribute('readonly');
+                        input._userInteracted = true;
+                    };
+
+                    input.addEventListener('focus', unlock);
+                    input.addEventListener('pointerdown', unlock);
+                    input.addEventListener('mousedown', unlock);
+                    input.addEventListener('touchstart', unlock);
+                    input.addEventListener('keydown', () => { input._userInteracted = true; });
+
+                    input.addEventListener('blur', () => {
+                        if (!input.value) {
+                            input.setAttribute('readonly', 'readonly');
+                            input._userInteracted = false;
+                        }
+                    });
+                }
+
+                // If input got populated by browser autofill before any user interaction, clear it
+                if (!input._userInteracted && input.value && document.activeElement !== input) {
+                    input.value = '';
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        }
+
+        sanitizeSearchInputs();
+        setTimeout(sanitizeSearchInputs, 50);
+        setTimeout(sanitizeSearchInputs, 150);
+        setTimeout(sanitizeSearchInputs, 350);
+        setTimeout(sanitizeSearchInputs, 700);
+        setTimeout(sanitizeSearchInputs, 1500);
+        setTimeout(sanitizeSearchInputs, 3000);
+    } catch (e) {
+        console.warn('Autofill neutralizer error:', e);
+    }
 });
 
 // Listen for Language Changes to re-render sidebar

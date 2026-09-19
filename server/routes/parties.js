@@ -81,11 +81,37 @@ router.get('/vendors/:id/transactions', async (req, res) => {
     try {
         const vendorId = req.params.id;
         const vendorTxKey = `vendor_transactions_${vendorId}`;
-        const data = await prisma.data.findUnique({
+        let data = await prisma.data.findUnique({
             where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } }
         });
-        if (!data) return res.json([]);
-        const transactions = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+
+        let transactions = [];
+        if (data && data.value) {
+            transactions = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        }
+
+        // Fallback: If no transactions found under the provided ID, check by vendor name or UUID
+        if (!Array.isArray(transactions) || transactions.length === 0) {
+            const vendor = await prisma.vendor.findFirst({
+                where: {
+                    tenantId: req.tenantId,
+                    OR: [{ id: vendorId }, { name: vendorId }]
+                }
+            });
+            if (vendor) {
+                const altKey = vendor.id === vendorId ? `vendor_transactions_${vendor.name}` : `vendor_transactions_${vendor.id}`;
+                const altData = await prisma.data.findUnique({
+                    where: { key_tenantId: { key: altKey, tenantId: req.tenantId } }
+                });
+                if (altData && altData.value) {
+                    const altTx = typeof altData.value === 'string' ? JSON.parse(altData.value) : altData.value;
+                    if (Array.isArray(altTx) && altTx.length > 0) {
+                        transactions = altTx;
+                    }
+                }
+            }
+        }
+
         res.json(Array.isArray(transactions) ? transactions : []);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });

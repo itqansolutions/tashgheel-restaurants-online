@@ -343,7 +343,7 @@
                     <div class="relative">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-lg">search</span>
                         <input id="item-search" type="text" placeholder="Search menu items to add..."
-                            autocomplete="off"
+                            autocomplete="chrome-off" readonly onfocus="this.removeAttribute('readonly')"
                             class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-xl py-2 pl-9 pr-3 text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500"
                             oninput="DineIn.filterItems(this.value)">
                     </div>

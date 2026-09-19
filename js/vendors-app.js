@@ -92,8 +92,8 @@ async function renderVendors() {
             trans = window.DB.getVendorTransactions(vId) || [];
         }
 
-        // Always reconcile if we got server data (even empty = credit should be 0)
-        if (serverTxFetched || trans.length > 0) {
+        // Reconcile if we have ledger transactions
+        if (trans.length > 0) {
             const totalLogValue = trans.reduce((sum, t) => {
                 let amt = parseFloat(t.amount) || 0;
                 if (t.type === 'payment') amt = -Math.abs(amt);
@@ -116,6 +116,37 @@ async function renderVendors() {
                 window.electronAPI.saveVendor(vendorToSave).catch(err => {
                     console.error(`Failed to sync reconciled credit for vendor ${v.name}:`, err);
                 });
+            }
+        } else if ((parseFloat(v.credit) || 0) === 0) {
+            // Fallback check: If vendor has 0 balance and no transactions, check if inventory materials are assigned to them
+            const materials = window.DB?.getIngredients() || [];
+            const vendorMaterials = materials.filter(m => (m.vendorId == vId || m.vendorId == v.name || (!m.vendorId && vendors.length === 1)) && (parseFloat(m.stock) > 0));
+            if (vendorMaterials.length > 0) {
+                const matTotal = vendorMaterials.reduce((sum, m) => sum + (parseFloat(m.stock) || 0) * (parseFloat(m.cost) || 0), 0);
+                if (matTotal > 0) {
+                    console.log(`[Vendors] Auto-linking existing inventory stock (${matTotal.toFixed(2)}) to vendor ${v.name}`);
+                    v.credit = matTotal;
+                    // Ensure ingredients have vendorId set
+                    vendorMaterials.forEach(m => {
+                        if (!m.vendorId) {
+                            m.vendorId = vId;
+                            if (window.DB?.saveIngredient) window.DB.saveIngredient(m);
+                        }
+                    });
+                    const initialTx = {
+                        id: `${Date.now()}-purchase`,
+                        vendorId: vId,
+                        type: 'purchase',
+                        amount: matTotal,
+                        description: `Inventory stock: ${vendorMaterials.map(m => m.name).join(', ')}`,
+                        date: new Date().toISOString().split('T')[0],
+                        method: 'credit'
+                    };
+                    if (window.DB?.addVendorTransaction) window.DB.addVendorTransaction(initialTx);
+                    if (window.electronAPI?.saveVendor) {
+                        window.electronAPI.saveVendor({ id: vId, name: v.name, mobile: v.mobile, address: v.address, credit: matTotal }).catch(() => {});
+                    }
+                }
             }
         }
     }
@@ -246,12 +277,13 @@ async function deleteVendor(id) {
 }
 
 function openPaymentModal(vendorId) {
-    const vendor = window.DB.getVendors().find(v => v.id === vendorId);
+    const vendors = (window.DataCache && window.DataCache['vendors']) || window.DB.getVendors() || [];
+    const vendor = vendors.find(v => (v.id || v._id) == vendorId || v.name == vendorId);
     if (!vendor) return;
 
-    document.getElementById('paymentVendorId').value = vendor.id;
+    document.getElementById('paymentVendorId').value = vendor.id || vendor._id || vendorId;
     document.getElementById('paymentVendorName').value = vendor.name;
-    document.getElementById('paymentCurrentCredit').value = (vendor.credit || 0).toFixed(2);
+    document.getElementById('paymentCurrentCredit').value = (parseFloat(vendor.credit) || 0).toFixed(2);
     document.getElementById('paymentAmount').value = '';
     document.getElementById('paymentNotes').value = '';
 

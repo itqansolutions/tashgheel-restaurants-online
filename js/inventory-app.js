@@ -99,13 +99,16 @@ async function loadVendors() {
 
     const select = document.getElementById('material-vendor');
     if (!select) return;
+    const currentVal = select.value;
     select.innerHTML = '<option value="">-- Select Vendor --</option>';
     vendors.forEach(v => {
         const opt = document.createElement('option');
-        opt.value = v.id;
+        opt.value = v.id || v._id;
         opt.textContent = v.name;
+        opt.setAttribute('data-name', v.name);
         select.appendChild(opt);
     });
+    if (currentVal) select.value = currentVal;
 }
 
 // Safe Float Parsing Helper
@@ -116,7 +119,7 @@ function safeFloat(val) {
 
 function loadInventory() {
     const materials = window.DB.getIngredients();
-    const vendors = window.DB.getVendors();
+    const vendors = (window.DataCache && window.DataCache['vendors']) || window.DB.getVendors() || [];
     const search = document.getElementById('searchBox')?.value.toLowerCase() || '';
     const activeBranchId = getActiveBranchId();
     const dashboardContainer = document.getElementById('inventory-dashboard');
@@ -175,7 +178,7 @@ function loadInventory() {
     }
 
     filtered.forEach(m => {
-        const vendor = vendors.find(v => v.id == m.vendorId);
+        const vendor = vendors.find(v => (v.id || v._id) == m.vendorId || v.name == m.vendorId);
         const cost = safeFloat(m.cost);
 
         // 🌿 Branch-aware stock display
@@ -283,71 +286,102 @@ async function handleSaveMaterial(e) {
     const existingIngredient = id ? window.DB.getIngredient(id) : null;
     const isNew = !id;
 
-    // Merge stockByBranch: keep existing branch stocks, set current branch stock for new items
+    // Merge stockByBranch: keep existing branch stocks, set current branch stock
     let stockByBranch = existingIngredient?.stockByBranch || {};
-    if (isNew && activeBranchId) {
-        // New material: initialise stock for the current branch
-        stockByBranch[activeBranchId] = isNaN(stock) ? 0 : stock;
+    const effectiveStock = isNaN(stock) ? 0 : stock;
+    if (activeBranchId) {
+        stockByBranch[activeBranchId] = effectiveStock;
     }
 
     const material = {
-        id: id ? parseInt(id) : Date.now(),
+        id: id ? (isNaN(id) ? id : parseInt(id)) : Date.now(),
         name,
         unit,
         cost,
-        stock: id ? (existingIngredient?.stock || 0) : (isNaN(stock) ? 0 : stock),
+        stock: effectiveStock,
         stockByBranch,
         vendorId,
         minStock: isNaN(minStock) ? 5 : minStock,
         expirationDate: expDate || null
     };
 
-    // If NEW material with initial stock > 0 and vendor selected,
-    // let /inventory/restock add the initial stock on server & local DB to avoid double-adding.
-    if (isNew && stock > 0 && vendorId) {
-        material.stock = 0;
-        if (activeBranchId) {
-            material.stockByBranch[activeBranchId] = 0;
+    // Check if initial stock or stock increase should be recorded as a purchase against the vendor
+    let purchasedQty = 0;
+    if (vendorId) {
+        if (isNew && effectiveStock > 0) {
+            purchasedQty = effectiveStock;
+        } else if (!isNew) {
+            const prevStock = parseFloat(existingIngredient?.stock) || 0;
+            const diffStock = effectiveStock - prevStock;
+            const allTrans = (window.DB?.getVendorTransactions ? window.DB.getVendorTransactions(vendorId) : []) || [];
+            const hasExistingTx = allTrans.some(t => t.description && t.description.includes(name));
+
+            if (diffStock > 0) {
+                purchasedQty = diffStock;
+            } else if (!hasExistingTx && effectiveStock > 0) {
+                // Record previous unlinked stock
+                purchasedQty = effectiveStock;
+            } else if (effectiveStock > 0 && (!existingIngredient?.vendorId || existingIngredient?.vendorId !== vendorId)) {
+                purchasedQty = effectiveStock;
+            }
         }
     }
 
+    // Save ingredient locally
     window.DB.saveIngredient(material);
 
-    // 🟢 If NEW material with initial stock > 0 and a vendor is selected,
-    // record it as a purchase in the vendor's ledger (same as Restock flow).
-    if (isNew && stock > 0 && vendorId && window.apiFetch) {
-        try {
-            await window.apiFetch('/inventory/restock', {
-                method: 'POST',
-                body: JSON.stringify({
-                    ingredientId: material.id,
-                    ingredientName: name,
-                    ingredientUnit: unit,
-                    vendorId,
-                    qty: stock,
-                    unitCost: cost,
-                    purchaseType: 'credit',   // Initial stock treated as credit purchase
-                    paymentMethod: null,
-                    notes: 'Initial stock on material creation'
-                })
-            });
+    // 🟢 Record purchase directly into vendor's ledger and balance
+    if (purchasedQty > 0 && vendorId) {
+        const purchaseTotal = purchasedQty * cost;
 
-            // Update local DB to reflect the new stock and vendorId
-            const savedMat = window.DB.getIngredient(material.id);
-            if (savedMat) {
-                if (!savedMat.stockByBranch) savedMat.stockByBranch = {};
-                const bKey = activeBranchId || 'default';
-                savedMat.stockByBranch[bKey] = stock;
-                savedMat.stock = stock;
-                savedMat.vendorId = vendorId;
-                window.DB.saveIngredient(savedMat);
+        // 1. Immediately update local DB vendor transactions and running credit
+        if (window.DB && window.DB.addVendorTransaction) {
+            window.DB.addVendorTransaction({
+                vendorId: vendorId,
+                type: 'purchase',
+                amount: purchaseTotal,
+                description: `Purchase: ${name} (${purchasedQty} ${unit} × ${cost.toFixed(2)})`,
+                date: new Date().toISOString().split('T')[0],
+                method: 'credit'
+            });
+        }
+
+        // 2. Sync to window.DataCache['vendors'] so other tabs/modals see the updated balance immediately
+        if (window.DataCache && Array.isArray(window.DataCache['vendors'])) {
+            const vIdx = window.DataCache['vendors'].findIndex(v => (v.id || v._id) == vendorId || v.name == vendorId);
+            if (vIdx >= 0) {
+                window.DataCache['vendors'][vIdx].credit = (parseFloat(window.DataCache['vendors'][vIdx].credit) || 0) + purchaseTotal;
             }
-        } catch (err) {
-            console.error('[SaveMaterial] Failed to record vendor purchase for initial stock:', err);
-            // Fallback: restore entered stock if API restock failed
-            material.stock = stock;
-            if (activeBranchId) material.stockByBranch[activeBranchId] = stock;
-            window.DB.saveIngredient(material);
+        }
+
+        // 3. Post to backend restock endpoint to persist in database
+        if (window.apiFetch) {
+            try {
+                await window.apiFetch('/inventory/restock', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        ingredientId: material.id,
+                        ingredientName: name,
+                        ingredientUnit: unit,
+                        vendorId: vendorId,
+                        qty: purchasedQty,
+                        unitCost: cost,
+                        purchaseType: 'credit',
+                        paymentMethod: null,
+                        notes: isNew ? 'Initial stock on material creation' : 'Stock purchase on material update',
+                        branchId: activeBranchId
+                    })
+                });
+
+                // Refresh vendors from server if electronAPI available
+                if (window.electronAPI && window.electronAPI.getVendors) {
+                    window.electronAPI.getVendors().then(vList => {
+                        if (vList && window.DataCache) window.DataCache['vendors'] = vList;
+                    }).catch(() => {});
+                }
+            } catch (err) {
+                console.error('[SaveMaterial] Failed to record vendor restock on server:', err);
+            }
         }
     }
 
@@ -367,6 +401,18 @@ async function editMaterial(id) {
     document.getElementById('material-name').value = mat.name;
     document.getElementById('material-unit').value = mat.unit;
     document.getElementById('material-cost').value = mat.cost;
+    
+    // Populate stock value
+    const activeBranchId = getActiveBranchId();
+    let currentStock = 0;
+    if (activeBranchId && mat.stockByBranch && mat.stockByBranch[activeBranchId] !== undefined) {
+        currentStock = safeFloat(mat.stockByBranch[activeBranchId]);
+    } else {
+        currentStock = safeFloat(mat.stock || 0);
+    }
+    const stockInput = document.getElementById('material-stock');
+    if (stockInput) stockInput.value = currentStock;
+
     document.getElementById('material-vendor').value = mat.vendorId || "";
     document.getElementById('material-min').value = mat.minStock || 5;
     document.getElementById('material-exp').value = mat.expirationDate ? mat.expirationDate.split('T')[0] : "";

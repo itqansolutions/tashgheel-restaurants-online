@@ -949,45 +949,98 @@ router.post('/inventory/restock', async (req, res) => {
                 create: { key: 'ingredients', tenantId: req.tenantId, value: JSON.stringify(ingredients) }
             });
 
-            // 2. Log as InventoryAdjustment (PURCHASE)
-            // Note: createdById is a required relation FK to User — must use correct field name
-            if (req.userId) {
-                await tx.inventoryAdjustment.create({
-                    data: {
-                        tenantId: req.tenantId,
-                        branchId: req.branchId,
-                        itemId: String(ingredientId),
-                        type: 'PURCHASE',
-                        qty: parseFloat(qty),
-                        unitCost: parseFloat(unitCost),
-                        totalCost,
-                        reason: notes || (purchaseType === 'credit' ? 'Credit Purchase' : `Cash Purchase — paid ${paymentMethod || 'cash'}`),
-                        referenceId: vendorId ? `VENDOR-${vendorId}` : null,
-                        createdById: req.userId   // ✅ Fixed: was 'createdBy' (wrong field name — caused full tx rollback)
+            const targetBranchId = req.branchId || req.body.branchId || null;
+
+            // 2. Log as InventoryAdjustment (PURCHASE) - Safe execution
+            if (req.userId && targetBranchId) {
+                try {
+                    const validBranch = await tx.branch.findFirst({
+                        where: { id: targetBranchId, tenantId: req.tenantId },
+                        select: { id: true }
+                    });
+                    const validUser = await tx.user.findFirst({
+                        where: { id: req.userId, tenantId: req.tenantId },
+                        select: { id: true }
+                    });
+                    if (validBranch && validUser) {
+                        await tx.inventoryAdjustment.create({
+                            data: {
+                                tenantId: req.tenantId,
+                                branchId: validBranch.id,
+                                itemId: String(ingredientId),
+                                type: 'PURCHASE',
+                                qty: parseFloat(qty),
+                                unitCost: parseFloat(unitCost),
+                                totalCost,
+                                reason: notes || (purchaseType === 'credit' ? 'Credit Purchase' : `Cash Purchase — paid ${paymentMethod || 'cash'}`),
+                                referenceId: vendorId ? `VENDOR-${vendorId}` : null,
+                                createdById: validUser.id
+                            }
+                        });
                     }
-                });
+                } catch (adjErr) {
+                    console.warn('[Restock] Optional InventoryAdjustment skipped:', adjErr.message);
+                }
             }
 
-            // 3. Create Expense record (always — credit or paid)
-            await tx.expense.create({
-                data: {
-                    description,
-                    amount: totalCost,
-                    date: today,
-                    seller: vendorId || null,
-                    method: purchaseType === 'paid_now' ? (paymentMethod || 'cash') : 'credit',
-                    notes: notes || null,
-                    category: 'Raw Materials',
-                    type: 'expense',
-                    tenantId: req.tenantId,
-                    branchId: req.branchId,
-                    createdBy: req.userId || 'system'
-                }
-            });
+            // 3. Create Expense record (always — credit or paid) - Safe execution
+            try {
+                await tx.expense.create({
+                    data: {
+                        description,
+                        amount: totalCost,
+                        date: today,
+                        seller: vendorId ? String(vendorId) : null,
+                        method: purchaseType === 'paid_now' ? (paymentMethod || 'cash') : 'credit',
+                        notes: notes || null,
+                        category: 'Raw Materials',
+                        type: 'expense',
+                        tenantId: req.tenantId,
+                        branchId: targetBranchId || req.branchId || 'default',
+                        createdBy: req.userId || 'system'
+                    }
+                });
+            } catch (expErr) {
+                console.warn('[Restock] Optional Expense record skipped:', expErr.message);
+            }
 
-            // 4. Vendor ledger: always add a PURCHASE transaction row
+            // 4. Vendor ledger & balance: update vendor credit & transaction log
             if (vendorId) {
-                const vendorTxKey = `vendor_transactions_${vendorId}`;
+                // Find vendor by ID or name
+                let foundVendor = await tx.vendor.findFirst({
+                    where: {
+                        tenantId: req.tenantId,
+                        OR: [
+                            { id: String(vendorId) },
+                            { name: String(vendorId) }
+                        ]
+                    }
+                });
+
+                // Auto-create vendor in DB if not existing yet (e.g. from client offline or imported)
+                if (!foundVendor) {
+                    console.log(`[Restock] Auto-creating Vendor '${vendorId}' in DB for tenant ${req.tenantId}`);
+                    try {
+                        foundVendor = await tx.vendor.create({
+                            data: {
+                                id: (typeof vendorId === 'string' && vendorId.length === 36) ? vendorId : undefined,
+                                name: String(vendorId),
+                                credit: 0,
+                                tenantId: req.tenantId,
+                                branchId: targetBranchId || null
+                            }
+                        });
+                    } catch (createErr) {
+                        // Might conflict if concurrent create, try find again
+                        foundVendor = await tx.vendor.findFirst({
+                            where: { tenantId: req.tenantId, name: String(vendorId) }
+                        });
+                    }
+                }
+
+                const canonicalVendorId = foundVendor?.id || String(vendorId);
+                const vendorTxKey = `vendor_transactions_${canonicalVendorId}`;
+
                 const existingData = await tx.data.findUnique({
                     where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } }
                 });
@@ -999,7 +1052,7 @@ router.post('/inventory/restock', async (req, res) => {
                 // Row 1: Purchase (always)
                 transactions.push({
                     id: `${Date.now()}-purchase`,
-                    vendorId,
+                    vendorId: canonicalVendorId,
                     type: 'purchase',
                     amount: totalCost,
                     description,
@@ -1012,7 +1065,7 @@ router.post('/inventory/restock', async (req, res) => {
                 if (purchaseType === 'paid_now') {
                     transactions.push({
                         id: `${Date.now()}-payment`,
-                        vendorId,
+                        vendorId: canonicalVendorId,
                         type: 'payment',
                         amount: totalCost,
                         description: `Payment: ${ingredientName || ingredientId} restock (${paymentMethod || 'cash'})`,
@@ -1022,40 +1075,30 @@ router.post('/inventory/restock', async (req, res) => {
                     });
                 }
 
+                // Save to canonical key
                 await tx.data.upsert({
                     where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } },
                     update: { value: JSON.stringify(transactions), updatedAt: new Date() },
                     create: { key: vendorTxKey, tenantId: req.tenantId, value: JSON.stringify(transactions) }
                 });
 
-                // 5. Update Vendor.credit: credit purchase increases debt, paid_now has no net change
-                if (vendorId) {
-                    // Find vendor by UUID first, fallback to name match
-                    const foundVendor = await tx.vendor.findFirst({
-                        where: {
-                            tenantId: req.tenantId,
-                            OR: [
-                                { id: String(vendorId) },
-                                { name: String(vendorId) }
-                            ]
-                        }
+                // If vendorId string was different from canonical ID (e.g. name or different ID), mirror to that key too
+                if (String(vendorId) !== canonicalVendorId) {
+                    const altTxKey = `vendor_transactions_${vendorId}`;
+                    await tx.data.upsert({
+                        where: { key_tenantId: { key: altTxKey, tenantId: req.tenantId } },
+                        update: { value: JSON.stringify(transactions), updatedAt: new Date() },
+                        create: { key: altTxKey, tenantId: req.tenantId, value: JSON.stringify(transactions) }
                     });
+                }
 
-                    console.log(`[Restock] vendorId=${vendorId}, purchaseType=${purchaseType}, foundVendor=${foundVendor?.id || 'NOT FOUND'}, totalCost=${totalCost}`);
-
-                    if (foundVendor) {
-                        if (purchaseType === 'credit') {
-                            // Credit purchase: increase vendor debt
-                            await tx.vendor.update({
-                                where: { id: foundVendor.id },
-                                data: { credit: { increment: totalCost } }
-                            });
-                            console.log(`[Restock] ✅ Vendor ${foundVendor.name} credit incremented by ${totalCost}`);
-                        }
-                        // paid_now: no net credit change (purchase + payment cancel out)
-                    } else {
-                        console.warn(`[Restock] ⚠️ Vendor not found in DB for vendorId=${vendorId}, tenantId=${req.tenantId}. Transactions saved but Vendor.credit NOT updated.`);
-                    }
+                // 5. Update Vendor.credit in database
+                if (foundVendor && purchaseType === 'credit') {
+                    await tx.vendor.update({
+                        where: { id: foundVendor.id },
+                        data: { credit: { increment: totalCost } }
+                    });
+                    console.log(`[Restock] ✅ Vendor '${foundVendor.name}' (${foundVendor.id}) credit incremented by ${totalCost}`);
                 }
             }
         });
