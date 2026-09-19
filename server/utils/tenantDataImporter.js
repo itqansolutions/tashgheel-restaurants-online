@@ -5,7 +5,22 @@ const prisma = require('../prisma');
 const storage = require('./storage');
 
 const TARGET_TENANT_ID = 'c4b0f05e-7e27-4f26-8140-fab09204c764';
-const IMPORT_MARKER_KEY = 'import_marker_itqan_demo_v1';
+const IMPORT_MARKER_KEY = 'import_marker_itqan_demo_v2';
+
+const ENCRYPTION_KEY = 'AliKaram@2025!POS#Security$Enhanced&';
+function decryptDesktopPassword(encryptedText) {
+    if (!encryptedText) return null;
+    try {
+        const text = decodeURIComponent(escape(Buffer.from(encryptedText, 'base64').toString('binary')));
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            result += String.fromCharCode(text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length));
+        }
+        return result;
+    } catch (e) {
+        return null;
+    }
+}
 
 /**
  * Imports customer backup data for the target tenant
@@ -133,7 +148,10 @@ async function importCustomerData(tenantId = TARGET_TENANT_ID, customData = null
     const tables = backup.pos_secure_tables || [];
     const salesmen = backup.pos_secure_salesmen || [];
     const deliveryAreas = backup.pos_secure_delivery_areas || [];
-    const categories = backup.pos_secure_categories || [];
+    let categories = backup.pos_secure_categories || [];
+    if (!categories.length && spareParts.length) {
+        categories = Array.from(new Set(spareParts.map(p => p.category).filter(Boolean)));
+    }
     const sales = backup.pos_secure_sales || [];
     const users = backup.pos_secure_users || [];
     const license = backup.pos_secure_license || {};
@@ -187,10 +205,9 @@ async function importCustomerData(tenantId = TARGET_TENANT_ID, customData = null
     // 6. Upsert Relational Users
     try {
         const defaultAdminHash = await bcrypt.hash('admin123', 10);
-        const aliHash = await bcrypt.hash('123456', 10);
 
-        // Admin User
-        const adminUser = await prisma.user.upsert({
+        // Ensure default admin exists
+        await prisma.user.upsert({
             where: { tenantId_username: { tenantId, username: 'admin' } },
             update: {
                 fullName: 'System Administrator',
@@ -211,40 +228,38 @@ async function importCustomerData(tenantId = TARGET_TENANT_ID, customData = null
             }
         });
 
-        // Ali User
-        const aliUser = await prisma.user.upsert({
-            where: { tenantId_username: { tenantId, username: 'ali' } },
-            update: {
-                fullName: 'alik',
-                role: 'admin',
-                active: true,
-                allowedPages: [
-                    'kitchen.html', 'vendors.html', 'expenses.html',
-                    'salesmen.html', 'pos.html', 'products.html',
-                    'inventory.html', 'customers.html', 'receipts.html',
-                    'reports.html', 'admin.html'
-                ],
-                defaultBranchId: mainBranch.id,
-                branches: { connect: [{ id: mainBranch.id }] }
-            },
-            create: {
-                tenantId,
-                username: 'ali',
-                passwordHash: aliHash,
-                fullName: 'alik',
-                role: 'admin',
-                allowedPages: [
-                    'kitchen.html', 'vendors.html', 'expenses.html',
-                    'salesmen.html', 'pos.html', 'products.html',
-                    'inventory.html', 'customers.html', 'receipts.html',
-                    'reports.html', 'admin.html'
-                ],
-                active: true,
-                defaultBranchId: mainBranch.id,
-                branches: { connect: [{ id: mainBranch.id }] }
-            }
-        });
-        console.log('[TenantDataImporter] Synced admin and ali users');
+        // Loop through active users in backup
+        const activeUsers = users.filter(u => u.active !== false && (u.username || '').trim());
+        for (const u of activeUsers) {
+            const username = u.username.trim().toLowerCase();
+            const plainPass = decryptDesktopPassword(u.passwordHash) || (username === 'admin' ? 'admin123' : '123456');
+            const hash = await bcrypt.hash(plainPass, 10);
+            const userRole = (u.role === 'admin' || u.role === 'manager' || u.role === 'asstant manager') ? 'admin' : (u.role || 'cashier');
+
+            await prisma.user.upsert({
+                where: { tenantId_username: { tenantId, username } },
+                update: {
+                    fullName: u.fullName || username,
+                    role: userRole,
+                    active: true,
+                    allowedPages: u.allowedPages || null,
+                    defaultBranchId: mainBranch.id,
+                    branches: { connect: [{ id: mainBranch.id }] }
+                },
+                create: {
+                    tenantId,
+                    username,
+                    passwordHash: hash,
+                    fullName: u.fullName || username,
+                    role: userRole,
+                    allowedPages: u.allowedPages || null,
+                    active: true,
+                    defaultBranchId: mainBranch.id,
+                    branches: { connect: [{ id: mainBranch.id }] }
+                }
+            });
+            console.log(`[TenantDataImporter] Synced user ${username} (${userRole})`);
+        }
     } catch (uErr) {
         console.warn('[TenantDataImporter] User sync error:', uErr.message);
     }
