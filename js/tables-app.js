@@ -97,8 +97,8 @@
                     </div>
 
                     <!-- QR code preview -->
-                    <div class="bg-slate-900 rounded-lg px-3 py-2 text-[10px] text-slate-500 font-mono truncate" title="QR URL: table-order.html${qrPreview}">
-                        table-order.html${qrPreview}
+                    <div class="bg-slate-900 rounded-lg px-3 py-2 text-[10px] text-slate-500 font-mono truncate" title="QR URL: ${qrPreview}">
+                        ${qrPreview}
                     </div>
 
                     <!-- Actions -->

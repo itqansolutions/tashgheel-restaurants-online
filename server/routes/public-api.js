@@ -73,7 +73,7 @@ router.get('/menu/:branchId', async (req, res) => {
         let categoriesRaw = await storage.readData('categories', tenantId);
         let categories = [];
         try { categories = JSON.parse(categoriesRaw || '[]'); } catch (e) { }
-        categories = categories.filter(c => c.isActive !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+        categories = categories.filter(c => c && c.isActive !== false).sort((a, b) => (a.order || 0) - (b.order || 0)).map(c => typeof c==='string' ? {name:c} : {id:c.id,name:c.name,order:c.order,isActive:c.isActive});
 
         // Fetch Products
         let productsRaw = await storage.readData('spare_parts', tenantId);
@@ -97,7 +97,7 @@ router.get('/menu/:branchId', async (req, res) => {
                 image: p.image,
                 taxRate: p.taxRate,
                 hasSizes: !!p.hasSizes,
-                sizes: Array.isArray(p.sizes) ? p.sizes : [],
+                sizes: Array.isArray(p.sizes) ? p.sizes.map(size=>({id:size.id,name:size.name,price:size.price,isActive:size.isActive})) : [],
                 isService: !!p.isService,
                 allowAllAddons: !!p.allowAllAddons,
                 allowedAddons: Array.isArray(p.allowedAddons)

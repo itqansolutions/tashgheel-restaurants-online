@@ -94,7 +94,7 @@
     async function loadProducts(branchId, tableName) {
         try {
             // Load from public menu endpoint
-            const res = await fetchPublic(`/api/public/products?branch=${branchId}`);
+            const res = await fetchPublic(`/api/public/menu/${encodeURIComponent(branchId)}`);
             if (res && Array.isArray(res.products)) {
                 products = res.products.filter(p => p.isActive !== false);
             } else if (res && Array.isArray(res)) {
@@ -113,7 +113,7 @@
         } catch (e) {
             console.warn('Could not load products:', e.message);
             products = [];
-            renderProductGrid('all');
+            throw new Error('Menu could not be loaded. Please try again.');
         }
     }
 
@@ -154,10 +154,10 @@
             return;
         }
 
-        grid.innerHTML = filtered.map(p => {
+        grid.innerHTML = filtered.map((p,index) => {
             const inOrder = getOrderedQty(p.id);
             return `
-                <button onclick="TableOrder.tapProduct(${JSON.stringify(JSON.stringify(p))})"
+                <button data-product-index="${index}"
                     class="product-card bg-slate-800 rounded-2xl p-3 text-left border border-slate-700/50 active:border-amber-500/50 relative">
                     ${inOrder > 0 ? `<span class="absolute top-2 right-2 w-5 h-5 bg-amber-500 text-[10px] text-white font-bold rounded-full flex items-center justify-center">${inOrder}</span>` : ''}
                     <div class="w-full aspect-square bg-slate-700 rounded-xl mb-2 flex items-center justify-center">
@@ -167,12 +167,13 @@
                     <p class="text-xs text-amber-400 font-semibold mt-0.5">${formatCurrency(p.price)}</p>
                 </button>`;
         }).join('');
+        grid.querySelectorAll('[data-product-index]').forEach(button => {button.onclick=()=>tapProduct(JSON.stringify(filtered[Number(button.dataset.productIndex)]));});
     }
 
     function getOrderedQty(productId) {
         if (!order) return 0;
         return order.items
-            .filter(i => i.id === String(productId) && i.kitchenStatus === 'pending')
+            .filter(i => String(i.productId ?? i.id) === String(productId) && i.kitchenStatus === 'pending')
             .reduce((s, i) => s + i.qty, 0);
     }
 
@@ -180,7 +181,7 @@
     async function loadOrCreateOrder(activeOrderId) {
         if (activeOrderId) {
             const res = await fetchAuth(`/api/orders/${activeOrderId}`);
-            if (res) { order = res; orderId = res._id; }
+            if (res) { order = res; orderId = res.id || res._id; }
         }
 
         if (!order) {
@@ -188,7 +189,7 @@
                 method: 'POST',
                 body: JSON.stringify({ tableId })
             });
-            if (res?.order) { order = res.order; orderId = res.order._id; }
+            if (res?.order) { order = res.order; orderId = res.order.id || res.order._id; }
         }
 
         if (order) renderOrderState();
@@ -312,6 +313,12 @@
         const p = JSON.parse(productJson);
         // Bounce the card effect handled by :active CSS
         pendingNoteItem = p;
+        document.getElementById('qr-size-choice')?.remove();
+        if(p.hasSizes) {
+            const choice=document.createElement('select');choice.id='qr-size-choice';choice.className='w-full bg-slate-700 text-white rounded-lg p-2 mb-3';
+            for(const size of (p.sizes||[]).filter(size=>size.isActive!==false)) {const option=document.createElement('option');option.value=String(size.id);option.textContent=String(size.name)+' '+formatCurrency(size.price);choice.appendChild(option);}
+            document.getElementById('note-input').before(choice);
+        }
 
         // Show note modal
         document.getElementById('note-modal-title').textContent = `Add "${p.name}"`;
@@ -323,6 +330,7 @@
     async function confirmAddWithNote() {
         if (!pendingNoteItem) return;
         const note = document.getElementById('note-input').value.trim();
+        if(pendingNoteItem.hasSizes) {const choice=document.getElementById('qr-size-choice');const size=(pendingNoteItem.sizes||[]).find(size=>String(size.id)===choice?.value);if(!size) {showToast('Choose an available size','error');return;}pendingNoteItem={...pendingNoteItem,sizeId:size.id,sizeName:size.name,price:size.price};}
         document.getElementById('note-modal').classList.add('hidden');
 
         await addToOrder(pendingNoteItem, note);
@@ -333,12 +341,15 @@
         if (!orderId) return;
 
         // Check if we already have a pending entry for this product
-        const existing = order?.items?.find(i => i.id === String(product.id) && i.kitchenStatus === 'pending' && i.note === note);
+        const existing = order?.items?.find(i => String(i.productId ?? i.id) === String(product.id) && i.kitchenStatus === 'pending' && i.note === note && !(i.modifiers?.stockSelection?.addons || i.addons || []).length && String(i.modifiers?.stockSelection?.sizeId ?? '')===String(product.sizeId ?? ''));
 
         const newItem = existing
             ? { ...existing, qty: existing.qty + 1 }
             : {
                 lineId: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2),
+                productId: String(product.id),
+                sizeId:product.sizeId,
+                sizeName:product.sizeName,
                 id: String(product.id),
                 code: product.code || '',
                 name: product.name,
