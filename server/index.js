@@ -91,6 +91,7 @@ app.use('/api/tables', auth, branchScope, require('./routes/tables'));          
 app.use('/api/orders', qrAuth, require('./routes/orders'));                        // Orders (staff + customer QR) — auth handled by qrAuth
 app.use('/api/dine-in/kitchen', auth, branchScope, require('./routes/kitchen-orders')); // Kitchen display (staff only)
 
+app.use('/api/kitchen-drafts', auth, branchScope, require('./routes/kitchen-drafts'));
 app.use('/api', auth, branchScope, apiRoutes);
 
 // Serve Static Files (Frontend)

@@ -13,7 +13,7 @@ async function loadKitchenOrders() {
 
     try {
         // 1. Fetch Sales from Server (Real-time)
-        const kitchenOrders = await window.apiFetch('/kitchen/orders');
+        const kitchenOrders = await fetchKitchenDisplayOrders();
 
         if (!kitchenOrders || !Array.isArray(kitchenOrders)) {
             console.error("Failed to load kitchen orders");
@@ -68,6 +68,7 @@ async function loadKitchenOrders() {
                 <div class="flex items-center gap-2 mb-1">
                     <span class="font-bold text-amber-500 text-lg">#${sale.receiptNo || (sale._id || sale.id).slice(-4)}</span>
                     ${typeBadge}
+                ${sale.isKitchenDraft ? '<strong style="display:block;color:#fbbf24">طلب غير مغلق • لا يحجز المخزون</strong>' : ''}
                 </div>
                 ${tableInfo}
                 ${sale.note ? `<div class="mt-2 p-2 bg-red-900/30 border border-red-800 rounded text-xs text-red-200 font-bold italic">Note: ${fbText(sale.note)}</div>` : ''}
@@ -114,9 +115,7 @@ window.completeOrder = async function (saleId) {
 
     try {
         // Use API to complete order
-        const result = await window.apiFetch(`/kitchen/complete/${saleId}`, {
-            method: 'POST'
-        });
+        const result = saleId.startsWith('DRAFT:') ? await window.apiFetch('/kitchen-drafts/'+saleId.slice(6)+'/status', {method:'POST',body:JSON.stringify({status:'ready'})}) : await window.apiFetch(`/kitchen/complete/${saleId}`, {method:'POST'});
 
         if (result && result.success) {
             // Remove card from UI immediately for responsiveness
@@ -160,7 +159,7 @@ window.printKitchenTicket = async function (saleId) {
         // Let's use /reports/receipt/:id if available or just find in DOM if we stored data.
 
         // BETTER: Let's fetch all active orders again and find it (since we don't have get-single yet and it's cheap)
-        const kitchenOrders = await window.apiFetch('/kitchen/orders');
+        const kitchenOrders = await fetchKitchenDisplayOrders();
         const sale = kitchenOrders.find(s => (s._id || s.id) === saleId);
 
         if (!sale) {
@@ -213,6 +212,7 @@ function generateKitchenTicketHtml(sale) {
     <body>
         <div class="header">
             <span class="title">KITCHEN TICKET</span>
+            ${sale.isKitchenDraft?'<strong>UNPAID OPEN DRAFT • NOT A STOCK RESERVATION</strong>':''}
             <div class="meta">
                 #${fbText(sale.receiptNo)}<br>
                 ${sale.tableName ? `Table: ${fbText(sale.tableName)}<br>` : ''}
@@ -242,4 +242,9 @@ function generateKitchenTicketHtml(sale) {
     </body>
     </html>
     `;
+}
+
+async function fetchKitchenDisplayOrders(){
+ const [sales,drafts]=await Promise.all([window.apiFetch('/kitchen/orders'),window.apiFetch('/kitchen-drafts')]);
+ return [...sales,...drafts.filter(d=>d.kitchenStatus!=='ready').map(d=>({...d,id:'DRAFT:'+d.id,receiptNo:'KOT-'+d.id.slice(-8),date:d.sentAt,cashier:d.openedBy,isKitchenDraft:true}))];
 }

@@ -15,6 +15,7 @@ const path = require('path');
 router.post('/data/save', async (req, res) => {
     const { key, value } = req.body;
     if (!key) return res.status(400).json({ success: false, error: 'Key is required' });
+    if (String(key).startsWith('kitchen_draft_v1:')) return res.status(403).json({error:'Use kitchen draft lifecycle endpoints'});
     try {
         const tid = req.tenantId || 'global';
         let savedValue;
@@ -122,6 +123,7 @@ router.get('/data/list', async (req, res) => {
 // Read Data
 router.get('/data/read/:key', async (req, res) => {
     const { key } = req.params;
+    if(String(key).startsWith('kitchen_draft_v1:'))return res.status(403).json({error:'Use scoped kitchen draft endpoints'});
     try {
         const tid = req.tenantId || 'global';
         const dataDoc = await prisma.data.findUnique({
@@ -207,6 +209,7 @@ router.get('/data/list', async (req, res) => {
 router.delete('/data/delete/:key', async (req, res) => {
     const { key } = req.params;
     if (!key) return res.status(400).json({ success: false, error: 'Key is required' });
+    if (String(key).startsWith('kitchen_draft_v1:')) return res.status(403).json({error:'Use kitchen draft lifecycle endpoints'});
 
     try {
         const tid = req.tenantId || 'global';
@@ -1480,6 +1483,15 @@ router.get('/sales/:id', async (req, res) => {
             include: { items: true }
         });
         if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Receipt not found' });
+        // Only new deterministic KOT identities need their immutable receipt metadata.
+        // Ordinary receipts retain the original dependency-free read path.
+        if(sale.id.startsWith('REC-KOT-')){
+            if(sale.branchId!==req.branchId)return res.status(404).json({error:'Receipt not found'});
+            const doc=await prisma.data.findUnique({where:{key_tenantId:{key:'kitchen_draft_v1:'+sale.id.slice(8),tenantId:req.tenantId}}});
+            const draft=doc?(typeof doc.value==='string'?JSON.parse(doc.value):doc.value):null;
+            if(!draft||draft.saleId!==sale.id||draft.branchId!==sale.branchId)return res.status(409).json({error:'Draft receipt metadata needs review'});
+            return res.json(require('./kitchen-drafts').receipt(sale,draft));
+        }
         res.json(sale);
     } catch (err) {
         res.status(500).json({ error: err.message });

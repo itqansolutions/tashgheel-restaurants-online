@@ -538,7 +538,7 @@
           class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl font-bold text-[10px] uppercase flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 disabled:opacity-50">
           <span class="material-symbols-outlined text-base">visibility</span> <span>Preview</span>
         </button>
-        <button id="sendKitchenBtn" title="Unpaid kitchen tickets are supported for online orders only. Paid POS sales appear in Kitchen automatically." onclick="sendToKitchen()"
+        <button id="sendKitchenBtn" title="Open kitchen drafts do not reserve stock. Stock is checked and deducted at invoice closure." onclick="sendToKitchen()"
           class="flex-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 py-2.5 rounded-xl font-bold text-[10px] uppercase flex items-center justify-center gap-1.5 border border-blue-200 dark:border-blue-800 disabled:opacity-50">
           <span class="material-symbols-outlined text-base">outdoor_grill</span> <span>Kitchen</span>
         </button>
@@ -1200,6 +1200,7 @@
   <script src="js/shared-nav.js"></script>
   <script src="js/translations.js"></script>
   <script src="js/pos-app.js"></script>
+  <script src="js/kitchen-drafts-pos.js"></script>
   <!-- Cart Float / Overlay Feature -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {

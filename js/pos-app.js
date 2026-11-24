@@ -819,6 +819,7 @@ async function loadTables() {
 }
 
 window.handleTableChange = async function() {
+  if(currentKitchenDraft)return alert('اترك طلب المطبخ مفتوحًا أولًا قبل اختيار طاولة.');
   const tableSelect = document.getElementById('tableSelect');
   const tableId = tableSelect?.value;
   
@@ -878,6 +879,7 @@ window.handleTableChange = async function() {
 };
 
 window.clearCart = function() {
+  if(currentKitchenDraft)return alert('لا يُلغى طلب المطبخ بمسح السلة. استخدم تركه مفتوحًا لاسترجاعه لاحقًا.');
   if (confirm(t('confirm_clear_cart') || 'Are you sure you want to clear the cart?')) {
     cart = [];
     currentDineInOrder = null;
@@ -1195,6 +1197,7 @@ async function saveQuickCustomer() {
 
 // ===================== HOLD / DRAFT LOGIC =====================
 function holdTransaction() {
+  if(currentKitchenDraft)return alert('طلب المطبخ محفوظ على الخادم. استخدم تركه مفتوحًا بدل إنشاء مسودة محلية أخرى.');
   if (cart.length === 0) { alert('Cart is empty'); return; }
 
   const pendingOrder = {
@@ -1257,6 +1260,7 @@ function openPendingOrders() {
 }
 
 function restorePendingOrder(index) {
+  if(currentKitchenDraft)return alert('اترك طلب المطبخ مفتوحًا أولًا قبل استرجاع سلة أخرى.');
   if (cart.length > 0 && !confirm('Current cart will be cleared. Continue?')) return;
 
   const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
@@ -1993,6 +1997,7 @@ async function loadTaxes() {
 }
 
 function applyTaxesForOrderType() {
+  if(currentKitchenDraft)return;
   const orderType = document.querySelector('input[name="orderType"]:checked')?.value || 'take_away';
   // Filter active taxes that match this order type
   currentOrderTaxes = activeTaxes.filter(t => {
@@ -2218,10 +2223,12 @@ function validateIngredientStock() {
 async function processSale(method) {
   if (window.saleInProgress) return;
   window.saleInProgress = true;
-  try { return await completeSale(method); }
+  try { if(await draftPaymentGate())return; if (currentKitchenDraft) return await closeOrdinaryKitchenDraft(method); return await completeSale(method); }
   finally { window.saleInProgress = false; }
 }
 async function completeSale(method) {
+  if(currentKitchenDraft)return await closeOrdinaryKitchenDraft(method);
+  if(await draftPaymentGate())return;
   if (cart.length === 0) return;
 
   if (!currentShift) {
@@ -2288,7 +2295,7 @@ async function completeSale(method) {
     let itemTotal = item.qty * item.price;
     let disc = 0;
     if (item.discount?.type === "percent") disc = itemTotal * (item.discount.value / 100);
-    else if (item.discount?.type === "value") disc = item.discount.value;
+    else if (item.discount?.type === "value") disc = currentKitchenDraft ? Number(item.discount.value) : item.discount.value;
     subtotal += itemTotal;
     discountTotal += disc;
   });
@@ -2650,7 +2657,7 @@ window.printStoredReceipt = function (receiptId) {
       discountAmountPerUnit = price * (item.discount.value / 100);
       discountStr = `${item.discount.value}%`;
     } else if (item.discount?.type === "value") {
-      discountAmountPerUnit = item.discount.value;
+      discountAmountPerUnit = receipt.isKitchenDraftReceipt ? item.discount.value / qty : item.discount.value;
       discountStr = `${discountAmountPerUnit.toFixed(2)}`;
     }
 
@@ -2826,7 +2833,7 @@ window.printStoredReceipt = function (receiptId) {
 
     <div class="summary">
       <p style="display:flex; justify-content:space-between;"><span>${t('subtotal')}:</span> <span>${subtotal.toFixed(2)}</span></p>
-      ${totalDiscount > 0 ? `<p style="display:flex; justify-content:space-between;"><span>${t('total_discounts')}:</span> <span>-${totalDiscount.toFixed(2)}</span></p>` : ''}
+      ${(receipt.isKitchenDraftReceipt ? receipt.discount : totalDiscount) > 0 ? `<p style="display:flex; justify-content:space-between;"><span>${t('total_discounts')}:</span> <span>-${(receipt.isKitchenDraftReceipt ? receipt.discount : totalDiscount).toFixed(2)}</span></p>` : ''}
       
       <!-- Taxes -->
       ${taxesHtml ? `<div style="border-top:1px dashed #ccc; margin:5px 0; padding:2px 0;">${taxesHtml}</div>` : ''}
@@ -3103,6 +3110,7 @@ function openOnlineOrders() {
 }
 
 function resumeOnlineOrder(orderId) {
+    if(currentKitchenDraft)return alert('اترك طلب المطبخ مفتوحًا أولًا قبل استرجاع طلب آخر.');
     const order = window.latestOnlineOrders.find(o => o.id === orderId);
     if (!order) return;
 
@@ -3180,7 +3188,7 @@ function printReceiptPreview() {
       let itemTotal = item.qty * item.price;
       let disc = 0;
       if (item.discount?.type === "percent") disc = itemTotal * (item.discount.value / 100);
-      else if (item.discount?.type === "value") disc = item.discount.value;
+      else if (item.discount?.type === "value") disc = currentKitchenDraft ? Number(item.discount.value) : item.discount.value;
       subtotal += itemTotal;
       discountTotal += disc;
     });
@@ -3263,7 +3271,7 @@ async function sendToKitchen() {
             alert('Failed to send to kitchen: ' + e.message);
         }
     } else {
-        alert('Independent KOT for regular orders is coming soon. Please use Hold for now.');
+        return await sendOrdinaryKitchenDraft();
     }
 }
 
