@@ -32,13 +32,6 @@ router.get('/', async (req, res) => {
 
         if (category) filter.category = category;
 
-        // One-time cleanup of any legacy credit purchase expense records
-        try {
-            await prisma.expense.deleteMany({
-                where: { tenantId, method: 'credit' }
-            });
-        } catch (e) {}
-
         const expenses = await prisma.expense.findMany({
             where: filter,
             orderBy: { date: 'desc' }

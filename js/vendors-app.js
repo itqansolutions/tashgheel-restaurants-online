@@ -68,19 +68,6 @@ async function renderVendors() {
     const vendors = await window.electronAPI.getVendors() || [];
     console.log('Vendors loaded:', vendors.length);
 
-    // In web mode, ensure ingredients are cached so DB.getIngredients() has data
-    if (window.electronAPI && window.electronAPI.readData) {
-        try {
-            const ingData = await window.electronAPI.readData('ingredients');
-            if (ingData) {
-                const parsedIng = typeof ingData === 'string' ? JSON.parse(ingData) : ingData;
-                if (Array.isArray(parsedIng)) {
-                    window.EnhancedSecurity.storeSecureData('ingredients', parsedIng);
-                }
-            }
-        } catch (e) {}
-    }
-
     // Reconcile/sync transactions for each vendor
     for (let i = 0; i < vendors.length; i++) {
         const v = vendors[i];
@@ -96,7 +83,8 @@ async function renderVendors() {
                     // Cache transactions in local DB so reports and print work
                     const allTrans = window.EnhancedSecurity.getSecureData('vendor_transactions') || [];
                     const otherTrans = allTrans.filter(t => t.vendorId != vId);
-                    window.EnhancedSecurity.storeSecureData('vendor_transactions', [...otherTrans, ...trans]);
+                    if (!window.DataCache) window.DataCache = {};
+                    window.DataCache.vendor_transactions = [...otherTrans, ...trans];
                 }
             } catch (e) {
                 trans = window.DB.getVendorTransactions(vId) || [];
@@ -105,69 +93,15 @@ async function renderVendors() {
             trans = window.DB.getVendorTransactions(vId) || [];
         }
 
-        // Reconcile if we have ledger transactions
-        if (trans.length > 0) {
-            const totalLogValue = trans.reduce((sum, t) => {
-                let amt = parseFloat(t.amount) || 0;
-                if (t.type === 'payment') amt = -Math.abs(amt);
-                return sum + amt;
-            }, 0);
-
-            const currentCredit = parseFloat(v.credit) || 0;
-            console.log(`[Vendors] ${v.name} (${vId}): DB credit=${currentCredit.toFixed(2)}, transactions sum=${totalLogValue.toFixed(2)}, txCount=${trans.length}`);
-
-            if (Math.abs(currentCredit - totalLogValue) > 0.01) {
-                console.log(`[Vendors] 🔄 Syncing ${v.name}: ${currentCredit.toFixed(2)} → ${totalLogValue.toFixed(2)}`);
-                v.credit = totalLogValue;
-                const vendorToSave = {
-                    id: vId,
-                    name: v.name,
-                    mobile: v.mobile,
-                    address: v.address,
-                    credit: totalLogValue
-                };
-                window.electronAPI.saveVendor(vendorToSave).catch(err => {
-                    console.error(`Failed to sync reconciled credit for vendor ${v.name}:`, err);
-                });
-            }
-        } else if ((parseFloat(v.credit) || 0) === 0) {
-            // Fallback check: If vendor has 0 balance and no transactions, check if inventory materials are assigned to them
-            const materials = window.DB?.getIngredients() || [];
-            const vendorMaterials = materials.filter(m => (m.vendorId == vId || m.vendorId == v.name || (!m.vendorId && vendors.length === 1)) && (parseFloat(m.stock) > 0));
-            if (vendorMaterials.length > 0) {
-                const matTotal = vendorMaterials.reduce((sum, m) => sum + (parseFloat(m.stock) || 0) * (parseFloat(m.cost) || 0), 0);
-                if (matTotal > 0) {
-                    console.log(`[Vendors] Auto-linking existing inventory stock (${matTotal.toFixed(2)}) to vendor ${v.name}`);
-                    v.credit = matTotal;
-                    // Ensure ingredients have vendorId set
-                    vendorMaterials.forEach(m => {
-                        if (!m.vendorId) {
-                            m.vendorId = vId;
-                            if (window.DB?.saveIngredient) window.DB.saveIngredient(m);
-                        }
-                    });
-                    const initialTx = {
-                        id: `${Date.now()}-purchase`,
-                        vendorId: vId,
-                        type: 'purchase',
-                        amount: matTotal,
-                        description: `Inventory stock: ${vendorMaterials.map(m => m.name).join(', ')}`,
-                        date: new Date().toISOString().split('T')[0],
-                        method: 'credit'
-                    };
-                    if (window.DB?.addVendorTransaction) window.DB.addVendorTransaction(initialTx);
-                    if (window.electronAPI?.saveVendor) {
-                        window.electronAPI.saveVendor({ id: vId, name: v.name, mobile: v.mobile, address: v.address, credit: matTotal }).catch(() => {});
-                    }
-                }
-            }
-        }
+        // Read-only: a mismatch is evidence, not permission to rewrite a balance
+        // or manufacture a purchase from current stock.
     }
 
     // Sync to local DB & window.DataCache to ensure other parts (modals, reports) work with up-to-date vendor credit
     if (!window.DataCache) window.DataCache = {};
     window.DataCache['vendors'] = vendors;
-    window.EnhancedSecurity.storeSecureData('vendors', vendors);
+    // Cache only: storeSecureData can persist through an integration.
+    // Reading a page must not call it for financial entities.
 
     container.innerHTML = '';
 
@@ -375,8 +309,7 @@ window.printVendorReport = function printVendorReport(vendorId) {
     let allTransactions = window.DB.getVendorTransactions(vendorId) || [];
 
     // 2. Compatibility: If no unified transactions exist, check for legacy 'vendor_payments'
-    // and try to reconstruct (Optional, but "Opening Balance" logic covers this safely)
-    // We will stick to the log.
+    // Do not reconstruct missing financial history.
 
     // Sort by date
     allTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -405,21 +338,8 @@ window.printVendorReport = function printVendorReport(vendorId) {
     // Calculate sum of known transactions
     const recordedCredit = parseFloat(vendor.credit || 0);
 
-    // If there is a mismatch, insert an "Opening Balance" transaction to reconcile
-    // Mismatch = Actual (Stored) - Sum(Logs)
     const mismatch = recordedCredit - totalLogValue;
-
-    if (Math.abs(mismatch) > 0.01) {
-        // Prepend opening balance
-        calculatedTransactions.unshift({
-            date: vendor.createdAt || new Date().toISOString(),
-            type: 'Opening Balance',
-            amount: Math.abs(mismatch), // Amount displayed is absolute
-            signedAmount: mismatch, // Signed for balance calc (if positive, we owe; if negative, they owe us aka credit)
-            description: t('Previous Balance / Adjustment', 'رصيد سابق / تسوية'),
-            isAdjustment: true
-        });
-    }
+    // Never fabricate an opening-balance transaction to make the statement fit.
 
     // Calculate running balance
     let balance = 0;
@@ -459,6 +379,7 @@ window.printVendorReport = function printVendorReport(vendorId) {
                     <p><strong>${t('Report Date', 'تاريخ التقرير')}:</strong> ${new Date().toLocaleDateString()}</p>
                 </div>
 
+                ${Math.abs(mismatch) > 0.01 ? `<p role="alert" style="padding:12px;border:1px solid #f59e0b;background:#fffbeb;color:#92400e">${t('Stored balance differs from recorded transactions. No adjustment was added. Manual reconciliation required. Difference:', 'الرصيد المسجل مختلف عن مجموع الحركات. لم تتم إضافة تسوية. يلزم مراجعة يدوية. الفرق:')} ${mismatch.toFixed(2)}</p>` : ''}
                 <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
                     <thead>
                         <tr style="background: #34495e; color: white;">
@@ -474,7 +395,7 @@ window.printVendorReport = function printVendorReport(vendorId) {
                             <tr style="border-bottom: 1px solid #eee;">
                                 <td style="padding: 10px; border: 1px solid #ddd;">${tr.displayDate}</td>
                                 <td style="padding: 10px; border: 1px solid #ddd;">
-                                    ${tr.type === 'Opening Balance' ? t('Opening Balance', 'رصيد افتتاحي') : t(tr.type, tr.type === 'Purchase' ? 'شراء' : 'دفع')}
+                                    ${tr.type === 'purchase' ? t('Purchase', 'شراء') : tr.type === 'payment' ? t('Payment', 'دفع') : tr.type}
                                 </td>
                                 <td style="padding: 10px; border: 1px solid #ddd;">${tr.description}</td>
                                 <td style="padding: 10px; border: 1px solid #ddd; color: ${tr.signedAmount > 0 ? '#e74c3c' : '#27ae60'};">
@@ -484,7 +405,7 @@ window.printVendorReport = function printVendorReport(vendorId) {
                             </tr>
                         `).join('')}
                         <tr class="total-row" style="background: #ecf0f1; font-weight: bold;">
-                            <td colspan="4" style="padding: 12px; border: 1px solid #ddd; text-align: ${isRTL ? 'left' : 'right'};">${t('Current Balance:', 'الرصيد الحالي:')}</td>
+                            <td colspan="4" style="padding: 12px; border: 1px solid #ddd; text-align: ${isRTL ? 'left' : 'right'};">${t('Stored Account Balance (not an adjustment):', 'رصيد الحساب المسجل (ليس تسوية):')}</td>
                             <td style="padding: 12px; border: 1px solid #ddd;">${vendor.credit.toFixed(2)}</td>
                         </tr>
                     </tbody>
