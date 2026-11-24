@@ -14,6 +14,7 @@ const {readCatalog,snapshotItems,parseArray}=require('../utils/catalog');
 const {applyStock}=require('../utils/stock');
 const crypto=require('crypto');
 const {customerOrderItems}=require('../utils/customer-order-items');
+const {customerOrderView}=require('../utils/customer-order-view');
 
 // ─── Structured logger ───────────────────────────────────────
 function log(event, ctx = {}) {
@@ -68,7 +69,7 @@ router.get('/table/:tableId', async (req, res) => {
             include: { items: true }
         });
 
-        res.json(order);
+        res.json(customerOrderView(req,order));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -83,7 +84,7 @@ router.get('/:id', async (req, res) => {
         });
 
         if (!order || order.tenantId !== req.tenantId || order.branchId !== req.branchId || (req.userRole==='customer' && order.tableId!==req.tableId)) return res.status(404).json({ error: 'Order not found' });
-        res.json(order);
+        res.json(customerOrderView(req,order));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -112,7 +113,7 @@ router.post('/',async(req,res)=>{
             const items=input.length?(req.userRole==='customer'?await customerOrderItems(tx,req.tenantId,input,catalog):snapshotItems(input,catalog)):[];
             const order=await tx.order.create({data:{tenantId:req.tenantId,branchId:req.branchId,tableId:table.id,tableName:table.name,note:req.body.note||'',openedBy:req.userRole==='customer'?'customer':req.userId||'waiter',items:{create:items.map(i=>({productId:String(i.id),productCode:i.code,name:i.name,qty:i.qty,price:i.price,cost:i.cost,note:i.note,addedBy:req.userRole==='customer'?'customer':req.userId||'waiter',lineId:i.lineId||genLineId(),modifiers:{stockSelection:{sizeId:i.sizeId,sizeName:i.sizeName,addons:i.addons||[]}}}))}},include:{items:true}});
             await tx.table.update({where:{id:table.id},data:{status:'occupied',activeOrderId:order.id}});return order;
-        });res.status(201).json({success:true,order});
+        });res.status(201).json({success:true,order:customerOrderView(req,order)});
     }catch(err){res.status(err.status||500).json({error:err.message});}
 });
 router.patch('/:id/items',async(req,res)=>{
@@ -133,7 +134,7 @@ router.patch('/:id/items',async(req,res)=>{
                 else await tx.orderItem.create({data:{...data,orderId:order.id,productId:String(item.id),productCode:item.productCode||item.code,name:item.name,addedBy:req.userRole==='customer'?'customer':req.userId||'waiter',lineId:item.lineId||genLineId(),modifiers:{stockSelection:{sizeId:item.sizeId,sizeName:item.sizeName,addons:item.addons||[]}}}});
             }
             return tx.order.update({where:{id:order.id},data:{version:{increment:1},lastActivityAt:new Date()},include:{items:true}});
-        });res.json({success:true,version:order.version,order});
+        });res.json({success:true,version:order.version,order:customerOrderView(req,order)});
     }catch(err){res.status(err.status||500).json({error:err.message});}
 });
 router.delete('/:id/items/:lineId',async(req,res)=>{
