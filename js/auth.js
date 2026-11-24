@@ -569,6 +569,12 @@ var EnhancedSecurity = {
 
     // Store encrypted data
     storeSecureData: async function (key, data) {
+        const previous = window.DataCache?.[key];
+        const previousBackup = localStorage.getItem(this._getBackupKey(key));
+        const rollback = () => {
+            if (previous === undefined) delete window.DataCache[key]; else window.DataCache[key] = previous;
+            if (previousBackup === null) localStorage.removeItem(this._getBackupKey(key)); else localStorage.setItem(this._getBackupKey(key), previousBackup);
+        };
         // 1. Update Memory Cache immediately
         if (!window.DataCache) window.DataCache = {};
         window.DataCache[key] = data;
@@ -585,24 +591,30 @@ var EnhancedSecurity = {
                 const res = await window.electronAPI.saveData(key, data);
                 if (!res.success) {
                     console.error('Background Save Failed:', res.error);
+                    rollback();
                     return false;
                 }
                 return true;
             } catch (err) {
                 console.error('Electron Save Error:', err);
-                return true;
+                rollback();
+                return false;
             }
         } else {
             // 🚀 WEB MODE: Save to Server via API
             try {
                 if (window.apiFetch) {
-                    await window.apiFetch('/data/save', {
+                    const result = await window.apiFetch('/data/save', {
                         method: 'POST',
                         body: JSON.stringify({ key, value: data })
                     });
+                    if (!result?.success) throw new Error(result?.error || 'Save failed');
+                    if (result.value !== undefined) { window.DataCache[key] = result.value; try { localStorage.setItem(this._getBackupKey(key), JSON.stringify(result.value)); } catch(e) {} }
                 }
             } catch (e) {
                 console.warn('Web Save Error (Offline?):', e);
+                rollback();
+                return false;
             }
         }
 

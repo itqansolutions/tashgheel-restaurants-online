@@ -69,7 +69,7 @@
                 : 'bg-green-400';
 
             // QR URL preview
-            const qrPreview = `?code=${t.code}&branch=<branchId>`;
+            const qrPreview = 'table-order.html?' + new URLSearchParams({ code: t.code, branch: t.branchId || localStorage.getItem('activeBranchId') || '' }).toString();
 
             return `
                 <div class="bg-slate-800 rounded-2xl border ${isOccupied ? 'border-amber-500/30' : 'border-slate-700/50'} p-5 flex flex-col gap-4 transition-all">

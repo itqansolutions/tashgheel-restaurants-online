@@ -61,7 +61,7 @@ router.get('/', async (req, res) => {
 
         res.json(kitchenView);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(err.status||500).json({ error: err.message });
     }
 });
 
@@ -87,40 +87,17 @@ router.patch('/:orderId/items/:lineId/status', async (req, res) => {
             return res.status(400).json({ error: `Invalid status. Kitchen can only set 'preparing' or 'ready'.` });
         }
 
-        const order = await prisma.order.findUnique({
-            where: { id: req.params.orderId },
-            include: { items: true }
+        const order=await prisma.$transaction(async tx=>{
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const order=await tx.order.findUnique({where:{id:req.params.orderId},include:{items:true}});
+            const fail=(message,status=409)=>{const e=new Error(message);e.status=status;throw e};
+            if(!order||order.tenantId!==req.tenantId||order.branchId!==req.branchId||order.status!=='open') fail('Order not found',404);
+            const item=order.items.find(i=>i.lineId===req.params.lineId);if(!item) fail('Item not found',404);
+            if(status==='preparing'&&item.kitchenStatus!=='sent') fail('Item must be sent first');
+            if(status==='ready'&&!['sent','preparing'].includes(item.kitchenStatus)) fail('Item must be sent or preparing first');
+            await tx.orderItem.update({where:{id:item.id},data:{kitchenStatus:status,preparingAt:status==='preparing'?new Date():undefined,readyAt:status==='ready'?new Date():undefined}});
+            await tx.order.update({where:{id:order.id},data:{lastActivityAt:new Date(),version:{increment:1}}});return order;
         });
-
-        if (!order || order.tenantId !== req.tenantId || order.status !== 'open') {
-            return res.status(404).json({ error: 'Order not found' });
-        }
-
-        const item = order.items.find(i => i.lineId === req.params.lineId);
-        if (!item) return res.status(404).json({ error: 'Item not found' });
-
-        // Validate transition
-        if (status === 'preparing' && item.kitchenStatus !== 'sent') {
-            return res.status(400).json({ error: `Item must be 'sent' before marking as 'preparing'. Current: ${item.kitchenStatus}` });
-        }
-        if (status === 'ready' && !['preparing', 'sent'].includes(item.kitchenStatus)) {
-            return res.status(400).json({ error: `Item cannot be marked 'ready' from status: ${item.kitchenStatus}` });
-        }
-
-        await prisma.$transaction([
-            prisma.orderItem.update({
-                where: { id: item.id },
-                data: {
-                    kitchenStatus: status,
-                    preparingAt: status === 'preparing' ? new Date() : undefined,
-                    readyAt: status === 'ready' ? new Date() : undefined
-                }
-            }),
-            prisma.order.update({
-                where: { id: order.id },
-                data: { lastActivityAt: new Date(), version: { increment: 1 } }
-            })
-        ]);
 
         log('ITEM_STATUS', {
             branch: order.branchId,
@@ -143,7 +120,7 @@ router.patch('/:orderId/items/:lineId/status', async (req, res) => {
             allItemsReady: allDone
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(err.status||500).json({ error: err.message });
     }
 });
 

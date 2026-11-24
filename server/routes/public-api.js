@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const {readCatalog,snapshotItems}=require('../utils/catalog');
 const prisma = require('../prisma');
 const storage = require('../utils/storage');
 const rateLimit = require('express-rate-limit');
@@ -127,38 +128,18 @@ router.post('/order', async (req, res) => {
 
         const tenantId = branch.tenantId;
 
-        // Verify products and prices
-        let productsRaw = await storage.readData('spare_parts', tenantId);
-        if (!productsRaw || productsRaw === '[]') {
-            productsRaw = await storage.readData('products', tenantId);
-        }
-        let allProducts = [];
-        try { allProducts = JSON.parse(productsRaw || '[]'); } catch (e) { }
-        const productMap = new Map(allProducts.map(p => [String(p.id), p]));
-
-        let subtotal = 0;
-        const validItems = [];
-
-        for (const item of cart) {
-            const product = productMap.get(String(item.id));
-            if (!product) continue;
-
-            const price = parseFloat(product.price || 0);
-            const cost = parseFloat(product.cost || 0);
-            const qty = parseFloat(item.qty || 1);
-            subtotal += price * qty;
-
-            validItems.push({
-                productId: String(product.id),
-                productCode: product.partNumber || product.code,
-                name: product.name,
-                qty: qty,
-                price: price,
-                cost: cost,
-                note: item.note || ''
-            });
-        }
-
+        const products=await readCatalog(prisma,tenantId);
+        const selected=snapshotItems(cart,products);
+        let subtotal=0;
+        const validItems=selected.map(item=>{
+            const product=products.find(p=>String(p.id)===String(item.id));
+            const size=product.hasSizes?(product.sizes||[]).find(s=>String(s.id)===String(item.sizeId)||(item.sizeName&&s.name===item.sizeName)):null;
+            let price=Number(size?.price ?? product.price ?? 0);
+            for(const addon of item.addons||[]) {const p=products.find(p=>String(p.id)===String(addon.id));price+=Number(p.price||0)*Number(addon.qty??1);}
+            if(!Number.isFinite(price)||price<0) throw new Error('Invalid catalog price');
+            subtotal+=price*Number(item.qty);
+            return {id:require('crypto').randomUUID(),productId:String(product.id),productCode:product.partNumber||product.code,name:product.name,qty:Number(item.qty),price,cost:item.cost,note:item.note||''};
+        });
         const settings = branch.settings || {};
         const taxRate = settings.taxRate || 0;
         const taxAmount = subtotal * (taxRate / 100);
@@ -166,7 +147,7 @@ router.post('/order', async (req, res) => {
         let deliveryFee = 0;
         if (orderType === 'delivery') {
             if (deliveryZoneId) {
-                const zone = await prisma.deliveryZone.findUnique({ where: { id: deliveryZoneId } });
+                const zone = await prisma.deliveryZone.findUnique({ where: { id: deliveryZoneId,tenantId,branchId } });
                 if (zone) deliveryFee = zone.fee;
             } else if (customer.address && customer.address.area) {
                 const zone = await prisma.deliveryZone.findFirst({
@@ -198,6 +179,7 @@ router.post('/order', async (req, res) => {
                 customer: {
                     name: customer.name,
                     mobile: customer.mobile,
+                    _stockSelections: selected.map((i,index)=>({saleItemId:validItems[index].id,productId:String(i.id),sizeId:i.sizeId,sizeName:i.sizeName,addons:(i.addons||[]).map(a=>({id:String(a.id),qty:Number(a.qty??1)}))})),
                     address: customer.address ? `${customer.address.area || ''} ${customer.address.street || ''} ${customer.address.building || ''}` : ''
                 },
                 items: {

@@ -255,10 +255,12 @@ function loadProducts() {
 let allowedAddons = []; // Array of Product IDs
 let currentSizes = []; // { id: timestamp, name, price, cost: 0, recipe: [] }
 let currentSingleRecipe = [];
+let productEditSnapshot = null;
 let currentEditingSizeId = null; // null = single/main product
 
 
 function openProductModal() {
+  productEditSnapshot = null;
   const form = document.getElementById('product-form');
   if (form) form.reset();
 
@@ -502,7 +504,7 @@ window.removeAllowedAddon = removeAllowedAddon;
 window.toggleAddonsContainer = toggleAddonsContainer;
 
 // CRUD
-function handleAddProduct(e) {
+async function handleAddProduct(e) {
   e.preventDefault();
 
   const id = document.getElementById("product-id").value;
@@ -573,6 +575,7 @@ function handleAddProduct(e) {
     });
   }
 
+  const previousProduct = id ? productEditSnapshot : null;
   const newProduct = {
     id: id ? parseInt(id) : Date.now(),
     partNumber,
@@ -597,7 +600,17 @@ function handleAddProduct(e) {
     createdAt: id ? undefined : new Date().toISOString()
   };
 
-  window.DB.savePart(newProduct);
+  try {
+    if (window.electronAPI?.isWebAdapter) {
+      const result = await window.apiFetch('/products/save', { method: 'POST', body: JSON.stringify({ product: newProduct, expectedUpdatedAt: previousProduct?.updatedAt || null, expectedStockRevision: previousProduct?.stockRevision || null, expectedStock: Number(previousProduct?.stock || 0), stockChanged: !previousProduct || stock !== Number(previousProduct.stock || 0) }) });
+      if (!result?.success) throw new Error(result?.error || 'Menu item was not saved');
+      const products = window.DB.getParts().slice();
+      const index = products.findIndex(p => String(p.id) === String(newProduct.id));
+      const savedProduct = result.product || newProduct;
+      if (index >= 0) products[index] = { ...products[index], ...savedProduct }; else products.push(savedProduct);
+      window.DataCache.spare_parts = products;
+    } else if (!await window.DB.savePart(newProduct)) throw new Error('Menu item was not saved');
+  } catch (err) { alert('Save failed: ' + err.message); return; }
 
   e.target.reset();
 
@@ -609,6 +622,7 @@ function handleAddProduct(e) {
 window.editProduct = (id) => {
   const product = window.DB.getPart(id);
   if (!product) return;
+  productEditSnapshot = JSON.parse(JSON.stringify(product));
 
   document.getElementById("product-id").value = product.id;
   document.getElementById("product-code").value = product.partNumber || "";
@@ -864,10 +878,10 @@ window.renderSingleRecipeTable = function () {
   if (displayTotal) displayTotal.textContent = totalCost.toFixed(2);
 
   const hiddenCost = document.getElementById('product-cost');
-  if (hiddenCost) hiddenCost.value = totalCost.toFixed(2);
+  if (hiddenCost && document.getElementById('product-type').value === 'recipe') hiddenCost.value = totalCost.toFixed(2);
 
   // Update Size Cost in Memory + live cost cell in sizes table
-  if (currentEditingSizeId) {
+  if (currentEditingSizeId && document.getElementById('product-type').value === 'recipe') {
     const s = currentSizes.find(sz => sz.id == currentEditingSizeId);
     if (s) {
       s.cost = totalCost;
@@ -1016,57 +1030,9 @@ function handleAddCategory(e) {
   input.value = "";
 }
 
-window.editProduct = (id) => {
-  const product = window.DB.getPart(id);
-  if (!product) return;
-
-  document.getElementById("product-id").value = product.id;
-  document.getElementById("product-code").value = product.partNumber || "";
-  document.getElementById("product-name").value = product.name;
-  document.getElementById("product-category").value = product.category || "";
-  document.getElementById("product-price").value = product.price;
-  document.getElementById("product-cost").value = product.cost || 0;
-  document.getElementById("product-image").value = product.image || "";
-  document.getElementById("product-stock").value = product.stock || 0;
-
-  // Load Add-ons state
-  const allowAllCheck = document.getElementById('allow-all-addons');
-  if (allowAllCheck) {
-    allowAllCheck.checked = !!product.allowAllAddons;
-  }
-  allowedAddons = product.allowedAddons || [];
-  toggleAddonsContainer();
-  loadAddonsDropdown();
-  renderAllowedAddons();
-
-  // ✅ Load Sizes state (must be loaded before toggleSizesSection)
-  const hasSizesCheck = document.getElementById('product-has-sizes');
-  if (hasSizesCheck) hasSizesCheck.checked = !!product.hasSizes;
-  currentSizes = (product.sizes || []).map(s => ({ ...s, recipe: s.recipe || [] }));
-  toggleSizesSection();
-  renderSizesTable();
-
-  // Reset size recipe editing state
-  currentEditingSizeId = null;
-  currentSingleRecipe = [];
-
-  // ✅ Load Single Recipe state (only for non-size products)
-  if (!product.hasSizes) {
-    currentSingleRecipe = product.recipe || [];
-    renderSingleRecipeTable();
-  } else {
-    renderSingleRecipeTable(); // Clear the recipe table
-  }
-  loadSingleRecipeIngredientsDropdown();
-
-  document.getElementById('productModalTitle').textContent = 'Edit Product';
-  document.getElementById('productModal').style.display = 'flex';
-};
-
-window.deleteProduct = (id) => {
+window.deleteProduct = async (id) => {
   if (confirm('Delete?')) {
-    window.DB.deletePart(id);
-    loadProducts();
+    try { await window.DB.deletePart(id); loadProducts(); } catch(err) { alert('Removal failed: ' + err.message); }
   }
 };
 
@@ -1278,10 +1244,10 @@ function renderSingleRecipeTable() {
   if (displayTotal) displayTotal.textContent = totalCost.toFixed(2);
 
   const costInput = document.getElementById('product-cost');
-  if (costInput) costInput.value = totalCost.toFixed(2);
+  if (costInput && document.getElementById('product-type').value === 'recipe') costInput.value = totalCost.toFixed(2);
 
   // Update size cost in memory + refresh the live cost cell in sizes table
-  if (currentEditingSizeId) {
+  if (currentEditingSizeId && document.getElementById('product-type').value === 'recipe') {
     const s = currentSizes.find(sz => sz.id == currentEditingSizeId);
     if (s) {
       s.cost = totalCost;

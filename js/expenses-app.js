@@ -16,9 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterSeller = document.getElementById('filterSeller');
   const totalExpenses = document.getElementById('total-expenses');
 
+  const localDate = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-'); };
+
   // Initialize dates
-  if (expenseDateInput) expenseDateInput.valueAsDate = new Date();
-  if (document.getElementById('filterDate')) document.getElementById('filterDate').valueAsDate = new Date();
+  if (expenseDateInput) expenseDateInput.value = localDate();
+  if (document.getElementById('filterDate')) document.getElementById('filterDate').value = localDate();
 
   // Load Initial Data
   loadSellers();
@@ -85,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Add Expense (Server) ===
   window.addExpense = async function () {
     const dateInput = document.getElementById('expenseDate');
-    const date = (dateInput && dateInput.value) ? dateInput.value : new Date().toISOString().split('T')[0];
+    const date = (dateInput && dateInput.value) ? dateInput.value : localDate();
     const seller = sellerSelect ? (sellerSelect.value || '') : '';
     const desc = (document.getElementById('expenseDesc')?.value || '').trim();
     const amountVal = document.getElementById('expenseAmount')?.value;

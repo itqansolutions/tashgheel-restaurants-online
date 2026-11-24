@@ -150,11 +150,11 @@ window.DB = window.DB || {
     },
 
     saveIngredient: function (ingredient) {
-        const ingredients = this.getIngredients();
+        const ingredients = this.getIngredients().slice();
         const index = ingredients.findIndex(i => i.id == ingredient.id);
 
         if (index >= 0) {
-            ingredients[index] = { ...ingredients[index], ...ingredient, updatedAt: new Date().toISOString() };
+            ingredients[index] = { ...ingredients[index], ...ingredient };
         } else {
             ingredient.id = ingredient.id || Date.now();
             ingredient.createdAt = new Date().toISOString();
@@ -162,24 +162,19 @@ window.DB = window.DB || {
         }
 
         const success = window.EnhancedSecurity.storeSecureData('ingredients', ingredients);
-        // 🚀 SYNC TO SERVER
-        if (window.electronAPI && window.electronAPI.saveData) {
-            window.electronAPI.saveData('ingredients', ingredients);
-        }
-        this._syncToCloud('ingredients', ingredients);
         return success;
     },
 
-    deleteIngredient: function (id) {
-        const ingredients = this.getIngredients();
-        const filtered = ingredients.filter(i => i.id !== id);
-        const success = window.EnhancedSecurity.storeSecureData('ingredients', filtered);
-        // 🚀 SYNC TO SERVER
-        if (window.electronAPI && window.electronAPI.saveData) {
-            window.electronAPI.saveData('ingredients', filtered);
+    deleteIngredient: async function (id) {
+        const current = this.getIngredients();
+        if (window.electronAPI?.isWebAdapter) {
+            const item=current.find(i=>String(i.id)===String(id));
+            const result=await window.apiFetch('/data/remove-item',{method:'POST',body:JSON.stringify({key:'ingredients',id,revision:item?.stockRevision || item?.updatedAt || null})});
+            if (!result?.success) throw new Error(result?.error || 'Removal failed');
+            window.DataCache['ingredients']=result.value;
+            return true;
         }
-        this._syncToCloud('ingredients', filtered);
-        return success;
+        return window.EnhancedSecurity.storeSecureData('ingredients',current.filter(i=>String(i.id)!==String(id)));
     },
 
     getIngredient: function (id) {
@@ -203,7 +198,7 @@ window.DB = window.DB || {
     },
 
     savePart: function (part) {
-        const parts = this.getParts();
+        const parts = this.getParts().slice();
         const index = parts.findIndex(p => p.id == part.id);
 
         if (index >= 0) {
@@ -216,24 +211,19 @@ window.DB = window.DB || {
         }
 
         const success = window.EnhancedSecurity.storeSecureData('spare_parts', parts);
-        // 🚀 SYNC TO SERVER
-        if (window.electronAPI && window.electronAPI.saveData) {
-            window.electronAPI.saveData('spare_parts', parts);
-        }
-        this._syncToCloud('spare_parts', parts);
         return success;
     },
 
-    deletePart: function (id) {
-        const parts = this.getParts();
-        const filtered = parts.filter(p => p.id !== id);
-        const success = window.EnhancedSecurity.storeSecureData('spare_parts', filtered);
-        // 🚀 SYNC TO SERVER
-        if (window.electronAPI && window.electronAPI.saveData) {
-            window.electronAPI.saveData('spare_parts', filtered);
+    deletePart: async function (id) {
+        const current = this.getParts();
+        if (window.electronAPI?.isWebAdapter) {
+            const item=current.find(i=>String(i.id)===String(id));
+            const result=await window.apiFetch('/data/remove-item',{method:'POST',body:JSON.stringify({key:'spare_parts',id,revision:item?.stockRevision || item?.updatedAt || null})});
+            if (!result?.success) throw new Error(result?.error || 'Removal failed');
+            window.DataCache['spare_parts']=result.value;
+            return true;
         }
-        this._syncToCloud('spare_parts', filtered);
-        return success;
+        return window.EnhancedSecurity.storeSecureData('spare_parts',current.filter(i=>String(i.id)!==String(id)));
     },
 
     updateStock: function (partId, qtyChange) {
@@ -448,32 +438,19 @@ window.DB = window.DB || {
         return window.EnhancedSecurity.getSecureData('sales') || [];
     },
 
-    saveSale: function (sale) {
-        // Prepare Sale Object
+    saveSale: async function (sale) {
         if (!sale.id) sale.id = 'REC-' + Date.now();
         sale.createdAt = new Date().toISOString();
-
-        // 🚀 Use Backend Integration via Web Adapter
         if (window.electronAPI && window.electronAPI.saveSale) {
-            window.electronAPI.saveSale(sale).then(res => {
-                if (!res.success) console.error("Sale Save Failed", res.error);
-            });
-            // Update Local Cache Optimistically?
-            // For SaaS, we might rely on fetching? 
-            // But to keep UI responsive, we push to local cache too
-            const sales = this.getSales();
-            sales.push(sale);
-            // We DO NOT save 'sales' array back to storage here to avoid overwrite race condition
-            // But we keep it in memory for viewing history this session
-            // window.EnhancedSecurity.storeSecureData('sales', sales); // Disabled
-        } else {
-            // Fallback (Offline/Legacy)
-            const sales = this.getSales();
-            sales.push(sale);
-            window.EnhancedSecurity.storeSecureData('sales', sales);
+            const result = await window.electronAPI.saveSale(sale);
+            if (!result?.success) throw new Error(result?.error?.message || result?.error || 'Sale save failed');
+            return result;
         }
-
-        return true;
+        const sales = this.getSales();
+        sales.push(sale);
+        const saved = await window.EnhancedSecurity.storeSecureData('sales', sales);
+        if (!saved) throw new Error('Sale save failed');
+        return { success: true, id: sale.id };
     },
 
     // === MAINTENANCE REMINDERS ===

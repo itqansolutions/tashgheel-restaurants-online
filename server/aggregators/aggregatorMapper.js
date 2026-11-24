@@ -25,7 +25,10 @@ const AGGREGATOR_STATUSES = {
 function mapToSale(aggOrder, branch, nextInvoiceId) {
     // Map items to Sale item format
     const saleItems = (aggOrder.items || []).map(item => ({
-        productId: item.providerItemId || '',
+        productId: item.productId || item.providerItemId || '',
+        sizeId:item.sizeId,
+        sizeName:item.sizeName,
+        addons:(item.addons||[]).map(a=>({...a,id:a.id||a.productId||a.providerItemId})),
         name: item.name,
         qty: parseFloat(item.qty || 1),
         price: parseFloat(item.price || 0),

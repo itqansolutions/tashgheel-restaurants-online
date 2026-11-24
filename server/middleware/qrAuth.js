@@ -26,19 +26,7 @@ module.exports = async function qrAuth(req, res, next) {
             req.user = user;        // Keep req.user for any downstream middleware
             req.userRole = 'staff';
 
-            // branchId is NOT in the JWT — the existing system sends it as x-branch-id header
-            // (same as branchScope reads it). We do the same here.
-            const headerBranchId = req.header('x-branch-id');
-            const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
-            if (headerBranchId && uuidRegex.test(headerBranchId)) {
-                req.branchId = headerBranchId;
-            } else {
-                // Fallback: user's defaultBranchId for staff who didn't send the header
-                req.branchId = user.defaultBranchId || null;
-            }
-
-            return next();
+            return require('./branchScope')(req,res,next);
         } catch (e) {
             // Cookie token present but invalid — fall through to check Bearer
         }
@@ -66,6 +54,7 @@ module.exports = async function qrAuth(req, res, next) {
             // Now verify with the per-table secret
             const decoded = jwt.verify(bearerToken, table.qrSecret);
 
+            if(!table.isActive || table.isArchived || decoded.tableId!==table.id || decoded.tenantId!==table.tenantId || decoded.branchId!==table.branchId) return res.status(401).json({error:'Invalid QR token scope'});
             req.tenantId = decoded.tenantId;
             req.branchId = decoded.branchId;
             req.tableId = decoded.tableId;   // Convenience — already validated

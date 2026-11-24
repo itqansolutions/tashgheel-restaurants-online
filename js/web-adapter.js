@@ -117,6 +117,7 @@
         const urlParts = cleanPath.split('?')[0].split('/');
         const method = (options.method || 'GET').toUpperCase();
         
+        if(method!=='GET' && (/^\/sales(?:\/|$)/.test(cleanPath) || /^\/orders\/[^/]+\/close(?:\?|$)/.test(cleanPath) || /^\/data\/save(?:\?|$)/.test(cleanPath))) throw new Error('Server confirmation required. Your changes have not been saved. Reconnect and retry.');
         console.log(`[OFFLINE_SIMULATOR] Simulating ${method} ${cleanPath}`);
 
         // GET /auth/me — return session from localStorage
@@ -803,19 +804,16 @@
         saveData: async (key, value) => {
             try {
                 const cleanKey = key.replace('.json', '');
-                // 🚀 Sync client cache immediately so UI reflects additions/edits without page reload
-                if (!window.DataCache) window.DataCache = {};
-                window.DataCache[cleanKey] = value;
-                try {
-                    const bk = _getOfflineBackupKey(cleanKey);
-                    localStorage.setItem(bk, JSON.stringify(value));
-                } catch(e) {}
-
                 const result = await apiFetch(`/data/save`, {
                     method: 'POST',
                     body: JSON.stringify({ key: cleanKey, value: value })
                 });
                 if (!result.success) throw new Error(result.error);
+                if (!window.DataCache) window.DataCache = {};
+                if (result.value !== undefined) {
+                    window.DataCache[cleanKey] = result.value;
+                    try { localStorage.setItem(_getOfflineBackupKey(cleanKey), JSON.stringify(result.value)); } catch(e) {}
+                }
                 return { success: true };
             } catch (err) { return { success: false, error: err }; }
         },

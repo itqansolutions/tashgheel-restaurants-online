@@ -1,8 +1,9 @@
-const CACHE_NAME = 'tashgheel-cache-v5';
+const CACHE_NAME = 'tashgheel-cache-v6-stock-cost';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/pos.html',
+  '/products.html',
   '/inventory.html',
   '/admin.html',
   '/super-admin.html',
@@ -34,6 +35,7 @@ const ASSETS_TO_CACHE = [
   '/js/shared-nav.js',
   '/js/translations.js',
   '/js/pos-app.js',
+  '/js/products-app.js',
   '/js/inventory-app.js',
   '/js/admin-app.js',
   '/js/super-admin.js',

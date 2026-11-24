@@ -89,7 +89,7 @@ async function loadServiceReceipts() {
         const statusClass = statusColors[sale.status] || 'bg-slate-100 text-slate-600 border-slate-200';
 
         // Handle potentially missing fields safely
-        const displayId = (sale._id || sale.id || '').toString().slice(-6).toUpperCase();
+        const displayId = sale.receiptNo || sale.invoiceNumber || (sale._id || sale.id || '').toString().slice(-6).toUpperCase();
         const displayDate = sale.date ? new Date(sale.date).toLocaleString([], { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 
         row.innerHTML = `

@@ -203,13 +203,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50 border-b border-slate-50 transition-colors cursor-pointer";
         tr.onclick = () => showReceiptModal ? showReceiptModal(r) : alert('Receipt detail not implemented');
-        tr.innerHTML = `
-                <td class="px-4 py-3 font-medium">#${r.invoiceNumber || r.id.slice(-6)}</td>
-                <td class="px-4 py-3 text-slate-500 text-xs">${new Date(r.date || r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                <td class="px-4 py-3 text-slate-500 text-xs">${r.branchId || 'Main'}</td>
-                <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Finished</span></td>
-                <td class="px-4 py-3 font-bold text-slate-800">${(r.total || 0).toFixed(2)}</td>
-             `;
+        const cells = [
+          '#' + (r.receiptNo || r.invoiceNumber || String(r.id || '').slice(-6)),
+          r.branchName || r.branchId || 'Main',
+          Number(r.total || 0).toFixed(2), r.method || '-', r.cashier || '-',
+          r.status || 'finished',
+          new Date(r.date || r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        ];
+        cells.forEach(value => { const td = document.createElement('td'); td.className = 'px-6 py-3'; td.textContent = value; tr.appendChild(td); });
         tbody.appendChild(tr);
       });
     }

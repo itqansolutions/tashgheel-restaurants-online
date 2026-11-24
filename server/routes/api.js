@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 const storage = require('../utils/storage');
+const { readCatalog, snapshotItems } = require('../utils/catalog');
 const crypto = require('crypto');
+const {applyStock}=require('../utils/stock');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -14,67 +16,88 @@ router.post('/data/save', async (req, res) => {
     if (!key) return res.status(400).json({ success: false, error: 'Key is required' });
     try {
         const tid = req.tenantId || 'global';
+        let savedValue;
         // Use storage.saveData so values are always serialized as strings,
         // consistent with how public-api.js reads them via storage.readData
-        await storage.saveData(key, value, tid);
-
-        // When raw materials/ingredients are saved, ensure vendor credit & ledger are updated
-        if (key === 'ingredients' && Array.isArray(value)) {
-            try {
-                const vendors = await prisma.vendor.findMany({ where: { tenantId: tid } });
-                if (vendors.length > 0) {
-                    for (const v of vendors) {
-                        const matched = value.filter(m =>
-                            (m.vendorId == v.id || m.vendorId == v.name || (!m.vendorId && vendors.length === 1)) &&
-                            (parseFloat(m.stock) > 0)
-                        );
-                        if (matched.length > 0) {
-                            const totalCost = matched.reduce((sum, m) => sum + (parseFloat(m.stock) || 0) * (parseFloat(m.cost) || 0), 0);
-                            const txKey = `vendor_transactions_${v.id}`;
-                            const existingData = await prisma.data.findUnique({
-                                where: { key_tenantId: { key: txKey, tenantId: tid } }
-                            });
-                            let txs = [];
-                            if (existingData && existingData.value) {
-                                txs = typeof existingData.value === 'string' ? JSON.parse(existingData.value) : existingData.value;
-                            }
-                            if (!Array.isArray(txs) || txs.length === 0) {
-                                const newTx = [{
-                                    id: `${Date.now()}-stock-purchase`,
-                                    vendorId: v.id,
-                                    type: 'purchase',
-                                    amount: totalCost,
-                                    description: `Stock Purchase: ${matched.map(m => `${m.name} (${m.stock} ${m.unit || ''} × ${(parseFloat(m.cost) || 0).toFixed(2)})`).join(', ')}`,
-                                    date: new Date().toISOString().split('T')[0],
-                                    method: 'credit',
-                                    createdAt: new Date().toISOString()
-                                }];
-                                await prisma.data.upsert({
-                                    where: { key_tenantId: { key: txKey, tenantId: tid } },
-                                    update: { value: JSON.stringify(newTx), updatedAt: new Date() },
-                                    create: { key: txKey, tenantId: tid, value: JSON.stringify(newTx) }
-                                });
-                                await prisma.vendor.update({
-                                    where: { id: v.id },
-                                    data: { credit: totalCost }
-                                });
-                                console.log(`[DataSave:Ingredients] Synced vendor ${v.name} credit to ${totalCost}`);
-                            }
-                        }
+        if (['spare_parts', 'products', 'ingredients'].includes(key)) {
+            await prisma.$transaction(async tx => {
+                await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${tid} FOR UPDATE`;
+                const current = await tx.data.findUnique({ where: { key_tenantId: { key, tenantId: tid } } });
+                const old = current ? (typeof current.value === 'string' ? JSON.parse(current.value) : current.value) : [];
+                const incoming = typeof value === 'string' ? JSON.parse(value) : value;
+                if (!Array.isArray(incoming)) { const error = new Error('Invalid catalog or ingredients'); error.status = 400; throw error; }
+                for (const item of old) {
+                    const next = incoming.find(i => String(i.id) === String(item.id));
+                    if (!next || (item.stockRevision || item.updatedAt || null) !== (next.stockRevision || next.updatedAt || null)) {
+                        const error = new Error('Data changed. Reload before saving.'); error.status = 409; throw error;
                     }
                 }
-            } catch (vErr) {
-                console.warn('[DataSave:Ingredients] Vendor balance sync error:', vErr.message);
-            }
-        }
+                savedValue = incoming.map(item => ({...item, stockRevision: crypto.randomUUID()}));
+                const content = JSON.stringify(savedValue);
+                await tx.data.upsert({where:{key_tenantId:{key,tenantId:tid}},update:{value:content},create:{key,tenantId:tid,value:content}});
+            });
+        } else await storage.saveData(key, value, tid);
 
-        res.json({ success: true });
+        res.json({ success: true, value: savedValue });
     } catch (err) {
         console.error(`Error saving ${key}:`, err);
-        res.status(500).json({ success: false, error: err.message });
+        res.status(err.status || 500).json({ success: false, error: err.message });
     }
 });
 
+
+// Menu form saves only its item and the selected branch stock atomically.
+router.post('/products/save', async (req, res) => {
+    try {
+        const product = req.body.product;
+        if (!product || product.id == null || !product.name) return res.status(400).json({ error: 'Invalid product' });
+        const stock = Number(product.stock);
+        if (!Number.isFinite(stock)) return res.status(400).json({ error: 'Invalid stock' });
+        const savedProduct = await prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const products = await readCatalog(tx, req.tenantId);
+            const index = products.findIndex(p => String(p.id) === String(product.id));
+            const existing = index >= 0 ? products[index] : {};
+            const next = { ...existing, ...product, stockRevision: crypto.randomUUID(), createdAt: existing.createdAt || product.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+            if (index >= 0 && (existing.stockRevision || null) !== (req.body.expectedStockRevision || null)) { const error = new Error('Menu changed. Reload before saving.'); error.status = 409; throw error; }
+            if (index >= 0 && req.body.expectedUpdatedAt !== undefined && (existing.updatedAt || null) !== req.body.expectedUpdatedAt) { const error = new Error('Menu item changed. Reload before saving.'); error.status = 409; throw error; }
+            if (index >= 0) products[index] = next; else products.push(next);
+            const value = JSON.stringify(products);
+            await tx.data.upsert({ where: { key_tenantId: { key: 'spare_parts', tenantId: req.tenantId } }, update: { value }, create: { key: 'spare_parts', tenantId: req.tenantId, value } });
+            if ((product.itemType || product.type) === 'simple' && (index < 0 || req.body.stockChanged !== false)) {
+                const balance = await tx.productStock.findUnique({ where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(product.id) } } });
+                if (index >= 0 && (!Number.isFinite(Number(req.body.expectedStock)) || Number(balance?.qty || 0) !== Number(req.body.expectedStock))) { const error = new Error('Stock changed. Reload before setting a new balance.'); error.status = 409; throw error; }
+                if (balance) {
+                    const changed=await tx.productStock.updateMany({where:{id:balance.id,qty:balance.qty},data:{qty:stock}});
+                    if(changed.count!==1) {const error=new Error('Stock changed. Reload before saving.');error.status=409;throw error;}
+                } else await tx.productStock.create({data:{tenantId:req.tenantId,branchId:req.branchId,productId:String(product.id),qty:stock}});
+            }
+            return next;
+        });
+        res.json({ success: true, product: savedProduct });
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Compatible explicit version-checked removal, rather than unversioned bulk deletion.
+router.post('/data/remove-item', async (req, res) => {
+    try {
+        const { key, id, revision } = req.body;
+        if (!['ingredients','spare_parts','products'].includes(key)) return res.status(400).json({error:'Invalid collection'});
+        const value = await prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            let doc = await tx.data.findUnique({where:{key_tenantId:{key,tenantId:req.tenantId}}});
+            let current = doc ? (typeof doc.value === 'string' ? JSON.parse(doc.value) : doc.value) : [];
+            if(key==='spare_parts' && !current.length) {current=await readCatalog(tx,req.tenantId);}
+            const item = current.find(i=>String(i.id)===String(id));
+            if (!item) return current;
+            if ((item.stockRevision || item.updatedAt || null) !== (revision || null)) { const error=new Error('Item changed. Reload before removing.');error.status=409;throw error; }
+            const value=current.filter(i=>String(i.id)!==String(id));
+            await tx.data.upsert({where:{key_tenantId:{key,tenantId:req.tenantId}},update:{value:JSON.stringify(value)},create:{key,tenantId:req.tenantId,value:JSON.stringify(value)}});
+            return value;
+        });
+        res.json({success:true,value});
+    } catch(err) {res.status(err.status||500).json({error:err.message});}
+});
 
 // List Data Keys
 router.get('/data/list', async (req, res) => {
@@ -439,89 +462,11 @@ router.post('/shifts/close', async (req, res) => {
     }
 });
 
-async function deductIngredientsStock(tenantId, branchId, items, txClient = prisma) {
-    try {
-        let products = [];
-        const prodData = await txClient.data.findFirst({
-            where: {
-                tenantId,
-                key: { in: ['products', 'spare_parts'] }
-            }
-        });
-        if (prodData) {
-            products = typeof prodData.value === 'string' ? JSON.parse(prodData.value) : prodData.value;
-        }
-        if (!Array.isArray(products)) products = [];
 
-        const ingData = await txClient.data.findUnique({
-            where: { key_tenantId: { key: 'ingredients', tenantId } }
-        });
-        if (!ingData) return;
-
-        let ingredients = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
-        if (!Array.isArray(ingredients)) return;
-
-        let changed = false;
-
-        for (const item of items) {
-            const product = products.find(p => String(p.id) === String(item.productId || item.id) || p.code === (item.productCode || item.code));
-            if (!product) continue;
-
-            let recipeToUse = [];
-            if ((item.sizeId || item.sizeName) && product.hasSizes && product.sizes) {
-                const size = product.sizes.find(s => s.id == item.sizeId || s.name === item.sizeName);
-                recipeToUse = size ? (size.recipe || []) : [];
-            } else {
-                recipeToUse = product.recipe || [];
-            }
-
-            if (recipeToUse && recipeToUse.length > 0) {
-                recipeToUse.forEach(ingItem => {
-                    const idx = ingredients.findIndex(i => String(i.id) === String(ingItem.ingredientId));
-                    if (idx !== -1) {
-                        const factor = parseFloat(ingItem.conversionFactor || 1);
-                        let consumeQty = 0;
-                        const qtyToDeduct = parseFloat(item.qty || 0);
-
-                        if (ingItem.wasteType === 'fixed') {
-                            consumeQty = (parseFloat(ingItem.qty || 0) + parseFloat(ingItem.wasteValue || 0)) * qtyToDeduct * factor;
-                        } else {
-                            const w = parseFloat(ingItem.wasteValue || ingItem.wastePercent || 0);
-                            if (w < 100) {
-                                const yieldPct = (100 - w) / 100;
-                                const grossUsageQty = parseFloat(ingItem.qty || 0) / yieldPct;
-                                consumeQty = grossUsageQty * qtyToDeduct * factor;
-                            } else {
-                                consumeQty = parseFloat(ingItem.qty || 0) * qtyToDeduct * factor;
-                            }
-                        }
-
-                        // 🌿 Branch-aware stock: use stockByBranch[branchId] when available
-                        if (!ingredients[idx].stockByBranch) ingredients[idx].stockByBranch = {};
-                        const branchKey = branchId || 'default';
-                        const currentBranchStock = parseFloat(
-                            ingredients[idx].stockByBranch[branchKey] ?? ingredients[idx].stock ?? 0
-                        );
-                        ingredients[idx].stockByBranch[branchKey] = currentBranchStock - consumeQty;
-                        // Keep flat stock in sync for backward compatibility
-                        ingredients[idx].stock = Object.values(ingredients[idx].stockByBranch)
-                            .reduce((sum, v) => sum + parseFloat(v || 0), 0);
-                        ingredients[idx].lastUsedAt = new Date().toISOString();
-                        changed = true;
-                    }
-                });
-            }
-        }
-
-        if (changed) {
-            await txClient.data.update({
-                where: { key_tenantId: { key: 'ingredients', tenantId } },
-                data: { value: JSON.stringify(ingredients), updatedAt: new Date() }
-            });
-        }
-    } catch (err) {
-        console.error('[INGREDIENTS_DEDUCTION] Error processing stock deduction:', err);
-    }
+function stableStringify(value) {
+    if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+    if (value && typeof value === 'object') return '{' + Object.keys(value).sort().filter(k => !['createdAt', 'date'].includes(k)).map(k => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
+    return JSON.stringify(value);
 }
 
 // === SALES ===
@@ -530,7 +475,7 @@ router.post('/sales', async (req, res) => {
     try {
         const saleData = req.body;
         if (!saleData || !saleData.items) return res.status(400).json({ error: 'Invalid Sale Data' });
-
+        const requestHash = crypto.createHash('sha256').update(stableStringify(saleData)).digest('hex');
         let activeShift = await prisma.shift.findFirst({
             where: {
                 tenantId: req.tenantId,
@@ -556,22 +501,20 @@ router.post('/sales', async (req, res) => {
 
         if (!activeShift) return res.status(403).json({ error: 'No open shift found. Please open or join a shift first.' });
 
-        // Cost Snapshot
-        try {
-            const masterData = await prisma.data.findUnique({
-                where: { key_tenantId: { key: 'spare_parts', tenantId: req.tenantId } }
-            });
-            const masterProducts = masterData ? (Array.isArray(masterData.value) ? masterData.value : []) : [];
-            const costMap = {};
-            masterProducts.forEach(p => costMap[String(p.id)] = p.cost || 0);
-
-            saleData.items.forEach(item => {
-                item.cost = costMap[String(item.id)] || 0;
-            });
-        } catch (e) { console.error('Cost Snapshot Error:', e); }
-
-        // Atomic Transaction for Sale creation and Stock deduction
+        // Server owns stock and cost snapshots. No client-side financial writes.
         const result = await prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            if (saleData.id) {
+                const existing = await tx.sale.findUnique({ where: { id: saleData.id } });
+                if (existing) {
+                    const audit = await tx.auditLog.findFirst({ where: { tenantId: req.tenantId, action: 'SALE_CREATE', details: { path: ['saleId'], equals: existing.id } }, orderBy: { timestamp: 'desc' } });
+                    if (existing.tenantId !== req.tenantId || existing.branchId !== req.branchId || audit?.details?.requestHash !== requestHash) {
+                        const error = new Error('Sale id already used for a different or unverifiable request'); error.status = 409; throw error;
+                    }
+                    return { ...existing, replayed: true };
+                }
+            }
+            saleData.items = snapshotItems(saleData.items, await readCatalog(tx, req.tenantId));
             const sale = await tx.sale.create({
                 data: {
                     id: saleData.id,
@@ -610,52 +553,33 @@ router.post('/sales', async (req, res) => {
                             discountValue: item.discount?.value || 0
                         }))
                     }
-                }
+                },
+                include: { items: true }
             });
 
-            // Deduct Stock
-            for (const item of saleData.items) {
-                await tx.productStock.upsert({
-                    where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(item.id) } },
-                    update: { qty: { decrement: item.qty } },
-                    create: { tenantId: req.tenantId, branchId: req.branchId, productId: String(item.id), qty: -item.qty }
-                });
+            const movements = await applyStock(tx, req.tenantId, req.branchId, saleData.items);
 
-                if (item.addons) {
-                    for (const addon of item.addons) {
-                        await tx.productStock.upsert({
-                            where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: String(addon.id) } },
-                            update: { qty: { decrement: item.qty } },
-                            create: { tenantId: req.tenantId, branchId: req.branchId, productId: String(addon.id), qty: -item.qty }
-                        });
-                    }
-                }
-            }
-
-            // Deduct Ingredients Stock (raw materials) — branch-aware
-            await deductIngredientsStock(req.tenantId, req.branchId, saleData.items, tx);
-
-            return sale;
-        });
-
-        // Async Updates (Audit and Summary)
-        updateDailySummary(req, result).catch(e => console.error('Summary Update Error:', e));
-
-        await prisma.auditLog.create({
+        await tx.auditLog.create({
             data: {
                 tenantId: req.tenantId,
                 branchId: req.branchId,
                 userId: req.userId,
                 action: 'SALE_CREATE',
-                details: { saleId: result.id, total: result.total },
+                details: { saleId: sale.id, total: sale.total, requestHash, movements },
                 ipAddress: req.ip
             }
         });
 
-        res.json({ success: true, id: result.id });
+            return sale;
+        });
+
+        // Async Updates (Audit and Summary)
+        if (!result.replayed) updateDailySummary(req, result).catch(e => console.error('Summary Update Error:', e));
+
+        res.json({ success: true, id: result.id, replayed: !!result.replayed });
     } catch (err) {
         console.error('Sale Error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(err.status || 500).json({ error: err.message });
     }
 });
 
@@ -682,25 +606,33 @@ router.post('/sales/refund/:id', async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            await tx.sale.update({
-                where: { id },
-                data: {
-                    status: 'refunded',
-                    note: (sale.note || '') + ` | Refund Reason: ${reason || 'Customer Return'}`
-                }
-            });
-
-            // Restore Stock
-            for (const item of sale.items) {
-                await tx.productStock.upsert({
-                    where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: req.branchId, productId: item.productId } },
-                    update: { qty: { increment: item.qty } },
-                    create: { tenantId: req.tenantId, branchId: req.branchId, productId: item.productId, qty: item.qty }
-                });
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const current = await tx.sale.findUnique({ where: { id } });
+            const alreadyRestored = await tx.auditLog.findFirst({ where: { tenantId: req.tenantId, action: 'SALE_REFUND', details: { path: ['saleId'], equals: id } } });
+            if (alreadyRestored) { const error = new Error('Stock movement already reversed'); error.status = 409; throw error; }
+            if (current.status === 'refunded' || current.status === 'void') { const error = new Error('Sale is already refunded/voided'); error.status = 409; throw error; }
+            const original = await tx.auditLog.findFirst({ where: { tenantId: req.tenantId, action: 'SALE_CREATE', details: { path: ['saleId'], equals: id } }, orderBy: { timestamp: 'desc' } });
+            const movements = original?.details?.movements;
+            if (!Array.isArray(movements)) { const error = new Error('Historical sale has no verified stock movements. Manual review is required before refund.'); error.status = 409; throw error; }
+            await tx.sale.update({ where: { id }, data: { status: 'refunded', note: (sale.note || '') + ' | Refund Reason: ' + (reason || 'Customer Return') } });
+            for (const move of movements.filter(m => m.kind === 'product')) {
+                await tx.productStock.upsert({ where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: sale.branchId, productId: move.id } }, update: { qty: { increment: move.qty } }, create: { tenantId: req.tenantId, branchId: sale.branchId, productId: move.id, qty: move.qty } });
             }
-        });
-
-        await prisma.auditLog.create({
+            if (movements.some(m => m.kind === 'ingredient')) {
+                const doc = await tx.data.findUnique({ where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } } });
+                const ingredients = JSON.parse(typeof doc.value === 'string' ? doc.value : JSON.stringify(doc.value));
+                for (const move of movements.filter(m => m.kind === 'ingredient')) {
+                    const ingredient = ingredients.find(i => String(i.id) === move.id);
+                    if (!ingredient) throw new Error('Original ingredient no longer exists');
+                    ingredient.stockByBranch = ingredient.stockByBranch || {};
+                    ingredient.stockByBranch[move.branchId] = Number(ingredient.stockByBranch[move.branchId] ?? ingredient.stock ?? 0) + move.qty;
+                    ingredient.stock = Object.values(ingredient.stockByBranch).reduce((sum,n)=>sum+Number(n),0);
+                    ingredient.updatedAt = new Date().toISOString();
+                    ingredient.stockRevision = crypto.randomUUID();
+                }
+                await tx.data.update({ where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } }, data: { value: JSON.stringify(ingredients) } });
+            }
+        await tx.auditLog.create({
             data: {
                 tenantId: req.tenantId,
                 branchId: req.branchId,
@@ -711,10 +643,12 @@ router.post('/sales/refund/:id', async (req, res) => {
             }
         });
 
+        });
+
         res.json({ success: true });
     } catch (err) {
         console.error('Refund Error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(err.status || 500).json({ error: err.message });
     }
 });
 
@@ -728,7 +662,7 @@ router.patch('/sales/:id', async (req, res) => {
             where: { id }
         });
 
-        if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Sale not found' });
+        if (!sale || sale.tenantId !== req.tenantId || sale.branchId !== req.branchId) return res.status(404).json({ error: 'Sale not found' });
 
         const prismaData = {};
 
@@ -760,20 +694,44 @@ router.patch('/sales/:id', async (req, res) => {
             prismaData.shift = { disconnect: true };
         }
 
-        const updated = await prisma.sale.update({
-            where: { id },
-            data: prismaData
+        const updated = await prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const current = await tx.sale.findUnique({ where: { id },include:{items:true} });
+            if(!current || current.tenantId!==req.tenantId || current.branchId!==req.branchId) {const e=new Error('Sale not found');e.status=404;throw e;}
+            if(targetShiftId) {const shift=await tx.shift.findFirst({where:{id:targetShiftId,tenantId:req.tenantId,branchId:req.branchId,status:'open'}});if(!shift){const e=new Error('Open shift in this branch required');e.status=409;throw e;}}
+            if(prismaData.status==='finished' && current.status!=='finished') {
+                const shift=await tx.shift.findFirst({where:{tenantId:req.tenantId,branchId:req.branchId,status:'open',...(targetShiftId?{id:targetShiftId}:{})}});
+                if(!shift){const e=new Error('Open shift in this branch required');e.status=409;throw e;}
+                prismaData.shift={connect:{id:shift.id}};
+            }
+            if(updateData.customer!==undefined) {prismaData.customer={...(updateData.customer||{})};delete prismaData.customer._stockSelections;if(current.customer?._stockSelections) prismaData.customer._stockSelections=current.customer._stockSelections;}
+            const refund = await tx.auditLog.findFirst({ where: { tenantId: req.tenantId, action: 'SALE_REFUND', details: { path: ['saleId'], equals: id } } });
+            if (refund || current.status === 'refunded' || current.status === 'void') { const error = new Error('Finalized reversal cannot be edited'); error.status = 409; throw error; }
+            if(prismaData.status==='finished' && current.status!=='finished') {
+                if(current.branchId!==req.branchId) {const e=new Error('Wrong branch');e.status=403;throw e;}
+                const selections=current.customer?._stockSelections||[];
+                if(current.source==='online_store' && (!Array.isArray(selections) || current.items.some(i=>!selections.some(s=>s.saleItemId===i.id&&String(s.productId)===String(i.productId))))) {
+                    const error=new Error('This older online order is missing its saved size or add-on choices. Manual review is required before completing the sale.');error.status=409;error.code='LEGACY_SELECTION_REVIEW_REQUIRED';throw error;
+                }
+                const used=new Set();
+                const items=snapshotItems(current.items.map(i=>{const index=selections.findIndex((s,n)=>!used.has(n)&&s.saleItemId===i.id&&String(s.productId)===String(i.productId));if(index>=0) used.add(index);return {...i,...(index>=0?selections[index]:{}),saleItemId:i.id};}),await readCatalog(tx,req.tenantId));
+                const movements=await applyStock(tx,req.tenantId,req.branchId,items);
+                for(const item of items) await tx.saleItem.update({where:{id:item.saleItemId},data:{cost:item.cost}});
+                await tx.auditLog.create({data:{tenantId:req.tenantId,branchId:req.branchId,userId:req.userId,action:'SALE_CREATE',details:{saleId:id,movements},ipAddress:req.ip}});
+            } else if(current.status==='finished' && prismaData.status && prismaData.status!=='finished') {const e=new Error('Use the refund flow to reverse a finished sale');e.status=409;throw e;}
+            const updated=await tx.sale.update({ where: { id }, data: prismaData,include:{items:true} });
+            return {...updated,newlyFinished:current.status!=='finished' && updated.status==='finished'};
         });
 
         // Also update daily summary if finalizing sale
-        if (prismaData.status === 'finished') {
+        if (updated.newlyFinished) {
             updateDailySummary(req, updated).catch(e => console.error('Summary Update Error:', e));
         }
 
         res.json({ success: true, sale: updated });
     } catch (err) {
         console.error('Sale Update Error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
 });
 
@@ -920,6 +878,44 @@ router.post('/kitchen/preparing/:id', async (req, res) => {
 
 // === INVENTORY MANAGEMENT ===
 
+// Save material metadata/entered branch balance and one linked credit purchase atomically.
+router.post('/inventory/material', async (req, res) => {
+    try {
+        const material = req.body.material;
+        if (!material || material.id == null || !material.name || !Number.isFinite(Number(material.cost)) || Number(material.cost) < 0 || !Number.isFinite(Number(material.stock))) return res.status(400).json({ error: 'Invalid material' });
+        const result = await prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const doc = await tx.data.findUnique({ where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } } });
+            const ingredients = doc ? (typeof doc.value === 'string' ? JSON.parse(doc.value) : doc.value) : [];
+            const index = ingredients.findIndex(i => String(i.id) === String(material.id));
+            const existing = index >= 0 ? ingredients[index] : null;
+            if (existing && req.body.expectedUpdatedAt !== undefined && (existing.updatedAt || null) !== req.body.expectedUpdatedAt) { const error = new Error('Material changed. Reload before saving.'); error.status = 409; throw error; }
+            if (existing && (existing.stockRevision || null) !== (req.body.expectedStockRevision || null)) { const error = new Error('Stock changed. Reload before saving.'); error.status = 409; throw error; }
+            const previousStock = Number(existing?.stockByBranch?.[req.branchId] ?? existing?.stock ?? 0);
+            const stockByBranch = { ...(existing?.stockByBranch || {}), [req.branchId]: Number(material.stock) };
+            const next = { ...existing, ...material, stockRevision: crypto.randomUUID(), stockByBranch, stock: Object.values(stockByBranch).reduce((sum,n)=>sum+Number(n),0), createdAt: existing?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+            const purchasedQty = Math.max(0, Number(material.stock) - previousStock);
+            if (material.vendorId && purchasedQty > 0) {
+                const vendor = await tx.vendor.findFirst({ where: { id: String(material.vendorId), tenantId: req.tenantId } });
+                if (!vendor) throw new Error('Vendor not found');
+                const amount = purchasedQty * Number(material.cost);
+                const key = 'vendor_transactions_' + vendor.id;
+                const ledger = await tx.data.findUnique({ where: { key_tenantId: { key, tenantId: req.tenantId } } });
+                const transactions = ledger ? (typeof ledger.value === 'string' ? JSON.parse(ledger.value) : ledger.value) : [];
+                transactions.push({ id: crypto.randomUUID(), vendorId: vendor.id, type: 'purchase', amount, description: 'Material purchase: ' + material.name, date: new Date().toISOString().slice(0,10), method: 'credit', createdAt: new Date().toISOString() });
+                const value = JSON.stringify(transactions);
+                await tx.data.upsert({ where: { key_tenantId: { key, tenantId: req.tenantId } }, update: { value }, create: { key, tenantId: req.tenantId, value } });
+                await tx.vendor.update({ where: { id: vendor.id }, data: { credit: { increment: amount } } });
+            }
+            if (index >= 0) ingredients[index] = next; else ingredients.push(next);
+            const value = JSON.stringify(ingredients);
+            await tx.data.upsert({ where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } }, update: { value }, create: { key: 'ingredients', tenantId: req.tenantId, value } });
+            return ingredients;
+        });
+        res.json({ success: true, ingredients: result });
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 // 0. Restock Raw Material — Full Financial Flow
 router.post('/inventory/restock', async (req, res) => {
     try {
@@ -944,6 +940,7 @@ router.post('/inventory/restock', async (req, res) => {
         const description = `Raw Material Purchase: ${ingredientName || ingredientId} (${qty} ${ingredientUnit || ''} × ${parseFloat(unitCost).toFixed(2)})`;
 
         await prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
             // 1. Read ingredients blob and update stock for this branch
             const ingData = await tx.data.findUnique({
                 where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } }
@@ -992,6 +989,7 @@ router.post('/inventory/restock', async (req, res) => {
             ingredients[idx].stock = Object.values(ingredients[idx].stockByBranch)
                 .reduce((sum, v) => sum + parseFloat(v || 0), 0);
             ingredients[idx].lastRestockDate = new Date().toISOString();
+            ingredients[idx].stockRevision = crypto.randomUUID();
             if (vendorId) ingredients[idx].vendorId = vendorId;
 
             await tx.data.upsert({

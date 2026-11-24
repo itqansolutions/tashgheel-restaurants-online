@@ -50,10 +50,10 @@ async function startServer() {
         console.log('✅ PostgreSQL (Prisma) Connected');
 
         // Start background jobs
-        require('./jobs/orderCleanup');
+        if (process.env.ENABLE_ORDER_CLEANUP === 'true') require('./jobs/orderCleanup');
 
         // Auto-import customer backup for target tenant if pending
-        require('./utils/tenantDataImporter').autoImportCustomerData().catch(e => console.warn('[AutoImport]', e.message));
+        if (process.env.ENABLE_DEMO_AUTO_IMPORT === 'true') require('./utils/tenantDataImporter').autoImportCustomerData().catch(e => console.warn('[AutoImport]', e.message));
     } catch (err) {
         console.error('❌ Database Connection Error:', err.message);
         // In production, you might want to retry or exit

@@ -9,6 +9,9 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 const storage = require('../utils/storage');
+const {readCatalog,snapshotItems}=require('../utils/catalog');
+const {applyStock}=require('../utils/stock');
+const crypto=require('crypto');
 const { getAdapter } = require('./adapters');
 const { mapToSale, enrichItemCosts } = require('./aggregatorMapper');
 const {
@@ -165,110 +168,39 @@ router.get('/orders', async (req, res) => {
 // ─── Accept Order → Create Sale ───
 router.post('/orders/:id/accept', async (req, res) => {
     try {
-        const order = await prisma.aggregatorOrder.findUnique({ where: { id: req.params.id } });
-        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-        
-        if (order.status !== AGGREGATOR_STATUSES.PENDING) {
-            return res.status(400).json({ error: `Cannot accept order in status: ${order.status}` });
-        }
-
-        const branch = await prisma.branch.findUnique({ where: { id: order.branchId } });
-
-        // Generate Invoice ID
-        const lastAggSale = await prisma.sale.findFirst({
-            where: { tenantId: order.tenantId, branchId: order.branchId, source: 'aggregator' },
-            orderBy: { date: 'desc' }
-        });
-        const lastNum = lastAggSale ? parseInt(lastAggSale.id.replace(/\D/g, '')) || 0 : 0;
-        const nextId = `AGG-${lastNum + 1}`;
-
-        // Map to Sale
-        const saleData = mapToSale(order, branch, nextId);
-
-        // Enrich costs
-        try {
-            const rawProducts = await storage.readData('spare_parts', order.tenantId);
-            const products = JSON.parse(rawProducts || '[]');
-            saleData.items = enrichItemCosts(saleData.items, products);
-        } catch (e) { }
-
-        // Atomic Transaction: Create Sale + Items + Deduct Stock + Update Aggregator Order
-        await prisma.$transaction(async (tx) => {
-            // Create Sale and SaleItems
-            await tx.sale.create({
-                data: {
-                    id: nextId,
-                    receiptNo: nextId.slice(-6),
-                    tenantId: order.tenantId,
-                    branchId: order.branchId,
-                    subtotal: saleData.subtotal,
-                    tax: saleData.tax,
-                    deliveryFee: saleData.deliveryFee,
-                    total: saleData.total,
-                    orderType: saleData.orderType,
-                    source: 'aggregator',
-                    status: 'finished',
-                    kitchenStatus: 'pending',
-                    method: saleData.method,
-                    date: new Date(),
-                    customer: saleData.customer,
-                    items: {
-                        create: saleData.items.map(i => ({
-                            productId: i.productId,
-                            productCode: i.productCode,
-                            name: i.name,
-                            qty: i.qty,
-                            price: i.price,
-                            cost: i.cost,
-                            note: i.note
-                        }))
-                    }
-                }
-            });
-
-            // Stock Deduction
-            for (const item of saleData.items) {
-                if (item.productId) {
-                    await tx.productStock.updateMany({
-                        where: {
-                            tenantId: order.tenantId,
-                            branchId: order.branchId,
-                            productId: item.productId
-                        },
-                        data: { qty: { decrement: item.qty } }
-                    });
-                }
-            }
-
-            // Update Aggregator Order Status
-            const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
-            await tx.aggregatorOrder.update({
-                where: { id: order.id },
-                data: {
-                    status: AGGREGATOR_STATUSES.ACCEPTED,
-                    statusHistory: [...history, { status: AGGREGATOR_STATUSES.ACCEPTED, at: new Date(), note: `Mapped to Sale ${nextId}` }],
-                    mappedSaleId: nextId
-                }
-            });
+        let order;
+        const result=await prisma.$transaction(async tx=>{
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            order=await tx.aggregatorOrder.findUnique({where:{id:req.params.id}});
+            const fail=(message,status=409)=>{const err=new Error(message);err.status=status;throw err};
+            if(!order || order.tenantId!==req.tenantId || order.branchId!==req.branchId) fail('Order not found',404);
+            if(order.mappedSaleId) return {saleId:order.mappedSaleId,replayed:true};
+            if(order.status!==AGGREGATOR_STATUSES.PENDING) fail('Order is not pending');
+            const branch=await tx.branch.findUnique({where:{id:order.branchId}});
+            const nextId='AGG-'+crypto.randomUUID();
+            const saleData=mapToSale(order,branch,nextId);
+            saleData.items=snapshotItems(saleData.items,await readCatalog(tx,req.tenantId));
+            await tx.sale.create({data:{id:nextId,receiptNo:nextId.slice(-6),tenantId:req.tenantId,branchId:req.branchId,subtotal:saleData.subtotal,tax:saleData.tax,deliveryFee:saleData.deliveryFee,total:saleData.total,orderType:saleData.orderType,source:'aggregator',aggregatorOrderId:order.id,status:'finished',kitchenStatus:'pending',method:saleData.method,date:new Date(),customer:saleData.customer,items:{create:saleData.items.map(i=>({productId:String(i.id),productCode:i.productCode,name:i.name,qty:i.qty,price:i.price,cost:i.cost,note:i.note}))}}});
+            const movements=await applyStock(tx,req.tenantId,req.branchId,saleData.items);
+            await tx.auditLog.create({data:{tenantId:req.tenantId,branchId:req.branchId,userId:req.userId,action:'SALE_CREATE',details:{saleId:nextId,aggregatorOrderId:order.id,movements},ipAddress:req.ip}});
+            await tx.aggregatorOrder.update({where:{id:order.id},data:{status:AGGREGATOR_STATUSES.ACCEPTED,statusHistory:[...(Array.isArray(order.statusHistory)?order.statusHistory:[]),{status:AGGREGATOR_STATUSES.ACCEPTED,at:new Date(),note:'Mapped to Sale '+nextId}],mappedSaleId:nextId}});
+            return {saleId:nextId};
         });
 
         // Push status to provider (Non-blocking)
         try {
             const adapter = getAdapter(order.provider);
-            if (adapter.capabilities.pushStatus) {
+            if (!result.replayed && adapter.capabilities.pushStatus) {
                 const credentials = await loadProviderCredentials(order.provider, order.branchId);
                 if (credentials) await adapter.pushStatus(order.providerOrderId, 'accepted', credentials);
             }
         } catch (e) { }
 
-        res.json({ success: true, saleId: nextId });
+        res.json({ success: true, ...result });
 
     } catch (err) {
         console.error('Accept Order Error:', err);
-        try {
-            await transitionOrder(req.params.id, AGGREGATOR_STATUSES.MAPPING_FAILED, err.message);
-        } catch (e) { }
-        res.status(500).json({ error: err.message });
+        res.status(err.status||500).json({ error: err.message });
     }
 });
 

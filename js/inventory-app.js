@@ -1,3 +1,4 @@
+let materialEditSnapshot = null;
 /**
  * Inventory Management (Raw Materials)
  */
@@ -216,9 +217,11 @@ function loadInventory() {
 
         // Health Logic
         let healthBadge = '';
-        let daysIdle = 999;
-        if (m.lastUsedAt) daysIdle = Math.floor((new Date() - new Date(m.lastUsedAt)) / (1000 * 60 * 60 * 24));
-        if (daysIdle <= 7) { healthBadge = `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold border border-emerald-200 ml-1">Healthy</span>`; healthyCount++; }
+        const ageAnchor = m.lastUsedAt || m.createdAt;
+        const ageTime = ageAnchor ? new Date(ageAnchor).getTime() : NaN;
+        let daysIdle = Number.isFinite(ageTime) ? Math.max(0, Math.floor((Date.now() - ageTime) / 86400000)) : null;
+        if (daysIdle === null) { healthBadge = '<span class="text-xs text-slate-500">Age unknown</span>'; }
+        else if (daysIdle <= 7) { healthBadge = `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold border border-emerald-200 ml-1">Healthy</span>`; healthyCount++; }
         else if (daysIdle <= deadStockDays) { healthBadge = `<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold border border-blue-100 ml-1">Slow</span>`; }
         else { healthBadge = `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold border border-slate-200 ml-1">Dead</span>`; deadCount++; }
 
@@ -297,11 +300,11 @@ async function handleSaveMaterial(e) {
     }
 
     const activeBranchId = getActiveBranchId();
-    const existingIngredient = id ? window.DB.getIngredient(id) : null;
+    const existingIngredient = id ? materialEditSnapshot : null;
     const isNew = !id;
 
     // Merge stockByBranch: keep existing branch stocks, set current branch stock
-    let stockByBranch = existingIngredient?.stockByBranch || {};
+    let stockByBranch = { ...(existingIngredient?.stockByBranch || {}) };
     const effectiveStock = isNaN(stock) ? 0 : stock;
     if (activeBranchId) {
         stockByBranch[activeBranchId] = effectiveStock;
@@ -318,6 +321,17 @@ async function handleSaveMaterial(e) {
         minStock: isNaN(minStock) ? 5 : minStock,
         expirationDate: expDate || null
     };
+
+    if (window.electronAPI?.isWebAdapter) {
+        try {
+            const result = await window.apiFetch('/inventory/material', { method: 'POST', body: JSON.stringify({ material, expectedUpdatedAt: existingIngredient?.updatedAt || null, expectedStockRevision: existingIngredient?.stockRevision || null }) });
+            if (!result?.success) throw new Error(result?.error || 'Material was not saved');
+            window.DataCache.ingredients = result.ingredients;
+            if (window.electronAPI.getVendors) { try { window.DataCache.vendors = await window.electronAPI.getVendors(); } catch(e) { console.warn('Vendor refresh unavailable after confirmed save',e); } }
+            resetForm(); loadInventory(); alert(id ? 'Material Updated' : 'Material Added');
+        } catch (err) { alert('Material save failed: ' + err.message); }
+        return;
+    }
 
     // Check if initial stock or stock increase should be recorded as a purchase against the vendor
     let purchasedQty = 0;
@@ -342,7 +356,7 @@ async function handleSaveMaterial(e) {
     }
 
     // Save ingredient locally
-    window.DB.saveIngredient(material);
+    if (!await window.DB.saveIngredient(material)) { alert('Material save failed'); return; }
 
     // 🟢 Record purchase directly into vendor's ledger and balance
     if (purchasedQty > 0 && vendorId) {
@@ -422,6 +436,7 @@ async function handleSaveMaterial(e) {
 async function editMaterial(id) {
     const mat = window.DB.getIngredient(id);
     if (!mat) return;
+    materialEditSnapshot = JSON.parse(JSON.stringify(mat));
 
     // Ensure vendor dropdown is populated before setting value
     await loadVendors();
@@ -453,14 +468,14 @@ async function editMaterial(id) {
     document.getElementById('inventory-form').scrollIntoView({ behavior: 'smooth' });
 }
 
-function deleteMaterial(id) {
+async function deleteMaterial(id) {
     if (confirm('Delete this material? Stock history will remain but definition will be removed.')) {
-        window.DB.deleteIngredient(id);
-        loadInventory();
+        try { await window.DB.deleteIngredient(id); loadInventory(); } catch(err) { alert('Removal failed: '+err.message); }
     }
 }
 
 function resetForm() {
+    materialEditSnapshot = null;
     document.getElementById('inventory-form').reset();
     document.getElementById('material-id').value = "";
     document.getElementById('form-title').textContent = "Add New Raw Material";

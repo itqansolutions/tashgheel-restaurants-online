@@ -10,6 +10,9 @@ const router = express.Router();
 
 const prisma = require('../prisma');
 const storage = require('../utils/storage');
+const {readCatalog,snapshotItems,parseArray}=require('../utils/catalog');
+const {applyStock}=require('../utils/stock');
+const crypto=require('crypto');
 
 // ─── Structured logger ───────────────────────────────────────
 function log(event, ctx = {}) {
@@ -25,94 +28,11 @@ function genLineId() {
 
 // ─── Helper: enrich item costs from master product list ───
 async function enrichCosts(items, tenantId) {
-    try {
-        const dataDoc = await prisma.data.findUnique({
-            where: { key_tenantId: { key: 'spare_parts', tenantId } }
-        });
-        const products = dataDoc ? (Array.isArray(dataDoc.value) ? dataDoc.value : []) : [];
-        const costMap = {};
-        products.forEach(p => costMap[String(p.id)] = p.cost || 0);
-        return items.map(item => ({ ...item, cost: costMap[String(item.id)] || 0 }));
-    } catch (e) {
-        return items; 
-    }
-}
-
-async function deductIngredientsStock(tenantId, items, txClient = prisma) {
-    try {
-        let products = [];
-        const prodData = await txClient.data.findFirst({
-            where: {
-                tenantId,
-                key: { in: ['products', 'spare_parts'] }
-            }
-        });
-        if (prodData) {
-            products = typeof prodData.value === 'string' ? JSON.parse(prodData.value) : prodData.value;
-        }
-        if (!Array.isArray(products)) products = [];
-
-        const ingData = await txClient.data.findUnique({
-            where: { key_tenantId: { key: 'ingredients', tenantId } }
-        });
-        if (!ingData) return;
-
-        let ingredients = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
-        if (!Array.isArray(ingredients)) return;
-
-        let changed = false;
-
-        for (const item of items) {
-            const product = products.find(p => String(p.id) === String(item.productId || item.id) || p.code === (item.productCode || item.code));
-            if (!product) continue;
-
-            let recipeToUse = [];
-            if ((item.sizeId || item.sizeName) && product.hasSizes && product.sizes) {
-                const size = product.sizes.find(s => s.id == item.sizeId || s.name === item.sizeName);
-                recipeToUse = size ? (size.recipe || []) : [];
-            } else {
-                recipeToUse = product.recipe || [];
-            }
-
-            if (recipeToUse && recipeToUse.length > 0) {
-                recipeToUse.forEach(ingItem => {
-                    const idx = ingredients.findIndex(i => String(i.id) === String(ingItem.ingredientId));
-                    if (idx !== -1) {
-                        const factor = parseFloat(ingItem.conversionFactor || 1);
-                        let consumeQty = 0;
-                        const qtyToDeduct = parseFloat(item.qty || 0);
-
-                        if (ingItem.wasteType === 'fixed') {
-                            consumeQty = (parseFloat(ingItem.qty || 0) + parseFloat(ingItem.wasteValue || 0)) * qtyToDeduct * factor;
-                        } else {
-                            const w = parseFloat(ingItem.wasteValue || ingItem.wastePercent || 0);
-                            if (w < 100) {
-                                const yieldPct = (100 - w) / 100;
-                                const grossUsageQty = parseFloat(ingItem.qty || 0) / yieldPct;
-                                consumeQty = grossUsageQty * qtyToDeduct * factor;
-                            } else {
-                                consumeQty = parseFloat(ingItem.qty || 0) * qtyToDeduct * factor;
-                            }
-                        }
-
-                        const oldStock = parseFloat(ingredients[idx].stock || 0);
-                        ingredients[idx].stock = oldStock - consumeQty;
-                        ingredients[idx].lastUsedAt = new Date().toISOString();
-                        changed = true;
-                    }
-                });
-            }
-        }
-
-        if (changed) {
-            await txClient.data.update({
-                where: { key_tenantId: { key: 'ingredients', tenantId } },
-                data: { value: JSON.stringify(ingredients), updatedAt: new Date() }
-            });
-        }
-    } catch (err) {
-        console.error('[INGREDIENTS_DEDUCTION] Error processing stock deduction:', err);
-    }
+    const products=await readCatalog(prisma,tenantId);
+    return items.map(item=>{
+        const product=products.find(p=>String(p.id)===String(item.productId ?? item.id));
+        return {...item,cost:product ? Number(product.cost||0) : Number(item.cost||0)};
+    });
 }
 
 // @route  GET /api/orders
@@ -141,7 +61,7 @@ router.get('/table/:tableId', async (req, res) => {
             where: {
                 tenantId: req.tenantId,
                 branchId: req.branchId,
-                tableId: req.params.tableId,
+                tableId: req.userRole==='customer'?req.tableId:req.params.tableId,
                 status: 'open'
             },
             include: { items: true }
@@ -161,7 +81,7 @@ router.get('/:id', async (req, res) => {
             include: { items: true }
         });
 
-        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
+        if (!order || order.tenantId !== req.tenantId || order.branchId !== req.branchId || (req.userRole==='customer' && order.tableId!==req.tableId)) return res.status(404).json({ error: 'Order not found' });
         res.json(order);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -169,461 +89,136 @@ router.get('/:id', async (req, res) => {
 });
 
 // @route  POST /api/orders
-router.post('/', async (req, res) => {
+const fail=(message,status=409)=>{const e=new Error(message);e.status=status;throw e};
+async function lockedOrder(tx,req,allowLocked=false) {
+    await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+    const order=await tx.order.findUnique({where:{id:req.params.id},include:{items:true}});
+    if(!order || order.tenantId!==req.tenantId || order.branchId!==req.branchId) fail('Order not found',404);
+    if(req.userRole==='customer' && order.tableId!==req.tableId) fail('Order not found',404);
+    if(order.status!=='open') fail('Order is not open');
+    if(order.isLocked && !allowLocked) fail('The bill is being processed',423);
+    return order;
+}
+router.post('/',async(req,res)=>{
     try {
-        const { tableId, items = [], note = '' } = req.body;
-        if (!tableId) return res.status(400).json({ error: 'tableId is required' });
-
-        const table = await prisma.table.findUnique({
-            where: { id: tableId }
-        });
-        if (!table || table.tenantId !== req.tenantId) return res.status(404).json({ error: 'Table not found' });
-
-        if (table.activeOrderId) {
-            const existing = await prisma.order.findUnique({ where: { id: table.activeOrderId } });
-            if (existing && existing.status === 'open') {
-                return res.status(409).json({ error: 'Table already has an active order.', orderId: existing.id });
-            }
-        }
-
-        const enrichedItems = await enrichCosts(
-            items.map(i => ({ ...i, lineId: i.lineId || genLineId(), addedBy: req.userRole === 'customer' ? 'customer' : (req.userId || 'waiter') })),
-            req.tenantId
-        );
-
-        const order = await prisma.$transaction(async (tx) => {
-            const newOrder = await tx.order.create({
-                data: {
-                    tenantId: req.tenantId,
-                    branchId: req.branchId,
-                    tableId,
-                    tableName: table.name,
-                    note,
-                    openedBy: req.userRole === 'customer' ? 'customer' : (req.userId || 'waiter'),
-                    items: {
-                        create: enrichedItems.map(i => ({
-                            productId: String(i.id),
-                            productCode: i.code,
-                            name: i.name,
-                            qty: i.qty,
-                            price: i.price,
-                            cost: i.cost,
-                            note: i.note,
-                            addedBy: i.addedBy,
-                            lineId: i.lineId
-                        }))
-                    }
-                },
-                include: { items: true }
-            });
-
-            await tx.table.update({
-                where: { id: tableId, tenantId: req.tenantId },
-                data: { status: 'occupied', activeOrderId: newOrder.id }
-            });
-
-            return newOrder;
-        });
-
-        log('ORDER_CREATED', { branch: req.branchId, table: table.name, orderId: order.id, openedBy: order.openedBy });
-        res.status(201).json({ success: true, order });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        const order=await prisma.$transaction(async tx=>{
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const table=await tx.table.findUnique({where:{id:req.body.tableId||''}});
+            if(!table || table.tenantId!==req.tenantId || table.branchId!==req.branchId || (req.userRole==='customer' && table.id!==req.tableId)) fail('Table not found',404);
+            if(table.activeOrderId) {const active=await tx.order.findUnique({where:{id:table.activeOrderId}});if(active?.status==='open') fail('Table already has an active order');}
+            const input=req.body.items||[];
+            const items=input.length?snapshotItems(input,await readCatalog(tx,req.tenantId)):[];
+            const order=await tx.order.create({data:{tenantId:req.tenantId,branchId:req.branchId,tableId:table.id,tableName:table.name,note:req.body.note||'',openedBy:req.userRole==='customer'?'customer':req.userId||'waiter',items:{create:items.map(i=>({productId:String(i.id),productCode:i.code,name:i.name,qty:i.qty,price:i.price,cost:i.cost,note:i.note,addedBy:req.userRole==='customer'?'customer':req.userId||'waiter',lineId:i.lineId||genLineId(),modifiers:{stockSelection:{sizeId:i.sizeId,sizeName:i.sizeName,addons:i.addons||[]}}}))}},include:{items:true}});
+            await tx.table.update({where:{id:table.id},data:{status:'occupied',activeOrderId:order.id}});return order;
+        });res.status(201).json({success:true,order});
+    }catch(err){res.status(err.status||500).json({error:err.message});}
 });
-
-// @route  PATCH /api/orders/:id/items
-router.patch('/:id/items', async (req, res) => {
+router.patch('/:id/items',async(req,res)=>{
     try {
-        const { version, items } = req.body;
-        if (!items || !Array.isArray(items)) return res.status(400).json({ error: 'items array is required' });
-
-        const order = await prisma.order.findUnique({
-            where: { id: req.params.id },
-            include: { items: true }
-        });
-
-        if (!order || order.status !== 'open' || order.tenantId !== req.tenantId) {
-            return res.status(404).json({ error: 'Order not found or already closed' });
-        }
-
-        if (order.isLocked) return res.status(423).json({ error: 'The bill is being processed. Please wait or ask your waiter.' });
-
-        if (version !== undefined && order.version !== version) {
-            return res.status(409).json({
-                error: 'Order was updated by someone else. Please refresh and try again.',
-                currentVersion: order.version
-            });
-        }
-
-        const newItemsEnriched = await enrichCosts(
-            items.map(i => ({
-                ...i,
-                lineId: i.lineId || genLineId(),
-                addedBy: i.addedBy || (req.userRole === 'customer' ? 'customer' : (req.userId || 'waiter'))
-            })),
-            req.tenantId
-        );
-
-        await prisma.$transaction(async (tx) => {
-            for (const item of newItemsEnriched) {
-                const existing = order.items.find(i => i.lineId === item.lineId);
-                if (existing) {
-                    if (existing.kitchenStatus !== 'pending') {
-                        throw new Error(`Item "${existing.name}" cannot be edited — it has already been sent to the kitchen.`);
-                    }
-                    await tx.orderItem.update({
-                        where: { id: existing.id },
-                        data: {
-                            qty: item.qty,
-                            price: item.price,
-                            note: item.note
-                        }
-                    });
-                } else {
-                    // Normalize productId: new items from client use `id`, existing server items use `productId`
-                    const resolvedProductId = item.productId || String(item.id || '');
-                    await tx.orderItem.create({
-                        data: {
-                            orderId: order.id,
-                            productId: resolvedProductId || undefined,
-                            productCode: item.code || item.productCode,
-                            name: item.name,
-                            qty: item.qty,
-                            price: item.price,
-                            cost: item.cost || 0,
-                            note: item.note || null,
-                            addedBy: item.addedBy,
-                            lineId: item.lineId
-                        }
-                    });
-                }
+        const order=await prisma.$transaction(async tx=>{
+            const order=await lockedOrder(tx,req);
+            if(req.body.version!==undefined && req.body.version!==order.version) fail('Order was updated by someone else');
+            if(!Array.isArray(req.body.items)) fail('items array required',400);
+            const catalog=await readCatalog(tx,req.tenantId);
+            for(const input of req.body.items) {
+                const existing=order.items.find(i=>i.lineId===input.lineId);
+                if(existing && existing.kitchenStatus!=='pending') fail('Item cannot be edited after sending to kitchen');
+                const candidate={...(existing||{}),...(existing?.modifiers?.stockSelection||{}),...input};
+                const item=snapshotItems([candidate],catalog)[0];
+                const data={qty:item.qty,price:item.price,note:item.note,cost:item.cost,modifiers:{stockSelection:{sizeId:item.sizeId,sizeName:item.sizeName,addons:item.addons||[]}}};
+                if(existing) await tx.orderItem.update({where:{id:existing.id},data});
+                else await tx.orderItem.create({data:{...data,orderId:order.id,productId:String(item.id),productCode:item.productCode||item.code,name:item.name,addedBy:req.userRole==='customer'?'customer':req.userId||'waiter',lineId:item.lineId||genLineId(),modifiers:{stockSelection:{sizeId:item.sizeId,sizeName:item.sizeName,addons:item.addons||[]}}}});
             }
-
-            await tx.order.update({
-                where: { id: order.id, tenantId: req.tenantId },
-                data: {
-                    version: { increment: 1 },
-                    lastActivityAt: new Date()
-                }
-            });
-        });
-
-        const updatedOrder = await prisma.order.findUnique({ where: { id: req.params.id }, include: { items: true } });
-        res.json({ success: true, version: updatedOrder.version, order: updatedOrder });
-    } catch (err) {
-        res.status(err.message && err.message.includes('cannot be edited') ? 409 : 500).json({ error: err.message });
-    }
+            return tx.order.update({where:{id:order.id},data:{version:{increment:1},lastActivityAt:new Date()},include:{items:true}});
+        });res.json({success:true,version:order.version,order});
+    }catch(err){res.status(err.status||500).json({error:err.message});}
 });
-
-// @route  DELETE /api/orders/:id/items/:lineId
-router.delete('/:id/items/:lineId', async (req, res) => {
-    try {
-        const order = await prisma.order.findUnique({
-            where: { id: req.params.id },
-            include: { items: true }
-        });
-        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-        if (order.isLocked) return res.status(423).json({ error: 'The bill is being processed. Please wait or ask your waiter.' });
-
-        const item = order.items.find(i => i.lineId === req.params.lineId);
-        if (!item) return res.status(404).json({ error: 'Item not found' });
-
-        if (item.kitchenStatus === 'preparing' || item.kitchenStatus === 'ready') {
-            return res.status(409).json({ error: `This item is already being prepared. Ask your waiter for help.`, kitchenStatus: item.kitchenStatus });
-        }
-        if (item.kitchenStatus === 'sent' && req.userRole !== 'staff') {
-            return res.status(403).json({ error: 'This item has been sent to the kitchen. Ask your waiter to cancel it.' });
-        }
-
-        await prisma.orderItem.update({
-            where: { id: item.id },
-            data: { kitchenStatus: 'cancelled', cancelledAt: new Date() }
-        });
-
-        await prisma.order.update({
-            where: { id: order.id, tenantId: req.tenantId },
-            data: { version: { increment: 1 }, lastActivityAt: new Date() }
-        });
-
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+router.delete('/:id/items/:lineId',async(req,res)=>{
+    try{
+        await prisma.$transaction(async tx=>{
+            const order=await lockedOrder(tx,req);const item=order.items.find(i=>i.lineId===req.params.lineId);
+            if(!item) fail('Item not found',404);
+            if(['preparing','ready'].includes(item.kitchenStatus)) fail('Item is already being prepared');
+            if(item.kitchenStatus==='sent' && req.userRole!=='staff') fail('Ask your waiter to cancel this item',403);
+            await tx.orderItem.update({where:{id:item.id},data:{kitchenStatus:'cancelled',cancelledAt:new Date()}});
+            await tx.order.update({where:{id:order.id},data:{version:{increment:1},lastActivityAt:new Date()}});
+        });res.json({success:true});
+    }catch(err){res.status(err.status||500).json({error:err.message});}
 });
 
 // @route  POST /api/orders/:id/send
-router.post('/:id/send', async (req, res) => {
-    try {
-        const order = await prisma.order.findUnique({
-            where: { id: req.params.id },
-            include: { items: true }
-        });
-        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-        if (order.isLocked) return res.status(423).json({ error: 'The bill is being processed. Please wait or ask your waiter.' });
-
-        const pendingItems = order.items.filter(i => i.kitchenStatus === 'pending');
-        if (pendingItems.length === 0) return res.status(400).json({ error: 'No pending items to send to the kitchen.' });
-
-        const batchNo = order.currentBatch + 1;
-        const now = new Date();
-
-        // Load printer settings & products to categorize items
-        const shopSettingsRaw = await storage.readData('shop_settings', req.tenantId);
-        const settings = shopSettingsRaw ? JSON.parse(shopSettingsRaw) : {};
-        const printers = settings.printers || {};
-
-        const productsRaw = await storage.readData('products', req.tenantId);
-        const products = productsRaw ? JSON.parse(productsRaw) : [];
-
-        const productCategoryMap = {};
-        products.forEach(p => {
-            productCategoryMap[p.id] = p.category;
-            if (p.code) {
-                productCategoryMap[p.code] = p.category;
-            }
-        });
-
-        // Group by printer designation
-        const printerGroups = {};
-        pendingItems.forEach(item => {
-            const category = productCategoryMap[item.productId] || productCategoryMap[item.productCode] || '';
-            const printerName = printers[category] || 'Default Kitchen Printer';
-            if (!printerGroups[printerName]) {
-                printerGroups[printerName] = [];
-            }
-            printerGroups[printerName].push(item);
-        });
-
-        await prisma.$transaction([
-            prisma.orderItem.updateMany({
-                where: { orderId: order.id, kitchenStatus: 'pending' },
-                data: { kitchenStatus: 'sent', sentAt: now, batchNo }
-            }),
-            prisma.order.update({
-                where: { id: order.id, tenantId: req.tenantId },
-                data: { currentBatch: batchNo, version: { increment: 1 }, lastActivityAt: now }
-            })
-        ]);
-
-        // Log routing for each category segment printer group
-        Object.entries(printerGroups).forEach(([printerName, items]) => {
-            log('KOT_SEGMENT_ROUTED', {
-                printer: printerName,
-                orderId: order.id,
-                tableName: order.tableName,
-                batch: batchNo,
-                count: items.length,
-                details: items.map(i => `${i.qty}x ${i.name}`).join(', ')
-            });
-        });
-
-        log('ITEMS_SENT', { branch: order.branchId, table: order.tableName, orderId: order.id, batch: batchNo, count: pendingItems.length });
-        res.json({ success: true, batchNo, sentCount: pendingItems.length, version: order.currentBatch + 1 });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+router.post('/:id/send',async(req,res)=>{
+    try{
+        const result=await prisma.$transaction(async tx=>{
+            const order=await lockedOrder(tx,req);const pending=order.items.filter(i=>i.kitchenStatus==='pending');
+            if(!pending.length) fail('No pending items',400);
+            const batchNo=order.currentBatch+1;const now=new Date();
+            await tx.orderItem.updateMany({where:{orderId:order.id,kitchenStatus:'pending'},data:{kitchenStatus:'sent',sentAt:now,batchNo}});
+            await tx.order.update({where:{id:order.id},data:{currentBatch:batchNo,version:{increment:1},lastActivityAt:now}});
+            return {success:true,batchNo,sentCount:pending.length,version:order.version+1};
+        });res.json(result);
+    }catch(err){res.status(err.status||500).json({error:err.message});}
 });
-
-// @route  POST /api/orders/:id/lock
-router.post('/:id/lock', async (req, res) => {
-    try {
-        if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });
-        const order = await prisma.order.findUnique({ where: { id: req.params.id } });
-        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-
-        await prisma.order.update({
-            where: { id: order.id, tenantId: req.tenantId },
-            data: { isLocked: true, requestedBillAt: order.requestedBillAt || new Date() }
-        });
-
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// @route  POST /api/orders/:id/unlock
-router.post('/:id/unlock', async (req, res) => {
-    try {
-        if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });
-        await prisma.order.update({
-            where: { id: req.params.id, tenantId: req.tenantId },
-            data: { isLocked: false }
-        });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// @route  POST /api/orders/:id/ready-all
-// Marks all non-cancelled items as 'ready' (used when kitchen feature is disabled)
-router.post('/:id/ready-all', async (req, res) => {
-    try {
-        if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });
-        const order = await prisma.order.findUnique({ where: { id: req.params.id } });
-        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-
-        await prisma.orderItem.updateMany({
-            where: { orderId: order.id, kitchenStatus: { not: 'cancelled' } },
-            data: { kitchenStatus: 'ready', readyAt: new Date() }
-        });
-
-        await prisma.order.update({
-            where: { id: order.id, tenantId: req.tenantId },
-            data: { version: { increment: 1 }, lastActivityAt: new Date() }
-        });
-
-        log('ITEMS_READY_ALL', { branch: order.branchId, orderId: order.id });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+for(const action of ['lock','unlock','ready-all']) router.post('/:id/'+action,async(req,res)=>{
+    if(req.userRole==='customer') return res.status(403).json({error:'Not authorized'});
+    try{
+        await prisma.$transaction(async tx=>{
+            const order=await lockedOrder(tx,req,true);
+            if(action==='ready-all') await tx.orderItem.updateMany({where:{orderId:order.id,kitchenStatus:{not:'cancelled'}},data:{kitchenStatus:'ready',readyAt:new Date()}});
+            await tx.order.update({where:{id:order.id},data:{...(action==='lock'?{isLocked:true,requestedBillAt:order.requestedBillAt||new Date()}:action==='unlock'?{isLocked:false}:{}),version:{increment:1},lastActivityAt:new Date()}});
+        });res.json({success:true});
+    }catch(err){res.status(err.status||500).json({error:err.message});}
 });
 
 // @route  POST /api/orders/:id/close
 router.post('/:id/close', async (req, res) => {
-    if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });
-
-    const { 
-        method = 'cash', 
-        discount = 0, 
-        discountType = 'none', 
-        closeOverride = false,
-        shiftId = null,
-        tax = 0,
-        splitCash = 0,
-        splitCard = 0
-    } = req.body;
-
+    if (req.userRole === 'customer') return res.status(403).json({error:'Not authorized'});
     try {
-        const order = await prisma.order.findUnique({
-            where: { id: req.params.id },
-            include: { items: true }
-        });
-
-        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-        if (order.status === 'closed') return res.json({ success: true, alreadyClosed: true, saleId: order.mappedSaleId });
-
-        const settingsDoc = await prisma.data.findUnique({
-            where: { key_tenantId: { key: 'shop_settings', tenantId: req.tenantId } }
-        });
-        const settings = settingsDoc ? (settingsDoc.value || {}) : {};
-        const enableKitchen = settings.enableKitchen !== false;
-
-        const activeItems = order.items.filter(i => !['ready', 'cancelled'].includes(i.kitchenStatus));
-        if (enableKitchen && activeItems.length > 0 && !closeOverride) {
-            return res.status(409).json({ error: `${activeItems.length} item(s) are not ready yet.`, canOverride: true });
-        }
-
-        const billItems = order.items.filter(i => i.kitchenStatus !== 'cancelled');
-        const subtotal = billItems.reduce((sum, i) => sum + (i.price * i.qty), 0);
-        let discountAmt = 0;
-        if (discountType === 'percent') discountAmt = subtotal * (discount / 100);
-        else if (discountType === 'value') discountAmt = discount;
-        
-        const taxAmt = parseFloat(tax) || 0;
-        const total = Math.max(0, subtotal - discountAmt + taxAmt);
-
-        const lastSale = await prisma.sale.findFirst({
-            where: { tenantId: order.tenantId, branchId: order.branchId },
-            orderBy: { date: 'desc' }
-        });
-        const lastNum = lastSale ? (parseInt(lastSale.receiptNo.replace(/\D/g, '')) || 0) : 0;
-        const receiptNo = String(lastNum + 1).padStart(4, '0');
-        const saleId = `REC-${lastNum + 1}`;
-
-        const result = await prisma.$transaction(async (tx) => {
-            const sale = await tx.sale.create({
-                data: {
-                    id: saleId,
-                    receiptNo,
-                    tenantId: order.tenantId,
-                    branchId: order.branchId,
-                    cashier: req.userId || 'cashier',
-                    orderType: 'dine_in',
-                    tableId: order.tableId,
-                    tableName: order.tableName,
-                    subtotal,
-                    discount: discountAmt,
-                    tax: taxAmt,
-                    total,
-                    method,
-                    splitCash: parseFloat(splitCash || 0),
-                    splitCard: parseFloat(splitCard || 0),
-                    shiftId: shiftId || undefined,
-                    status: 'finished',
-                    source: 'pos',
-                    date: new Date(),
-                    items: {
-                        create: billItems.map(i => ({
-                            productId: i.productId,
-                            productCode: i.productCode,
-                            name: i.name,
-                            qty: i.qty,
-                            price: i.price,
-                            cost: i.cost,
-                            note: i.note
-                        }))
-                    }
-                }
-            });
-
-            for (const item of billItems) {
-                await tx.productStock.upsert({
-                    where: { tenantId_branchId_productId: { tenantId: order.tenantId, branchId: order.branchId, productId: item.productId } },
-                    update: { qty: { decrement: item.qty } },
-                    create: { tenantId: order.tenantId, branchId: order.branchId, productId: item.productId, qty: -item.qty }
-                });
+        const result=await prisma.$transaction(async tx=>{
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const order=await tx.order.findUnique({where:{id:req.params.id},include:{items:true}});
+            const fail=(message,status=409)=>{const e=new Error(message);e.status=status;throw e};
+            if(!order || order.tenantId!==req.tenantId || order.branchId!==req.branchId) fail('Order not found',404);
+            if(order.status==='closed') {
+                const sale=await tx.sale.findUnique({where:{id:order.mappedSaleId||''},include:{items:true}});
+                if(!sale || sale.tenantId!==req.tenantId || sale.branchId!==req.branchId) fail('Closed bill receipt needs review');
+                return {success:true,alreadyClosed:true,saleId:sale.id,receiptNo:sale.receiptNo,total:sale.total,sale};
             }
-
-            // Deduct Ingredients Stock (raw materials)
-            await deductIngredientsStock(order.tenantId, billItems, tx);
-
-            await tx.order.update({
-                where: { id: order.id, tenantId: order.tenantId },
-                data: { status: 'closed', closedAt: new Date(), mappedSaleId: saleId }
-            });
-
-            await tx.table.update({
-                where: { id: order.tableId, tenantId: order.tenantId, branchId: order.branchId },
-                data: { status: 'available', activeOrderId: null }
-            });
-
-            return sale;
+            if(order.status!=='open') fail('Order is not open');
+            const settingsDoc=await tx.data.findUnique({where:{key_tenantId:{key:'shop_settings',tenantId:req.tenantId}}});
+            const settings=typeof settingsDoc?.value==='string'?JSON.parse(settingsDoc.value):settingsDoc?.value||{};
+            if(settings.enableKitchen!==false && !req.body.closeOverride && order.items.some(i=>!['ready','cancelled'].includes(i.kitchenStatus))) fail('Some items are not ready yet');
+            const items=snapshotItems(order.items.filter(i=>i.kitchenStatus!=='cancelled').map(i=>({...i,...(i.modifiers?.stockSelection||{})})),await readCatalog(tx,req.tenantId));
+            const subtotal=items.reduce((sum,i)=>sum+i.price*i.qty,0);
+            const discount=Number(req.body.discount||0),tax=Number(req.body.tax||0),splitCash=Number(req.body.splitCash||0),splitCard=Number(req.body.splitCard||0);
+            if([discount,tax,splitCash,splitCard].some(x=>!Number.isFinite(x)||x<0)) fail('Invalid bill amount',400);
+            const discountAmt=req.body.discountType==='percent'?subtotal*discount/100:req.body.discountType==='value'?discount:0;
+            const total=Math.max(0,subtotal-discountAmt+tax);
+            const shift=await tx.shift.findFirst({where:{tenantId:req.tenantId,branchId:req.branchId,status:'open',...(req.body.shiftId?{id:req.body.shiftId}:{})}});
+            if(!shift) fail('No open shift found',403);
+            const lastSale=await tx.sale.findFirst({where:{tenantId:req.tenantId,branchId:req.branchId},orderBy:{date:'desc'}});
+            const receiptNo=String((parseInt((lastSale?.receiptNo||'').replace(/\D/g,''))||0)+1).padStart(4,'0');
+            const sale=await tx.sale.create({data:{id:'REC-'+crypto.randomUUID(),receiptNo,tenantId:req.tenantId,branchId:req.branchId,cashier:req.userId||'cashier',orderType:'dine_in',tableId:order.tableId,tableName:order.tableName,subtotal,discount:discountAmt,tax,total,method:req.body.method||'cash',splitCash,splitCard,shiftId:shift.id,status:'finished',source:'pos',date:new Date(),items:{create:items.map(i=>({productId:String(i.id),productCode:i.productCode,name:i.name,qty:i.qty,price:i.price,cost:i.cost,note:i.note}))}}});
+            const movements=await applyStock(tx,req.tenantId,req.branchId,items);
+            await tx.auditLog.create({data:{tenantId:req.tenantId,branchId:req.branchId,userId:req.userId,action:'SALE_CREATE',details:{saleId:sale.id,orderId:order.id,total,movements},ipAddress:req.ip}});
+            await tx.order.update({where:{id:order.id},data:{status:'closed',closedAt:new Date(),mappedSaleId:sale.id}});
+            await tx.table.update({where:{id:order.tableId},data:{status:'available',activeOrderId:null}});
+            return {success:true,saleId:sale.id,receiptNo,total,sale:await tx.sale.findUnique({where:{id:sale.id},include:{items:true}})};
         });
-
-        log('ORDER_CLOSED', { branch: order.branchId, table: order.tableName, orderId: order.id, saleId: result.id });
-        res.json({ success: true, saleId: result.id, receiptNo, total });
-    } catch (err) {
-        console.error('Order Close Error:', err);
-        res.status(500).json({ error: err.message });
-    }
+        res.json(result);
+    } catch(err) {res.status(err.status||500).json({error:err.message});}
 });
 
 // @route  POST /api/orders/:id/cancel
-router.post('/:id/cancel', async (req, res) => {
+router.post('/:id/cancel',async(req,res)=>{
+    if(req.userRole==='customer') return res.status(403).json({error:'Not authorized'});
     try {
-        if (req.userRole === 'customer') return res.status(403).json({ error: 'Not authorized' });
-        const order = await prisma.order.findUnique({ where: { id: req.params.id } });
-        if (!order || order.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-
-        await prisma.$transaction([
-            prisma.order.update({ 
-                where: { id: order.id, tenantId: req.tenantId }, 
-                data: { status: 'cancelled', closedAt: new Date() } 
-            }),
-            prisma.table.update({ 
-                where: { id: order.tableId, tenantId: req.tenantId, branchId: req.branchId }, 
-                data: { status: 'available', activeOrderId: null } 
-            })
-        ]);
-
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        await prisma.$transaction(async tx=>{
+            const order=await lockedOrder(tx,req,true);
+            await tx.order.update({where:{id:order.id},data:{status:'cancelled',closedAt:new Date()}});
+            await tx.table.update({where:{id:order.tableId},data:{status:'available',activeOrderId:null}});
+        });res.json({success:true});
+    }catch(err){res.status(err.status||500).json({error:err.message});}
 });
 
 module.exports = router;

@@ -2212,6 +2212,12 @@ function validateIngredientStock() {
 }
 
 async function processSale(method) {
+  if (window.saleInProgress) return;
+  window.saleInProgress = true;
+  try { return await completeSale(method); }
+  finally { window.saleInProgress = false; }
+}
+async function completeSale(method) {
   if (cart.length === 0) return;
 
   if (!currentShift) {
@@ -2355,25 +2361,27 @@ async function processSale(method) {
       price: item.price,
       basePrice: item.basePrice,
       cost: item.cost,
+      sizeId: item.sizeId,
       discount: item.discount,
       note: item.note || '',
       addons: item.addons || []
     }))
   };
 
-  // Stock Deduction Logic
-  cart.forEach(item => {
-    // 1. Deduct Main Item
-    processStockDeduction(item.product_id, item.qty, item.sizeId);
+  if (window.electronAPI?.isWebAdapter && !currentDineInOrder && !currentOnlineOrderId) {
+    const { id, date, receiptNo, ...intent } = sale;
+    const fingerprint = JSON.stringify(intent);
+    if (window.pendingSale?.fingerprint === fingerprint) { sale.id = window.pendingSale.id; sale.receiptNo = window.pendingSale.receiptNo; }
+    else window.pendingSale = { fingerprint, id: sale.id, receiptNo: sale.receiptNo };
+  }
 
-    // 2. Deduct Add-ons
-    if (item.addons && item.addons.length > 0) {
-      item.addons.forEach(addon => {
-        processStockDeduction(addon.id, item.qty * (addon.qty || 1), null);
-      });
-    }
-  });
-
+  // Web stock is changed only by the server transaction after successful payment.
+  if (!window.electronAPI?.isWebAdapter) {
+    cart.forEach(item => {
+      processStockDeduction(item.product_id, item.qty, item.sizeId);
+      (item.addons || []).forEach(addon => processStockDeduction(addon.id, item.qty * (addon.qty || 1), null));
+    });
+  }
 
   // Save Sale
   if (currentDineInOrder) {
@@ -2392,8 +2400,8 @@ async function processSale(method) {
         })
       });
       if (res && res.success) {
-        sale.id = res.saleId;
-        sale.receiptNo = res.receiptNo;
+        if (!res.sale?.id || !res.sale?.receiptNo) throw new Error('Saved bill receipt was not returned. Reload the bill before printing.');
+        Object.assign(sale, res.sale);
         currentDineInOrder = null;
         const tableSelect = document.getElementById('tableSelect');
         if (tableSelect) tableSelect.value = '';
@@ -2426,16 +2434,33 @@ async function processSale(method) {
         })
       });
       if (res && res.success) {
+        if (!res.sale?.id) throw new Error('Saved order receipt was not returned. Reload the order before printing.');
+        Object.assign(sale, res.sale);
         currentOnlineOrderId = null;
         if (typeof fetchOnlineOrders === 'function') fetchOnlineOrders();
-      }
+      } else throw new Error(res?.error || 'Order finalization was not confirmed');
     } catch (e) {
       console.error('Failed to update online order:', e);
+      alert('Order was not finalized. Your cart is unchanged.');
+      return;
     }
   } else {
-    window.DB.saveSale(sale);
+    try {
+      const saved = await window.DB.saveSale(sale);
+      if (!saved || saved.success === false) throw new Error(saved?.error?.message || saved?.error || 'Sale was not saved');
+    } catch (err) {
+      alert('Sale not saved. Your cart is unchanged: ' + err.message);
+      return;
+    }
   }
 
+  window.pendingSale = null;
+  if (window.electronAPI?.isWebAdapter) {
+    try {
+      const fresh = await window.electronAPI.readData('spare_parts');
+      window.DataCache.spare_parts = typeof fresh === 'string' ? JSON.parse(fresh) : fresh;
+    } catch (e) { console.warn('Stock refresh failed', e); }
+  }
   // Cache receipt for printing
   try {
     localStorage.setItem(sale.id, JSON.stringify(sale));
