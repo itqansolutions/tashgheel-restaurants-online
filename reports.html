@@ -197,6 +197,7 @@
             <!-- === CONTENT AREAS === -->
 
             <!-- 1. LIVE MONITOR -->
+            <p id="reportError" role="alert" hidden style="padding:16px;background:#fee2e2;color:#991b1b;border:1px solid #ef4444;border-radius:8px"></p>
             <div id="card-live" class="report-card space-y-6">
 
               <!-- Row 1: KPI Cards -->
@@ -235,10 +236,13 @@
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                   <div class="text-xs font-bold text-slate-500 uppercase mb-1">Returns</div>
                   <div class="text-xl font-bold text-red-600" id="live-returns">0.00</div>
+                  <p id="retained-return-cost" class="text-xs mt-2 text-slate-600"></p>
                   <div class="text-[10px] text-red-400 font-semibold mt-1">Refunded</div>
                 </div>
               </div>
 
+              <p id="returns-accounting-note" class="text-sm text-slate-600"></p>
+              <p id="payment-basis-note" class="text-xs text-slate-500"></p>
               <!-- Row 2: Charts -->
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Sales Per Hour -->
@@ -331,6 +335,7 @@
                   <div class="text-[10px] text-slate-400 font-semibold mt-1">Net / Orders</div>
                 </div>
               </div>
+
 
               <!-- Row 2: Charts -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -450,6 +455,7 @@
                 </div>
               </div>
 
+
               <!-- Row 2: Charts -->
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Fees Trend -->
@@ -553,7 +559,8 @@
                 </div>
               </div>
 
-              <!-- Charts Row -->
+
+            <!-- Charts Row -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Expense Category Chart -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -624,6 +631,7 @@
                   <div class="text-[10px] text-slate-400 font-semibold mt-1">Efficiency Metric</div>
                 </div>
               </div>
+
 
               <!-- Row 2: Charts -->
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tashgheel-cache-v6-stock-cost';
+const CACHE_NAME = 'tashgheel-cache-v7-refund-dialog';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

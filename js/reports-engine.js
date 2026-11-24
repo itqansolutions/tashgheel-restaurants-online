@@ -6,8 +6,31 @@
 
 // === DATE HELPERS ===
 window.ReportDateUtils = {
+    timezone: 'Africa/Cairo',
+    formatLocalDate(date) {
+        const parts = new Intl.DateTimeFormat('en-CA', {timeZone:this.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+        const get = key => parts.find(part=>part.type===key).value;
+        return `${get('year')}-${get('month')}-${get('day')}`;
+    },
+    parseLocalDate(value, end = false) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) throw new Error('Invalid report date');
+        const [year,month,day] = value.split('-').map(Number);
+        const wall = Date.UTC(year,month-1,day,end?23:0,end?59:0,end?59:0,end?999:0);
+        let instant = wall;
+        for (let attempt=0;attempt<4;attempt++) {
+            const parts = new Intl.DateTimeFormat('en-US',{timeZone:this.timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(instant));
+            const get = key => Number(parts.find(part=>part.type===key).value);
+            const rendered = Date.UTC(get('year'),get('month')-1,get('day'),get('hour'),get('minute'),get('second'),end?999:0);
+            const delta = wall - rendered;
+            instant += delta;
+            if (!delta) break;
+        }
+        const date = new Date(instant);
+        if (this.formatLocalDate(date) !== value) throw new Error('Invalid report date');
+        return date;
+    },
     getRange(preset) {
-        const now = new Date();
+        const now = new Date(new Date().toLocaleString('en-US',{timeZone:this.timezone}));
         const start = new Date(now);
         const end = new Date(now);
 
@@ -39,8 +62,8 @@ window.ReportDateUtils = {
                 start.setHours(0, 0, 0, 0);
                 break;
             case 'lastMonth':
-                start.setMonth(now.getMonth() - 1);
                 start.setDate(1);
+                start.setMonth(now.getMonth() - 1);
                 start.setHours(0, 0, 0, 0);
                 end.setDate(0); // Last day of prev month
                 end.setHours(23, 59, 59, 999);
@@ -50,7 +73,8 @@ window.ReportDateUtils = {
                 start.setHours(0, 0, 0, 0);
                 break;
         }
-        return { start, end };
+        const calendarDate = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+        return { start:this.parseLocalDate(calendarDate(start)), end:this.parseLocalDate(calendarDate(end),true) };
     },
 
     // For Trends: Get the previous period based on current duration
@@ -78,6 +102,39 @@ function calcTrend(current, previous) {
     };
 }
 
+// Do not silently turn unavailable or truncated history into a zero-sales report.
+async function fetchReportSales(filters) {
+    if (!window.electronAPI?.isWebAdapter || !window.apiFetch) {
+        if (!window.electronAPI?.getSalesHistory) throw new Error('Sales history is unavailable');
+        return window.electronAPI.getSalesHistory(filters);
+    }
+    const sales = [];
+    const asOf = new Date().toISOString();
+    let page = 1;
+    while (true) {
+        const params = new URLSearchParams({ ...filters, limit: 500, page, asOf });
+        const result = await window.apiFetch(`/reports/history?${params}`);
+        if (!result || !Array.isArray(result.sales) || !Number.isFinite(result.total)) throw new Error('Incomplete sales history response');
+        sales.push(...result.sales);
+        if (sales.length >= result.total) return sales;
+        if (!result.sales.length || page >= 2000) throw new Error('Sales history is incomplete; narrow the report period');
+        page++;
+    }
+}
+
+async function fetchReturnEvents(filters) {
+    if (!window.electronAPI?.isWebAdapter || !window.apiFetch) throw new Error('Dated return events require an online connection');
+    const events = []; let page = 1;
+    while (true) {
+        const result = await window.apiFetch(`/reports/return-events?${new URLSearchParams({...filters, page})}`);
+        if (!Array.isArray(result?.events) || !Number.isFinite(result.total)) throw new Error('Incomplete return events');
+        events.push(...result.events);
+        if (events.length >= result.total) return events;
+        if (!result.events.length || page >= 2000) throw new Error('Return events incomplete; narrow report range');
+        page++;
+    }
+}
+
 // === MAIN DATA FETCH & AGGREGATE ===
 async function buildReportContext() {
     // 1. Get Filters
@@ -87,30 +144,32 @@ async function buildReportContext() {
     // Resolve Dates
     let fromDate, toDate;
     if (datePreset === 'custom') {
-        fromDate = new Date(document.getElementById('startDate').value);
-        toDate = new Date(document.getElementById('endDate').value);
-        // Fix end date to end of day
-        toDate.setHours(23, 59, 59, 999);
+        fromDate = window.ReportDateUtils.parseLocalDate(document.getElementById('startDate').value);
+        toDate = window.ReportDateUtils.parseLocalDate(document.getElementById('endDate').value, true);
     } else {
         const range = window.ReportDateUtils.getRange(datePreset);
         fromDate = range.start;
         toDate = range.end;
 
         // Update inputs for visibility
-        document.getElementById('startDate').valueAsDate = fromDate;
-        document.getElementById('endDate').valueAsDate = toDate;
+        document.getElementById('startDate').value = window.ReportDateUtils.formatLocalDate(fromDate);
+        document.getElementById('endDate').value = window.ReportDateUtils.formatLocalDate(toDate);
     }
 
+    if (fromDate > toDate) throw new Error('Report start date must not follow end date');
+
+    // Branch-explicit live inventory. Never use the POS active-branch catalog as an all-branch balance.
+    const inventory = await window.apiFetch(`/reports/inventory?${new URLSearchParams({branchId})}`);
+    if (!Array.isArray(inventory?.products) || !Array.isArray(inventory?.ingredients)) throw new Error('Inventory report unavailable');
+    if (inventory.unknownBalances) throw new Error('Legacy inventory has no verified selected-branch balance; manual review required');
     // 2. Data Fetching (Current Period)
-    const [receipts, rawProducts, rawExpenses, shifts, rawIngredients] = await Promise.all([
-        window.electronAPI.getSalesHistory ? window.electronAPI.getSalesHistory({ branchId, from: fromDate.toISOString(), to: toDate.toISOString(), limit: 99999 }) : [],
-        window.electronAPI.readData ? window.electronAPI.readData('products') : [],
-        window.DataCache && window.DataCache.expenses ? window.DataCache.expenses.filter(e => {
-            const d = new Date(e.date);
-            return (!branchId || branchId === 'all' || e.branchId == branchId) && d >= fromDate && d <= toDate;
-        }) : [],
+    const [receipts, rawProducts, rawExpenses, shifts, rawIngredients, returnEvents] = await Promise.all([
+        fetchReportSales({ branchId, from: fromDate.toISOString(), to: toDate.toISOString() }),
+        Promise.resolve(inventory.products),
+        window.apiFetch(`/reports/expenses?${new URLSearchParams({branchId,from:window.ReportDateUtils.formatLocalDate(fromDate),to:window.ReportDateUtils.formatLocalDate(toDate)})}`),
         window.electronAPI.getShifts ? window.electronAPI.getShifts({ branchId }) : [],
-        window.electronAPI.readData ? window.electronAPI.readData('ingredients') : (window.DB ? window.DB.getIngredients() : [])
+        Promise.resolve(inventory.ingredients),
+        fetchReturnEvents({branchId, from:fromDate.toISOString(), to:toDate.toISOString()})
     ]);
 
     // Helper: Dynamic Cost Engine
@@ -131,27 +190,22 @@ async function buildReportContext() {
     // Let's try to do it right.
     const prevRange = window.ReportDateUtils.getPreviousPeriod(fromDate, toDate);
     // Only basic sales history needed for trends
-    const prevReceipts = window.electronAPI.getSalesHistory ? await window.electronAPI.getSalesHistory({ branchId, from: prevRange.start.toISOString(), to: prevRange.end.toISOString() }) : [];
-    const prevExpenses = window.DataCache && window.DataCache.expenses ? window.DataCache.expenses.filter(e => {
-        const d = new Date(e.date);
-        return (!branchId || branchId === 'all' || e.branchId == branchId) && d >= prevRange.start && d <= prevRange.end;
-    }) : [];
+    const prevReceipts = await fetchReportSales({ branchId, from: prevRange.start.toISOString(), to: prevRange.end.toISOString() });
+    const prevReturnEvents = await fetchReturnEvents({branchId, from:prevRange.start.toISOString(), to:prevRange.end.toISOString()});
+    const prevExpenses = await window.apiFetch(`/reports/expenses?${new URLSearchParams({branchId,from:window.ReportDateUtils.formatLocalDate(prevRange.start),to:window.ReportDateUtils.formatLocalDate(prevRange.end)})}`);
+    if (!Array.isArray(rawExpenses) || !Array.isArray(prevExpenses)) throw new Error('Expenses report unavailable');
 
     // 3. Calculation Helpers
-    const processSales = (data) => {
-        let gross = 0, net = 0, discounts = 0, returns = 0, tax = 0, cogs = 0;
+    const processSales = (data, events) => {
+        let gross = 0, net = 0, discounts = 0, returns = 0, tax = 0, cogs = 0, retainedReturnCost = 0;
         const validSales = [];
 
         data.forEach(r => {
-            if (r.status === 'void') return;
-            if (r.status === 'refund') {
-                returns += r.total;
-                return;
-            }
+            if (!['finished', 'refunded'].includes(r.status)) return;
             validSales.push(r);
 
             // Receipt Totals
-            gross += (r.subtotal || r.total); // Fallback
+            gross += Number(r.subtotal ?? r.total) || 0; // Fallback
             discounts += (r.discount || 0);
             tax += (r.tax || 0);
 
@@ -165,14 +219,21 @@ async function buildReportContext() {
             }
         });
 
+        for (const event of events) {
+            if (!Number.isFinite(event.total) || !Number.isFinite(event.recoveredCost)) throw new Error('Historical return cost needs manual reconciliation; report cannot be certified');
+            returns += event.total;
+            cogs -= event.recoveredCost;
+            retainedReturnCost += Number(event.retainedCost) || 0;
+        }
         return {
             gross,
             discounts,
             returns,
             tax,
-            net: gross - discounts - returns,
+            net: validSales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0) - returns,
             cogs,
-            profit: (gross - discounts - returns) - cogs,
+            retainedReturnCost,
+            profit: validSales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0) - returns - cogs,
             count: validSales.length
         };
     };
@@ -182,12 +243,12 @@ async function buildReportContext() {
     };
 
     // 4. Process Current Period
-    const currentStats = processSales(receipts);
+    const currentStats = processSales(receipts, returnEvents);
     const totalExpenses = processExpenses(rawExpenses);
     const netProfit = currentStats.profit - totalExpenses;
 
     // 5. Process Previous Period (For Trends)
-    const prevStats = processSales(prevReceipts);
+    const prevStats = processSales(prevReceipts, prevReturnEvents);
     const prevTotalExpenses = processExpenses(prevExpenses);
     const prevNetProfit = prevStats.profit - prevTotalExpenses;
 
@@ -205,7 +266,7 @@ async function buildReportContext() {
     };
 
     // 7. Aggregations (Categories, Cashiers, etc.) - Only for Current Period
-    const finishedSales = receipts.filter(r => r.status !== 'void' && r.status !== 'refund');
+    const finishedSales = receipts.filter(r => ['finished', 'refunded'].includes(r.status));
 
     const catMap = {}, cashierMap = {}, prodMap = {}, payMap = {};
     const stockCatMap = {}, agingBuckets = { '0-7': 0, '8-30': 0, '31-90': 0, '90+': 0 };
@@ -214,16 +275,17 @@ async function buildReportContext() {
     // Sales Aggregation
     finishedSales.forEach(r => {
         // Payment
-        const pKey = r.paymentMethod || 'cash';
-        payMap[pKey] = (payMap[pKey] || 0) + r.total;
+        const pKey = r.method || r.paymentMethod || 'unclassified';
+        if (pKey === 'split') { payMap.cash = (payMap.cash || 0) + (Number(r.splitCash) || 0); payMap.card = (payMap.card || 0) + (Number(r.splitCard) || 0); }
+        else payMap[pKey] = (payMap[pKey] || 0) + r.total;
 
         // Cashier
         const cKey = r.cashier || r.createdBy || 'Unknown';
         if (!cashierMap[cKey]) cashierMap[cKey] = { count: 0, gross: 0, net: 0, discounts: 0 };
         cashierMap[cKey].count++;
-        cashierMap[cKey].gross += (r.subtotal || r.total);
+        cashierMap[cKey].gross += Number(r.subtotal ?? r.total) || 0;
         cashierMap[cKey].discounts += (r.discount || 0);
-        cashierMap[cKey].net += (r.subtotal - r.discount);
+        cashierMap[cKey].net += Number(r.total) || 0;
 
         // Items
         if (r.items) {
@@ -257,6 +319,18 @@ async function buildReportContext() {
         }
     });
 
+    // Preserve exact headline totals without inventing per-product allocations of
+    // invoice discounts, delivery, tax or historic return events.
+    const adjustmentLabel = 'Invoice / return adjustments (not allocated to products)';
+    for (const map of [catMap, prodMap]) {
+        const sumNet=Object.values(map).reduce((sum,row)=>sum+row.net,0);
+        const sumCost=Object.values(map).reduce((sum,row)=>sum+row.cost,0);
+        const net=currentStats.net-sumNet, cost=currentStats.cogs-sumCost;
+        if(Math.abs(net)>0.000001 || Math.abs(cost)>0.000001) map[adjustmentLabel]={qty:0,gross:0,net,cost,profit:net-cost};
+    }
+    const cashierNet=Object.values(cashierMap).reduce((sum,row)=>sum+row.net,0);
+    if(Math.abs(currentStats.net-cashierNet)>0.000001) cashierMap['Return events (not allocated to cashier)']={count:0,gross:0,net:currentStats.net-cashierNet,discounts:0};
+
     // Expenses Aggregation
     const expCatMap = {}, dailyExpMap = {};
     let largestExp = 0, largestExpName = '-';
@@ -279,7 +353,7 @@ async function buildReportContext() {
     // Normalize Ingredients
     if (rawIngredients && Array.isArray(rawIngredients)) {
         rawIngredients.forEach(ing => {
-            const qty = parseFloat(ing.stock) || parseFloat(ing.qty) || 0;
+            const qty = parseFloat(ing.stock ?? ing.qty) || 0;
             // Only include if positive stock or valid item
             if (qty > 0 || ing.minStock > 0) {
                 combinedInventory.push({
@@ -289,7 +363,7 @@ async function buildReportContext() {
                     cost: parseFloat(ing.cost) || parseFloat(ing.unitCost) || 0,
                     price: 0, // Ingredients have no retail price
                     minStock: parseFloat(ing.minStock) || 0,
-                    lastSoldAt: ing.updatedAt, // Use update time as proxy for activity
+                    lastSoldAt: ing.lastUsedAt || ing.updatedAt || ing.createdAt, // Use update time as proxy for activity
                     _isIngredient: true
                 });
             }
@@ -300,7 +374,7 @@ async function buildReportContext() {
     const deadStockDays = parseInt(shopSettings.deadStockDays) || 30;
 
     combinedInventory.forEach(p => {
-        const qty = parseFloat(p.qty) || 0;
+        const qty = parseFloat(p.stock ?? p.qty) || 0;
         const cost = getProductCost(p); // Use Dynamic Cost Logic
         const price = parseFloat(p.price) || 0;
         const min = parseFloat(p.minStock || 5);
@@ -319,8 +393,9 @@ async function buildReportContext() {
         if (qty <= min) lowStockCount++;
 
         let daysIdle = 999;
-        if (p.lastSoldAt) {
-            const diff = new Date() - new Date(p.lastSoldAt);
+        const activityAt = p.lastSoldAt || p.updatedAt || p.createdAt;
+        if (activityAt) {
+            const diff = new Date() - new Date(activityAt);
             daysIdle = Math.floor(diff / (1000 * 60 * 60 * 24));
         }
 
@@ -344,7 +419,7 @@ async function buildReportContext() {
 
     // 8. Final Bundle
     // DELIVERY AGGREGATION
-    const deliveryReceipts = receipts.filter(r => r.orderType === 'delivery' && r.status !== 'void' && r.status !== 'refund');
+    const deliveryReceipts = receipts.filter(r => r.orderType === 'delivery' && ['finished', 'refunded'].includes(r.status));
 
     // 1. Delivery KPIs
     let totalDeliveryFees = 0;
@@ -404,6 +479,7 @@ async function buildReportContext() {
         meta: { branchId, fromDate, toDate, prevFromDate: prevRange.start, prevToDate: prevRange.end },
         receipts: finishedSales,
         allReceipts: receipts,
+        returnEvents,
         expenses: rawExpenses,
         products: rawProducts,
 
@@ -414,6 +490,7 @@ async function buildReportContext() {
             returns: currentStats.returns,
             tax: currentStats.tax,
             cogs: currentStats.cogs,
+            retainedReturnCost: currentStats.retainedReturnCost,
             profit: currentStats.profit,
             expenses: totalExpenses,
             netProfit: netProfit,

@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     return keyOrEn;
   };
 
+  function setProfitValue(id, value, suffix = '') {
+    const element = document.getElementById(id);
+    element.textContent = Number(value).toFixed(2) + suffix;
+    element.dir = 'ltr';
+    element.style.unicodeBidi = 'isolate';
+    element.style.color = value < 0 ? '#b91c1c' : '#047857';
+  }
+
   // === 3. INITIALIZATION ===
   const branchFilter = document.getElementById('branchFilter');
   const fromDateInput = document.getElementById('startDate');
@@ -85,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!window.ReportDateUtils) return;
     const range = window.ReportDateUtils.getRange(preset);
 
-    const fmt = d => d.toISOString().split('T')[0];
+    const fmt = d => window.ReportDateUtils.formatLocalDate(d);
 
     // Update Inputs
     const sInput = document.getElementById('startDate');
@@ -116,6 +124,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const activeCard = document.getElementById('card-' + activeTab);
     if (activeCard) activeCard.classList.add('opacity-50', 'pointer-events-none');
 
+    const reportError = document.getElementById('reportError');
+    reportError.hidden = true;
+    document.querySelectorAll('.report-card').forEach(card => card.removeAttribute('aria-invalid'));
     try {
       // 1. Build Context using Engine
       // Check if Engine is loaded
@@ -172,7 +183,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
     } catch (error) {
-      console.error("❌ Refresh Failed:", error);
+      console.error("Refresh failed:", error);
+      reportError.textContent = t('Report could not be refreshed. Values below may be stale. Do not use or export them until refresh succeeds.', 'تعذر تحديث التقرير. الأرقام المعروضة قديمة محتملة. لا تعتمد عليها أو تصدرها حتى ينجح التحديث.');
+      reportError.hidden = false;
+      document.querySelectorAll('.report-card').forEach(card => card.setAttribute('aria-invalid', 'true'));
     } finally {
       if (btn) btn.classList.remove('animate-spin');
       if (activeCard) activeCard.classList.remove('opacity-50', 'pointer-events-none');
@@ -188,10 +202,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('live-net-sales').textContent = totals.netSales.toFixed(2);
     document.getElementById('live-orders-count').textContent = receipts.length;
     document.getElementById('live-avg-ticket').textContent = receipts.length > 0 ? (totals.netSales / receipts.length).toFixed(2) : "0.00";
-    document.getElementById('live-gross-profit').textContent = totals.profit.toFixed(2);
+    setProfitValue('live-gross-profit', totals.profit);
     document.getElementById('live-discounts').textContent = totals.discounts.toFixed(2);
     document.getElementById('live-returns').textContent = totals.returns.toFixed(2);
+    document.getElementById('retained-return-cost').textContent = t('Original cost retained on returns: ', 'التكلفة الأصلية المحتفظ بها للمرتجعات: ') + totals.retainedReturnCost.toFixed(2);
+    document.getElementById('returns-accounting-note').textContent = t('Sales and original costs use the sale date. Returns reduce revenue on the return date; only proven intact-goods cost is recovered. Consumed costs stay on their original date.', 'المبيعات وتكلفتها الأصلية بتاريخ البيع. قيمة المرتجع تخصم بتاريخ الاسترجاع، وتسترد فقط تكلفة البضاعة السليمة المثبتة. تكلفة الاستهلاك تظل بتاريخها الأصلي.');
 
+    document.getElementById('payment-basis-note').textContent = t('Payment chart shows original sale payments, before return events. Net sales above include dated returns.', 'رسم الدفع يعرض مدفوعات البيع الأصلية قبل المرتجعات. صافي المبيعات بالأعلى يشمل المرتجعات حسب تاريخها.');
     window.ReportCharts.renderSalesPerHour(receipts);
     window.ReportCharts.renderPaymentDistribution(receipts, 'chart-payment-method');
 
@@ -248,7 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { totals, receipts, aggs } = ctx;
 
     document.getElementById('cogs-total').textContent = totals.cogs.toFixed(2) + ' EGP';
-    document.getElementById('cogs-profit').textContent = totals.profit.toFixed(2) + ' EGP';
+    setProfitValue('cogs-profit', totals.profit, ' EGP');
     document.getElementById('cogs-margin').textContent = totals.marginPercent.toFixed(1) + '%';
 
     const avg = receipts.length > 0 ? totals.cogs / receipts.length : 0;
@@ -304,7 +321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('expenses-daily-avg').textContent = (totals.expenses / days).toFixed(2);
     document.getElementById('expenses-largest').textContent = totals.largestExpense.toFixed(2);
     document.getElementById('expenses-largest-name').textContent = totals.largestExpenseName;
-    document.getElementById('expenses-net-profit').textContent = totals.netProfit.toFixed(2);
+    setProfitValue('expenses-net-profit', totals.netProfit);
 
     window.ReportCharts.renderExpenseCategory(aggs.expenseCategory);
     window.ReportCharts.renderExpenseTrend(aggs.expenseDaily);
@@ -335,7 +352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('inv-stock-cost').textContent = totals.stockCost.toFixed(2) + ' EGP';
     document.getElementById('inv-retail-value').textContent = totals.retailValue.toFixed(2) + ' EGP';
-    document.getElementById('inv-expected-profit').textContent = totals.expectedStockProfit.toFixed(2) + ' EGP';
+    setProfitValue('inv-expected-profit', totals.expectedStockProfit, ' EGP');
     document.getElementById('inv-low-stock').textContent = totals.lowStockCount;
 
     window.ReportCharts.renderStockCategory(aggs.stockCategory);
@@ -370,7 +387,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tr.innerHTML = `
                   <td class="px-6 py-3 font-medium text-slate-800">${p.name}</td>
                   <td class="px-6 py-3 text-xs text-slate-500">${p.category || '-'}</td>
-                  <td class="px-6 py-3">${p.qty}</td>
+                  <td class="px-6 py-3">${Number(p.stock ?? p.qty) || 0}</td>
                   <td class="px-6 py-3 text-amber-600">${parseFloat(p.cost || 0).toFixed(2)}</td>
                   <td class="px-6 py-3 font-bold">${c.stockCost.toFixed(2)}</td>
                   <td class="px-6 py-3 text-xs text-slate-400">${p.lastSoldAt ? new Date(p.lastSoldAt).toLocaleDateString() : 'Never'}</td>

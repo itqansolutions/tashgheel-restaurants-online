@@ -98,7 +98,10 @@ async function applyStock(tx,tenantId,branchId,items) {
                     data: { qty: { decrement: item.qty } }
                 });
                 if (changed.count !== 1) { const error = new Error('Insufficient stock for ' + product.name); error.status = 409; throw error; }
-                movements.push({ kind: 'product', id: String(item.id), branchId: branchId, qty: item.qty });
+                const size = product.hasSizes ? (product.sizes || []).find(size => String(size.id) === String(item.sizeId) || (item.sizeName && size.name === item.sizeName)) : null;
+                const unitCost = Number(size ? size.cost ?? 0 : product.cost ?? 0);
+                if (!Number.isFinite(unitCost) || unitCost < 0) throw new Error('Invalid stock movement cost');
+                movements.push({ kind: 'product', id: String(item.id), branchId: branchId, qty: item.qty, unitCost });
             }
             movements.push(...await deductIngredientsStock(tenantId, branchId, components, tx));
 

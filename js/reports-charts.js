@@ -14,7 +14,7 @@ window.ReportCharts = {
 
         const hours = Array(24).fill(0);
         receipts.forEach(r => {
-            const h = new Date(r.date || r.createdAt).getHours();
+            const h = Number(new Intl.DateTimeFormat('en-US',{timeZone:'Africa/Cairo',hour:'2-digit',hourCycle:'h23'}).format(new Date(r.date || r.createdAt)));
             hours[h] += (r.total || 0);
         });
 
@@ -42,21 +42,23 @@ window.ReportCharts = {
         const chartKey = 'chart_' + canvasId;
         if (window[chartKey]) window[chartKey].destroy();
 
-        let cash = 0, card = 0, wallet = 0;
+        let cash = 0, card = 0, wallet = 0, other = 0;
         receipts.forEach(r => {
-            const m = (r.paymentMethod || 'cash').toLowerCase();
-            if (m.includes('card') || m.includes('visa')) card += r.total;
+            const m = (r.method || r.paymentMethod || 'unclassified').toLowerCase();
+            if (m === 'split') { cash += Number(r.splitCash) || 0; card += Number(r.splitCard) || 0; }
+            else if (m.includes('card') || m.includes('visa')) card += r.total;
             else if (m.includes('wallet') || m.includes('mobile')) wallet += r.total;
-            else cash += r.total;
+            else if (m === 'cash' || m === 'talabat_cash') cash += Number(r.total) || 0;
+            else other += Number(r.total) || 0;
         });
 
         window[chartKey] = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Cash', 'Card', 'Wallet'],
+                labels: ['Cash', 'Card', 'Wallet', 'Other / Unclassified'],
                 datasets: [{
-                    data: [cash, card, wallet],
-                    backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6'],
+                    data: [cash, card, wallet, other],
+                    backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#94a3b8'],
                     borderWidth: 0
                 }]
             },
@@ -64,6 +66,8 @@ window.ReportCharts = {
                 responsive: true,
                 maintainAspectRatio: false,
                 cutout: '70%',
+                animation: false,
+                circumference: 360,
                 plugins: { legend: { position: 'bottom' } }
             }
         });
@@ -199,7 +203,7 @@ window.ReportCharts = {
                 labels: Object.keys(map),
                 datasets: [{
                     data: Object.values(map),
-                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#94a3b8'],
                     borderWidth: 0
                 }]
             },

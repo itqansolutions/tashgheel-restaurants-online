@@ -4,6 +4,7 @@ const prisma = require('../prisma');
 const storage = require('../utils/storage');
 const { readCatalog, snapshotItems } = require('../utils/catalog');
 const crypto = require('crypto');
+const { returnOptions, planReturn } = require('../utils/returns');
 const {applyStock}=require('../utils/stock');
 const fs = require('fs').promises;
 const path = require('path');
@@ -583,11 +584,23 @@ router.post('/sales', async (req, res) => {
     }
 });
 
+// Read-only choices from the sale's original movement proof, never today's menu.
+router.get('/sales/:id/return-options', async (req, res) => {
+    try {
+        const sale = await prisma.sale.findFirst({ where: { id: req.params.id, tenantId: req.tenantId, branchId: req.branchId }, include: { items: true } });
+        if (!sale) return res.status(404).json({ error: 'Sale not found' });
+        if (sale.status !== 'finished') return res.status(409).json({ error: 'Only completed receipts can be returned' });
+        const original = await prisma.auditLog.findFirst({ where: { tenantId: req.tenantId, action: 'SALE_CREATE', details: { path: ['saleId'], equals: sale.id } }, orderBy: { timestamp: 'desc' } });
+        res.json({ saleId: sale.id, receiptNo: sale.receiptNo, total: sale.total, products: returnOptions(sale, original?.details?.movements) });
+    } catch (error) { res.status(error.status || 500).json({ error: error.message }); }
+});
+
 // Refund Endpoint
 router.post('/sales/refund/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { reason } = req.body;
+        const { reason, restockItems } = req.body;
+        if (typeof reason !== 'string' || !reason.trim() || reason.trim().length > 500) return res.status(400).json({ error: 'A refund reason of 1 to 500 characters is required' });
 
         const sale = await prisma.sale.findUnique({
             where: { id },
@@ -609,36 +622,25 @@ router.post('/sales/refund/:id', async (req, res) => {
             await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
             const current = await tx.sale.findUnique({ where: { id } });
             const alreadyRestored = await tx.auditLog.findFirst({ where: { tenantId: req.tenantId, action: 'SALE_REFUND', details: { path: ['saleId'], equals: id } } });
-            if (alreadyRestored) { const error = new Error('Stock movement already reversed'); error.status = 409; throw error; }
-            if (current.status === 'refunded' || current.status === 'void') { const error = new Error('Sale is already refunded/voided'); error.status = 409; throw error; }
+            if (alreadyRestored) { const error = new Error('Return already recorded'); error.status = 409; throw error; }
+            if (current.status !== 'finished') { const error = new Error('Sale is already refunded/voided'); error.status = 409; throw error; }
             const original = await tx.auditLog.findFirst({ where: { tenantId: req.tenantId, action: 'SALE_CREATE', details: { path: ['saleId'], equals: id } }, orderBy: { timestamp: 'desc' } });
             const movements = original?.details?.movements;
             if (!Array.isArray(movements)) { const error = new Error('Historical sale has no verified stock movements. Manual review is required before refund.'); error.status = 409; throw error; }
-            await tx.sale.update({ where: { id }, data: { status: 'refunded', note: (sale.note || '') + ' | Refund Reason: ' + (reason || 'Customer Return') } });
-            for (const move of movements.filter(m => m.kind === 'product')) {
-                await tx.productStock.upsert({ where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: sale.branchId, productId: move.id } }, update: { qty: { increment: move.qty } }, create: { tenantId: req.tenantId, branchId: sale.branchId, productId: move.id, qty: move.qty } });
+            const plan = planReturn(sale, movements, restockItems);
+            for (const move of plan.restocks) {
+                await tx.productStock.upsert({ where: { tenantId_branchId_productId: { tenantId: req.tenantId, branchId: sale.branchId, productId: move.productId } }, update: { qty: { increment: move.qty } }, create: { tenantId: req.tenantId, branchId: sale.branchId, productId: move.productId, qty: move.qty } });
             }
-            if (movements.some(m => m.kind === 'ingredient')) {
-                const doc = await tx.data.findUnique({ where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } } });
-                const ingredients = JSON.parse(typeof doc.value === 'string' ? doc.value : JSON.stringify(doc.value));
-                for (const move of movements.filter(m => m.kind === 'ingredient')) {
-                    const ingredient = ingredients.find(i => String(i.id) === move.id);
-                    if (!ingredient) throw new Error('Original ingredient no longer exists');
-                    ingredient.stockByBranch = ingredient.stockByBranch || {};
-                    ingredient.stockByBranch[move.branchId] = Number(ingredient.stockByBranch[move.branchId] ?? ingredient.stock ?? 0) + move.qty;
-                    ingredient.stock = Object.values(ingredient.stockByBranch).reduce((sum,n)=>sum+Number(n),0);
-                    ingredient.updatedAt = new Date().toISOString();
-                    ingredient.stockRevision = crypto.randomUUID();
-                }
-                await tx.data.update({ where: { key_tenantId: { key: 'ingredients', tenantId: req.tenantId } }, data: { value: JSON.stringify(ingredients) } });
-            }
+            await tx.sale.update({ where: { id }, data: { status: 'refunded', note: (current.note || '') + ' | Full financial return: ' + reason.trim() } });
+            // A prepared meal cannot become usable ingredients again. Keep every
+            // original stock movement and cost snapshot; record only the financial return.
         await tx.auditLog.create({
             data: {
                 tenantId: req.tenantId,
-                branchId: req.branchId,
+                branchId: sale.branchId,
                 userId: req.userId,
                 action: 'SALE_REFUND',
-                details: { saleId: id, reason, total: sale.total },
+                details: { saleId: id, reason: reason.trim(), total: sale.total, returnType: 'full_financial', restockItems: plan.restocks, retainedCost: plan.retainedCost, recoveredCost: plan.recoveredCost, stockRestored: plan.restocks.length > 0, consumedCostRetained: plan.retainedCost > 0 },
                 ipAddress: req.ip
             }
         });
@@ -1329,6 +1331,62 @@ router.get('/reports/live', async (req, res) => {
     }
 });
 
+// Expense reports are read-only and branch-explicit; never call legacy cleanup.
+router.get('/reports/expenses', async (req,res)=>{
+    try {
+        const branchId=req.query.branchId || req.branchId;
+        const where={tenantId:req.tenantId,method:{not:'credit'}};
+        if(branchId!=='all') where.branchId=branchId;
+        if(!['admin','SUPER_ADMIN'].includes(req.user.role)) {
+            const allowed=req.user.branchIds?.length?req.user.branchIds:[req.branchId];
+            if(branchId==='all')where.branchId={in:allowed};
+            else if(!allowed.includes(branchId))return res.status(403).json({error:'Branch access denied'});
+        }
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(req.query.from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(req.query.to || '')) return res.status(400).json({error:'Calendar dates required'});
+        where.date={gte:req.query.from,lte:req.query.to+'T23:59:59.999Z'};
+        res.json(await prisma.expense.findMany({where,orderBy:[{date:'asc'},{id:'asc'}]}));
+    }catch(error){res.status(500).json({error:error.message});}
+});
+
+// Inventory report scopes balances explicitly, independently of the active POS header.
+router.get('/reports/inventory', async (req, res) => {
+    try {
+        const requested = req.query.branchId || req.branchId;
+        const allowed = ['admin', 'SUPER_ADMIN'].includes(req.user.role) ? null : (req.user.branchIds?.length ? req.user.branchIds : [req.branchId]);
+        const branches = await prisma.branch.findMany({ where:{tenantId:req.tenantId, ...(requested === 'all' ? (allowed ? {id:{in:allowed}} : {}) : {id:requested})}, select:{id:true} });
+        if (!branches.length || (allowed && requested !== 'all' && !allowed.includes(requested))) return res.status(403).json({error:'Branch access denied'});
+        const ids = branches.map(branch=>branch.id);
+        const [catalog, doc, stocks] = await Promise.all([readCatalog(prisma,req.tenantId), prisma.data.findUnique({where:{key_tenantId:{key:'ingredients',tenantId:req.tenantId}}}), prisma.productStock.findMany({where:{tenantId:req.tenantId,branchId:{in:ids}}})]);
+        const ingredients = typeof doc?.value === 'string' ? JSON.parse(doc.value) : (doc?.value || []);
+        const publicInventoryFields = item => ({ id:item.id, name:item.name, category:item.category, type:item.type, itemType:item.itemType, cost:item.cost, unitCost:item.unitCost, price:item.price, minStock:item.minStock, createdAt:item.createdAt, updatedAt:item.updatedAt, lastSoldAt:item.lastSoldAt, lastUsedAt:item.lastUsedAt });
+        const products = catalog.map(product=>({...publicInventoryFields(product), stock:stocks.filter(stock=>stock.productId===String(product.id)).reduce((sum,stock)=>sum+stock.qty,0)}));
+        const scopedIngredients = ingredients.map(ingredient=>{
+            if (!ingredient.stockByBranch && (requested !== 'all' || allowed)) return {...publicInventoryFields(ingredient), stock:0, stockUnknown:true};
+            const stock=ingredient.stockByBranch ? ids.reduce((sum,id)=>sum+Number(ingredient.stockByBranch[id] || 0),0) : Number(ingredient.stock || 0);
+            return {...publicInventoryFields(ingredient),stock,stockByBranch:ingredient.stockByBranch ? Object.fromEntries(ids.map(id=>[id,Number(ingredient.stockByBranch[id] || 0)])) : undefined};
+        });
+        res.json({products,ingredients:scopedIngredients,unknownBalances:scopedIngredients.some(ingredient=>ingredient.stockUnknown)});
+    } catch(error) {res.status(500).json({error:error.message});}
+});
+
+// Financial return events use the immutable audit timestamp, not the original sale date.
+router.get('/reports/return-events', async (req, res) => {
+    try {
+        const branchId = req.query.branchId || req.branchId;
+        const where = { tenantId: req.tenantId, action: 'SALE_REFUND' };
+        if (branchId !== 'all') where.branchId = branchId;
+        else if (!['admin', 'SUPER_ADMIN'].includes(req.user.role)) where.branchId = { in: req.user.branchIds?.length ? req.user.branchIds : [req.branchId] };
+        if (branchId !== 'all' && branchId !== req.branchId && !['admin', 'SUPER_ADMIN'].includes(req.user.role) && !(req.user.branchIds || []).includes(branchId)) return res.status(403).json({ error: 'Branch access denied' });
+        if (!req.query.from || !req.query.to) return res.status(400).json({ error: 'Report date range is required' });
+        const from = new Date(req.query.from), to = new Date(req.query.to);
+        if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from > to) return res.status(400).json({ error: 'Invalid date range' });
+        where.timestamp = { gte: from, lte: to };
+        const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1), limit = 500;
+        const [total, logs] = await Promise.all([prisma.auditLog.count({ where }), prisma.auditLog.findMany({ where, orderBy: [{timestamp:'asc'}, {id:'asc'}], skip:(page-1)*limit, take:limit, select:{id:true,timestamp:true,branchId:true,details:true} })]);
+        res.json({ total, events: logs.map(log => ({ id:log.id, date:log.timestamp, branchId:log.branchId, saleId:log.details?.saleId, total:log.details?.total, recoveredCost:Number.isFinite(log.details?.recoveredCost) ? log.details.recoveredCost : null, retainedCost:Number.isFinite(log.details?.retainedCost) ? log.details.retainedCost : null })) });
+    } catch (error) { res.status(500).json({ error:error.message }); }
+});
+
 // 2. Sales History (Paginated)
 router.get('/reports/history', async (req, res) => {
     try {
@@ -1336,15 +1394,25 @@ router.get('/reports/history', async (req, res) => {
         const queryBranchId = req.query.branchId;
         
         let { page = 1, limit = 50, from, to, cashier, status } = req.query;
-        page = parseInt(page);
-        limit = parseInt(limit);
+        page = Math.max(1, Number.parseInt(page, 10) || 1);
+        limit = Math.min(5000, Math.max(1, Number.parseInt(limit, 10) || 50));
 
         const filter = { tenantId };
+        if (req.query.asOf) {
+            const asOf=new Date(req.query.asOf);
+            if(!Number.isFinite(asOf.getTime()))return res.status(400).json({error:'Invalid snapshot time'});
+            filter.createdAt={lte:asOf};
+        }
         
         if (queryBranchId && queryBranchId !== 'all') {
             filter.branchId = queryBranchId;
         } else if (req.branchId && queryBranchId !== 'all') {
             filter.branchId = req.branchId;
+        }
+
+        if (req.user.role !== 'admin' && req.user.role !== 'SUPER_ADMIN') {
+            if (queryBranchId === 'all') filter.branchId = { in: req.user.branchIds?.length ? req.user.branchIds : [req.branchId] };
+            else if (filter.branchId !== req.branchId && !(req.user.branchIds || []).includes(filter.branchId)) return res.status(403).json({ error: 'Branch access denied' });
         }
 
         if (from || to) {
@@ -1359,7 +1427,7 @@ router.get('/reports/history', async (req, res) => {
 
         const summaryData = await prisma.sale.groupBy({
             by: ['method'],
-            where: filter,
+            where: { ...filter, status: 'finished' },
             _sum: { total: true, discount: true }
         });
 
@@ -1373,19 +1441,24 @@ router.get('/reports/history', async (req, res) => {
 
         const sales = await prisma.sale.findMany({
             where: filter,
-            orderBy: { date: 'desc' },
+            orderBy: [{ date: 'desc' }, { id: 'desc' }],
             skip: (page - 1) * limit,
             take: limit,
             include: { items: true }
         });
 
-        res.json({
-            total,
-            page,
-            pages: Math.ceil(total / limit),
-            summary,
-            sales
-        });
+        const returnLogs = sales.length ? await prisma.auditLog.findMany({ where: { tenantId, action: 'SALE_REFUND', OR: sales.map(sale => ({ details: { path: ['saleId'], equals: sale.id } })) }, select: { details: true } }) : [];
+        const returnFacts = new Map(returnLogs.map(log => [log.details?.saleId, log.details]));
+        for (const sale of sales) {
+            const facts = returnFacts.get(sale.id);
+            if (sale.status === 'refunded' && facts) sale.returnInfo = {
+                returnType: facts.returnType || 'legacy_unspecified',
+                stockRestored: typeof facts.stockRestored === 'boolean' ? facts.stockRestored : null,
+                consumedCostRetained: facts.consumedCostRetained === true,
+                retainedCost: Number.isFinite(facts.retainedCost) ? facts.retainedCost : null
+            };
+        }
+        res.json({ total, page, pages: Math.ceil(total / limit), summary, sales });
     } catch (err) {
         console.error('History Report Error:', err);
         res.status(500).json({ error: err.message });

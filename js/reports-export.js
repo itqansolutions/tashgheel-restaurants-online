@@ -7,6 +7,7 @@
 window.ReportExport = {
     // === EXCEL EXPORT ===
     exportToExcel(activeTab) {
+        if (document.querySelector('.report-card[aria-invalid=true]')) return;
         if (typeof XLSX === 'undefined') {
             alert('Excel library not loaded. Please check connection.');
             return;
@@ -37,6 +38,7 @@ window.ReportExport = {
 
     // === PDF EXPORT ===
     exportToPDF(activeTab) {
+        if (document.querySelector('.report-card[aria-invalid=true]')) return;
         if (typeof html2pdf === 'undefined') {
             alert('PDF library not loaded.');
             return;
@@ -46,8 +48,8 @@ window.ReportExport = {
         let title = 'Report';
 
         switch (activeTab) {
-            case 'live': elementId = 'card-live-monitor'; title = 'Live_Monitor'; break;
-            case 'sales': elementId = 'card-sales-stats'; title = 'Sales_Report'; break;
+            case 'live': elementId = 'card-live'; title = 'Live_Monitor'; break;
+            case 'sales': elementId = 'card-sales'; title = 'Sales_Report'; break;
             case 'cogs': elementId = 'card-cogs'; title = 'COGS_Report'; break;
             case 'expenses': elementId = 'card-expenses'; title = 'Expenses_Report'; break;
             case 'inventory-report': elementId = 'card-inventory-report'; title = 'Inventory_Report'; break;
@@ -70,10 +72,11 @@ window.ReportExport = {
 
     // === PRINT ===
     printCurrentView(activeTab) {
+        if (document.querySelector('.report-card[aria-invalid=true]')) return;
         let elementId = '';
         switch (activeTab) {
-            case 'live': elementId = 'card-live-monitor'; break;
-            case 'sales': elementId = 'card-sales-stats'; break;
+            case 'live': elementId = 'card-live'; break;
+            case 'sales': elementId = 'card-sales'; break;
             case 'cogs': elementId = 'card-cogs'; break;
             case 'expenses': elementId = 'card-expenses'; break;
             case 'inventory-report': elementId = 'card-inventory-report'; break;

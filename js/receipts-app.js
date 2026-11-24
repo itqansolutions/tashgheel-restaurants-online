@@ -84,7 +84,8 @@ async function loadServiceReceipts() {
             'finished': 'bg-green-50 text-green-700 border-green-100',
             'cancelled': 'bg-red-50 text-red-700 border-red-100',
             'partial_return': 'bg-amber-50 text-amber-700 border-amber-100',
-            'full_return': 'bg-orange-50 text-orange-700 border-orange-100'
+            'full_return': 'bg-orange-50 text-orange-700 border-orange-100',
+            'refunded': 'bg-orange-50 text-orange-700 border-orange-100'
         };
         const statusClass = statusColors[sale.status] || 'bg-slate-100 text-slate-600 border-slate-200';
 
@@ -101,7 +102,7 @@ async function loadServiceReceipts() {
             <td class="px-6 py-4 text-sm text-slate-600 capitalize">${t(sale.method || 'cash')}</td>
             <td class="px-6 py-4 text-right text-sm font-bold text-slate-900">${(sale.total || 0).toFixed(2)}</td>
             <td class="px-6 py-4 text-center">
-                <span class="px-2 py-1 rounded text-xs font-bold border ${statusClass}">${t(sale.status || 'finished')}</span>
+                <span class="px-2 py-1 rounded text-xs font-bold border ${statusClass}">${sale.status === 'refunded' ? t('Returns', 'مرتجعات') : t(sale.status || 'finished')}</span>
             </td>
             <td class="px-6 py-4 text-center flex items-center justify-center gap-2">
                 <button onclick="printStoredReceipt('${sale._id || sale.id}')" 
@@ -120,33 +121,129 @@ async function loadServiceReceipts() {
     });
 }
 
-// 🟢 NEW: Enterprise Refund Logic
-window.handleRefund = async function (saleId) {
-    window.requireManagerPin('Authorize Refund/Void', async () => {
-        const reason = prompt(t('Enter refund reason:', 'أدخل سبب الاسترجاع:'));
-        if (!reason) return; // Cancelled
-
-        if (!confirm(t('Are you sure you want to refund this order? Stock will be restored.', 'هل أنت متأكد من استرجاع هذا الطلب؟ سيتم إعادة المخزون.'))) {
-            return;
-        }
-
-        try {
-            const response = await window.apiFetch(`/sales/refund/${saleId}`, {
-                method: 'POST',
-                body: JSON.stringify({ reason })
-            });
-
-            if (response.success) {
-                alert(t('Refund Successful', 'تم الاسترجاع بنجاح'));
-                loadServiceReceipts(); // Refresh table
-            } else {
-                alert(t('Refund Failed', 'فشل الاسترجاع') + ': ' + (response.error || 'Unknown'));
+// Refunds require a reason and an explicit, reviewable confirmation.
+// Keep the manager gate; never retry an uncertain request automatically.
+let refundDialogActive = false;
+window.handleRefund = function (saleId) {
+    if (refundDialogActive) return;
+    refundDialogActive = true;
+    window.requireManagerPin(t('Authorize Refund/Void', 'اعتماد الاسترجاع'), () => {
+        const previousFocus = document.activeElement;
+        const dialog = document.createElement('dialog');
+        dialog.id = 'refundDialog';
+        dialog.setAttribute('aria-labelledby', 'refundTitle');
+        dialog.style.cssText = 'width:min(92vw,560px);max-height:90vh;overflow:auto;border:1px solid #cbd5e1;border-radius:16px;padding:24px;box-shadow:0 20px 60px #0004;color:#0f172a';
+        dialog.dir = (localStorage.getItem('pos_language') || 'en') === 'ar' ? 'rtl' : 'ltr';
+        dialog.innerHTML = `
+          <h2 id="refundTitle" style="font-size:20px;font-weight:700;margin:0 0 12px"></h2>
+          <p id="refundIdentity" style="overflow-wrap:anywhere;margin-bottom:12px"></p>
+          <p id="refundWarning" style="margin-bottom:16px"></p>
+          <form id="refundConfirmForm">
+            <fieldset style="margin-bottom:16px;padding:12px;border:1px solid #cbd5e1;border-radius:8px">
+              <legend id="refundDispositionLabel"></legend>
+              <div id="refundStockChoices"></div>
+            </fieldset>
+            <label for="refundReason" id="refundReasonLabel" style="display:block;font-weight:600;margin-bottom:8px"></label>
+            <textarea id="refundReason" required maxlength="500" rows="3" style="display:block;width:100%;box-sizing:border-box;border:1px solid #94a3b8;border-radius:8px;padding:10px"></textarea>
+            <p id="refundResult" role="status" aria-live="polite" style="min-height:24px;margin:12px 0;color:#b91c1c"></p>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+              <button type="button" id="refundCancel" style="padding:10px 16px;background:#e2e8f0;border-radius:8px"></button>
+              <button type="submit" id="refundSubmit" style="padding:10px 16px;background:#b91c1c;color:white;border-radius:8px"></button>
+            </div>
+          </form>`;
+        dialog.querySelector('#refundTitle').textContent = t('Confirm refund', 'تأكيد الاسترجاع');
+        dialog.querySelector('#refundIdentity').textContent = t('Receipt ID: ', 'معرف الفاتورة: ') + saleId;
+        dialog.querySelector('#refundWarning').textContent = t('This returns the WHOLE receipt financially. Separately select any intact physical goods and quantity. Prepared ingredients can never be restored.', 'هذا مرتجع مالي للفاتورة بالكامل. اختر البضاعة السليمة وكميتها بشكل منفصل. خامات التحضير لا تعاد أبدا.');
+        dialog.querySelector('#refundReasonLabel').textContent = t('Refund reason', 'سبب الاسترجاع');
+        dialog.querySelector('#refundDispositionLabel').textContent = t('Return disposition (required)', 'التصرف في المرتجع (مطلوب)');
+        const cancel = dialog.querySelector('#refundCancel');
+        const submit = dialog.querySelector('#refundSubmit');
+        const reason = dialog.querySelector('#refundReason');
+        const result = dialog.querySelector('#refundResult');
+        cancel.textContent = t('Cancel', 'إلغاء');
+        submit.textContent = t('Confirm refund', 'تأكيد الاسترجاع');
+        let pending = false;
+        let submitted = false;
+        let optionsLoaded = false;
+        let productOptions = [];
+        submit.disabled = true;
+        const close = () => {
+            if (pending) return;
+            dialog.close();
+            dialog.remove();
+            refundDialogActive = false;
+            previousFocus?.focus();
+        };
+        reason.addEventListener('input', () => { if (!submitted) result.textContent = ''; });
+        cancel.addEventListener('click', close);
+        dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+        dialog.querySelector('form').addEventListener('submit', async event => {
+            event.preventDefault();
+            if (pending || submitted) return;
+            if (!optionsLoaded) return;
+            const restockItems = [];
+            for (const row of dialog.querySelectorAll('[data-return-product]')) {
+                if (!row.querySelector('input[type=checkbox]').checked) continue;
+                const qty = Number(row.querySelector('input[type=number]').value);
+                const option = productOptions.find(option => option.productId === row.dataset.returnProduct);
+                if (!Number.isFinite(qty) || qty <= 0 || qty > option.qty) { result.textContent = t('Check intact-goods quantities.', 'راجع كميات البضاعة السليمة.'); return; }
+                restockItems.push({ productId: option.productId, qty, intact: true });
             }
-        } catch (e) {
-            console.error('Refund Request Error:', e);
-            alert(t('Refund Failed', 'فشل الاسترجاع'));
-        }
-    });
+            const value = reason.value.trim();
+            if (!value) { result.textContent = t('Enter a refund reason.', 'أدخل سبب الاسترجاع.'); reason.focus(); return; }
+            submitted = true;
+            pending = true;
+            submit.disabled = cancel.disabled = reason.disabled = true;
+            result.textContent = t('Submitting refund. Do not close this page.', 'جار تنفيذ الاسترجاع. لا تغلق الصفحة.');
+            try {
+                const response = await window.apiFetch(`/sales/refund/${encodeURIComponent(saleId)}`, {
+                    method: 'POST', body: JSON.stringify({ reason: value, restockItems })
+                });
+                if (response?.success) {
+                    result.style.color = '#15803d';
+                    result.textContent = restockItems.length > 0 ? t('Return recorded. Intact goods restored to stock.', 'تم تسجيل المرتجع وإعادة البضاعة السليمة للمخزون.') : t('Return recorded. Stock was not restored.', 'تم تسجيل المرتجع. لم تتم إعادة المخزون.');
+                    await loadServiceReceipts();
+                } else {
+                    result.textContent = t('Refund not confirmed. Close and refresh the receipts before trying again. ', 'لم يتم تأكيد الاسترجاع. أغلق النافذة وحدّث الفواتير قبل أي محاولة جديدة. ') + (response?.error || '');
+                }
+            } catch (error) {
+                console.error('Refund response uncertain:', error);
+                result.textContent = t('Refund result is uncertain. Close and refresh receipts and stock before any new attempt. Do not repeat automatically.', 'نتيجة الاسترجاع غير مؤكدة. أغلق النافذة وحدّث الفواتير والمخزون قبل أي محاولة جديدة. لا تكرر العملية تلقائيا.');
+            } finally {
+                pending = false;
+                cancel.disabled = false;
+                cancel.textContent = t('Close', 'إغلاق');
+                submit.hidden = true;
+            }
+        });
+        document.body.appendChild(dialog);
+        dialog.showModal();
+        reason.focus();
+        result.textContent = t('Loading original stock movements...', 'جار تحميل حركة المخزون الأصلية...');
+        window.apiFetch(`/sales/${encodeURIComponent(saleId)}/return-options`).then(options => {
+            if (!dialog.isConnected) return;
+            if (!Array.isArray(options?.products)) throw new Error('Return choices unavailable');
+            productOptions = options.products;
+            const choices = dialog.querySelector('#refundStockChoices');
+            const explanation = document.createElement('p');
+            explanation.textContent = t('Default: no stock return. Check ONLY goods you inspected as intact and resellable. Ingredients cannot be selected. This does not change the full financial return.', 'الافتراضي: لا إعادة للمخزون. اختر فقط البضاعة التي فحصتها وهي سليمة وقابلة للبيع. الخامات لا يمكن اختيارها. هذا لا يغير المرتجع المالي الكامل.');
+            choices.appendChild(explanation);
+            for (const option of productOptions) {
+                const row = document.createElement('label');
+                row.dataset.returnProduct = option.productId;
+                row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap';
+                const check = document.createElement('input'); check.type = 'checkbox'; check.disabled = !option.costVerified;
+                const name = document.createElement('span'); name.textContent = option.name + (option.costVerified ? '' : t(' (old cost proof missing; manual review)', ' (إثبات التكلفة القديم ناقص، مراجعة يدوية)'));
+                const qty = document.createElement('input'); qty.type = 'number'; qty.min = '0.000001'; qty.max = String(option.qty); qty.step = 'any'; qty.value = String(option.qty); qty.disabled = true; qty.style.cssText = 'width:80px;border:1px solid #94a3b8;padding:6px;border-radius:6px'; qty.setAttribute('aria-label', t('Intact quantity: ', 'الكمية السليمة: ') + option.name);
+                check.addEventListener('change', () => { qty.disabled = !check.checked; });
+                row.append(check, name, qty); choices.appendChild(row);
+            }
+            optionsLoaded = true; submit.disabled = false; result.textContent = '';
+        }).catch(error => {
+            if (dialog.isConnected) result.textContent = t('Cannot verify original movements. Close and refresh before returning this receipt.', 'تعذر التحقق من الحركات الأصلية. أغلق النافذة وحدّث البيانات قبل الاسترجاع.');
+            console.error('Return choices unavailable:', error);
+        });
+    }, () => { refundDialogActive = false; });
 };
 
 function viewServiceInvoice(visitId) {
