@@ -131,7 +131,7 @@ const express = require('express');
  r=await call('/orders/'+orderId+'/cancel',{});assert.equal(r.status,409);
  r=await call('/orders',{tableId:table.id,items:[]});assert.equal(r.status,409);console.log('PASS closedorder edit/cancel rejected and occupiedtable duplicate creation rejected');
 
- r=await call('/data/read/spare_parts');const newCatalog=r.data;newCatalog.push({id:555,name:'SizedFixture',itemType:'service',hasSizes:true,sizes:[{id:'small',name:'Small',price:20,cost:7},{id:'large',name:'Large',price:30,cost:11}]});r=await call('/data/save',{key:'spare_parts',value:newCatalog});assert.equal(r.status,200);
+ r=await call('/data/read/spare_parts');const newCatalog=r.data;newCatalog.push({id:555,name:'SizedFixture',itemType:'service',allowedAddons:[1],hasSizes:true,sizes:[{id:'small',name:'Small',price:20,cost:7},{id:'large',name:'Large',price:30,cost:11}]});r=await call('/data/save',{key:'spare_parts',value:newCatalog});assert.equal(r.status,200);
  const table2=await prisma.table.create({data:{tenantId:tenant.id,branchId:branch.id,name:'T2',code:'T2'}});
  r=await call('/orders',{tableId:table2.id,items:[{id:555,sizeId:'small',name:'SizedFixture',qty:1,price:20}]});assert.equal(r.status,201);const sizeOrder=r.data.order;const sizeLine=sizeOrder.items[0];
  let change=await fetch(base+'/api/orders/'+sizeOrder.id+'/items',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:sizeOrder.version,items:[{lineId:sizeLine.lineId,qty:1,price:30,sizeId:'large',addons:[{id:1,qty:2}]}]})});assert.equal(change.status,200);

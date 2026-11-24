@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tashgheel-cache-v7-refund-dialog';
+const CACHE_NAME = 'tashgheel-cache-v8-current-client-assets';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -141,7 +141,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-First for static assets (JS, CSS, fonts, icons, images)
+  // Current same-origin application code must match current server validation/UI.
+  if (requestUrl.origin === self.location.origin && /\.(js|css)$/.test(requestUrl.pathname)) {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(event.request, { cache: 'no-cache' });
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(event.request, response.clone());
+        }
+        return response;
+      } catch (error) {
+        const currentCache = await caches.open(CACHE_NAME);
+        const cached = await currentCache.match(event.request);
+        if (cached) return cached;
+        throw error;
+      }
+    })());
+    return;
+  }
+
+  // Cache-First for non-code static assets (fonts, icons, images)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
