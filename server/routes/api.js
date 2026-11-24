@@ -59,7 +59,12 @@ router.post('/products/save', async (req, res) => {
             const products = await readCatalog(tx, req.tenantId);
             const index = products.findIndex(p => String(p.id) === String(product.id));
             const existing = index >= 0 ? products[index] : {};
-            const next = { ...existing, ...product, stockRevision: crypto.randomUUID(), createdAt: existing.createdAt || product.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+            let next = { ...existing, ...product, stockRevision: crypto.randomUUID(), createdAt: existing.createdAt || product.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+            if(require('../utils/recipes').requiredRecipe(next)) {
+                const ingredientDoc=await tx.data.findUnique({where:{key_tenantId:{key:'ingredients',tenantId:req.tenantId}}});
+                const ingredients=require('../utils/catalog').parseArray(ingredientDoc?.value);
+                next=require('../utils/recipe-cost').calculateRecipeCost(next,ingredients);
+            }
             if (index >= 0 && (existing.stockRevision || null) !== (req.body.expectedStockRevision || null)) { const error = new Error('Menu changed. Reload before saving.'); error.status = 409; throw error; }
             if (index >= 0 && req.body.expectedUpdatedAt !== undefined && (existing.updatedAt || null) !== req.body.expectedUpdatedAt) { const error = new Error('Menu item changed. Reload before saving.'); error.status = 409; throw error; }
             if (index >= 0) products[index] = next; else products.push(next);

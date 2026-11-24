@@ -557,6 +557,13 @@ async function handleAddProduct(e) {
     if (isNaN(price)) return alert('Please enter Price.');
   }
 
+  if(itemType==='recipe') {
+    try {
+      const calculate=recipe=>(recipe||[]).reduce((sum,line)=>sum+window.recipeLineCost(line,window.DB.getIngredient(line.ingredientId)),0);
+      if(hasSizes){const ids=currentSizes.map(size=>size.id);if(ids.some(id=>id===null||id===undefined||String(id).trim()==='')||new Set(ids.map(String)).size!==ids.length)throw new Error('Recipe sizes need unique identifiers');currentSizes=currentSizes.map(size=>({...size,cost:calculate(size.recipe)}));cost=Math.min(...currentSizes.map(size=>size.cost));}
+      else cost=calculate(currentSingleRecipe);
+    }catch(err){alert('Recipe needs review: '+err.message);return;}
+  }
   const allowAllAddons = document.getElementById('allow-all-addons').checked;
   const pDineIn = (!hasSizes) ? (parseFloat(document.getElementById("product-price-dinein").value) || undefined) : undefined;
   const pDelivery = (!hasSizes) ? (parseFloat(document.getElementById("product-price-delivery").value) || undefined) : undefined;
@@ -859,7 +866,8 @@ window.renderSingleRecipeTable = function () {
       grossQty = (yieldPercent > 0) ? netQty / yieldPercent : netQty;
     }
 
-    const lineCost = grossQty * unitCost;
+    let lineCost;
+    try {lineCost=window.recipeLineCost(item,ingredient);}catch(e){lineCost=NaN;}
     totalCost += lineCost;
 
     const row = document.createElement('tr');
@@ -868,17 +876,17 @@ window.renderSingleRecipeTable = function () {
             <td>${netQty}</td>
             <td>${item.unit}</td>
             <td>${wasteType === 'fixed' ? wasteVal : wasteVal + '%'}</td>
-            <td>${lineCost.toFixed(2)}</td>
+            <td>${Number.isFinite(lineCost)?lineCost.toFixed(2):"Needs review"}</td>
             <td><button type="button" class="btn btn-sm btn-danger" onclick="removeSingleRecipeItem(${index})">x</button></td>
         `;
     tbody.appendChild(row);
   });
 
   const displayTotal = document.getElementById('display-total-cost');
-  if (displayTotal) displayTotal.textContent = totalCost.toFixed(2);
+  if (displayTotal) displayTotal.textContent = (Number.isFinite(totalCost)?totalCost.toFixed(2):"Needs review");
 
   const hiddenCost = document.getElementById('product-cost');
-  if (hiddenCost && document.getElementById('product-type').value === 'recipe') hiddenCost.value = totalCost.toFixed(2);
+  if (hiddenCost && document.getElementById('product-type').value === 'recipe') hiddenCost.value = Number.isFinite(totalCost)?totalCost.toFixed(2):"";
 
   // Update Size Cost in Memory + live cost cell in sizes table
   if (currentEditingSizeId && document.getElementById('product-type').value === 'recipe') {
@@ -887,7 +895,7 @@ window.renderSingleRecipeTable = function () {
       s.cost = totalCost;
       // Refresh the cost cell in the sizes table (if the tab is visible)
       const costCell = document.getElementById(`size-cost-${s.id}`);
-      if (costCell) costCell.textContent = totalCost.toFixed(2);
+      if (costCell) costCell.textContent = (Number.isFinite(totalCost)?totalCost.toFixed(2):"Needs review");
     }
   }
 }
@@ -1136,7 +1144,7 @@ window.addIngredientToSingleRecipe = function () {
   const wasteVal = parseFloat(document.getElementById('single-recipe-waste').value) || 0;
   const wasteType = document.getElementById('single-recipe-waste-type').value;
 
-  if (!ingredientId || isNaN(qty) || qty <= 0 || !usageUnit) return alert('Select ingredient, unit, and valid quantity');
+  if (!ingredientId || !Number.isFinite(qty) || qty <= 0 || !Number.isFinite(wasteVal) || wasteVal<0 || (wasteType!=='fixed'&&wasteVal>=100) || !usageUnit) return alert('Select ingredient, unit, and valid quantity');
 
   const ingredient = window.DB.getIngredient(ingredientId);
   const baseUnit = ingredient.unit;
@@ -1218,7 +1226,8 @@ function renderSingleRecipeTable() {
       }
     }
 
-    const lineCost = grossQty * unitCost;
+    let lineCost;
+    try {lineCost=window.recipeLineCost(item,ingredient);}catch(e){lineCost=NaN;}
     totalCost += lineCost;
 
     const row = document.createElement('tr');
@@ -1230,21 +1239,21 @@ function renderSingleRecipeTable() {
       <td>${item.unit || ''}</td>
       <td>${wasteDisplay}</td>
       <td>${grossQty.toFixed(3)}</td>
-      <td>${lineCost.toFixed(2)}</td>
+      <td>${Number.isFinite(lineCost)?lineCost.toFixed(2):"Needs review"}</td>
       <td><button type="button" class="btn btn-sm btn-danger" onclick="removeSingleRecipeItem(${index})" style="padding:0 5px;">x</button></td>
     `;
     tbody.appendChild(row);
   });
 
   const totalEl = document.getElementById('single-recipe-total');
-  if (totalEl) totalEl.textContent = totalCost.toFixed(2);
+  if (totalEl) totalEl.textContent = (Number.isFinite(totalCost)?totalCost.toFixed(2):"Needs review");
 
   // Also update the display-total-cost used by the save logic
   const displayTotal = document.getElementById('display-total-cost');
-  if (displayTotal) displayTotal.textContent = totalCost.toFixed(2);
+  if (displayTotal) displayTotal.textContent = (Number.isFinite(totalCost)?totalCost.toFixed(2):"Needs review");
 
   const costInput = document.getElementById('product-cost');
-  if (costInput && document.getElementById('product-type').value === 'recipe') costInput.value = totalCost.toFixed(2);
+  if (costInput && document.getElementById('product-type').value === 'recipe') costInput.value = Number.isFinite(totalCost)?totalCost.toFixed(2):"";
 
   // Update size cost in memory + refresh the live cost cell in sizes table
   if (currentEditingSizeId && document.getElementById('product-type').value === 'recipe') {
@@ -1252,7 +1261,7 @@ function renderSingleRecipeTable() {
     if (s) {
       s.cost = totalCost;
       const costCell = document.getElementById(`size-cost-${s.id}`);
-      if (costCell) costCell.textContent = totalCost.toFixed(2);
+      if (costCell) costCell.textContent = (Number.isFinite(totalCost)?totalCost.toFixed(2):"Needs review");
     }
   }
 }
