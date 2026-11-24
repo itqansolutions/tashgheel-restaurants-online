@@ -1,3 +1,4 @@
+const fbText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 window.currentPage = 'orders';
 document.addEventListener('DOMContentLoaded', () => {
@@ -49,7 +50,7 @@ async function loadKitchenOrders() {
 
             // Table Info
             let tableInfo = '';
-            if (sale.tableId) tableInfo = `<div class="text-xs text-slate-400 mt-1">Table: <span class="text-white font-bold">${sale.tableName}</span></div>`;
+            if (sale.tableId) tableInfo = `<div class="text-xs text-slate-400 mt-1">Table: <span class="text-white font-bold">${fbText(sale.tableName)}</span></div>`;
 
             const card = document.createElement('div');
             card.className = 'bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-lg flex flex-col animate-fade-in relative';
@@ -69,7 +70,7 @@ async function loadKitchenOrders() {
                     ${typeBadge}
                 </div>
                 ${tableInfo}
-                ${sale.note ? `<div class="mt-2 p-2 bg-red-900/30 border border-red-800 rounded text-xs text-red-200 font-bold italic">Note: ${sale.note}</div>` : ''}
+                ${sale.note ? `<div class="mt-2 p-2 bg-red-900/30 border border-red-800 rounded text-xs text-red-200 font-bold italic">Note: ${fbText(sale.note)}</div>` : ''}
                 ${timerHtml}
                 ${statusBadge}
                 <div class="text-[10px] text-slate-500 mt-1">${time}</div>
@@ -79,10 +80,10 @@ async function loadKitchenOrders() {
                 ${sale.items.map(item => `
                     <li class="flex flex-col border-b border-slate-700/50 pb-2 last:border-0 last:pb-0">
                         <div class="flex justify-between items-start">
-                             <span class="text-slate-200 font-medium text-sm leading-tight">${item.name}</span>
+                             <span class="text-slate-200 font-medium text-sm leading-tight">${fbText(item.name)}</span>
                              <span class="font-bold text-slate-900 bg-amber-500 px-2 py-0.5 rounded text-sm shrink-0 ml-2">${item.qty}</span>
                         </div>
-                        ${item.note ? `<span class="text-[11px] text-red-300 italic mt-0.5 ml-2">◦ ${item.note}</span>` : ''}
+                        ${item.note ? `<span class="text-[11px] text-red-300 italic mt-0.5 ml-2">◦ ${fbText(item.note)}</span>` : ''}
                     </li>
                 `).join('')}
             </ul>
@@ -193,7 +194,7 @@ function generateKitchenTicketHtml(sale) {
     return `
     <html>
     <head>
-        <title>Kitchen Ticket #${sale.receiptNo}</title>
+        <title>Kitchen Ticket #${fbText(sale.receiptNo)}</title>
         <style>
             body { font-family: 'Courier New', monospace; padding: 10px; width: 300px; margin: 0 auto; color: #000; }
             .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
@@ -213,12 +214,12 @@ function generateKitchenTicketHtml(sale) {
         <div class="header">
             <span class="title">KITCHEN TICKET</span>
             <div class="meta">
-                #${sale.receiptNo}<br>
-                ${sale.tableName ? `Table: ${sale.tableName}<br>` : ''}
-                Server: ${sale.cashier || 'Staff'}<br>
+                #${fbText(sale.receiptNo)}<br>
+                ${sale.tableName ? `Table: ${fbText(sale.tableName)}<br>` : ''}
+                Server: ${fbText(sale.cashier || 'Staff')}<br>
                 Time: ${time}
             </div>
-            ${sale.note ? `<div class="note">NOTE: ${sale.note}</div>` : ''}
+            ${sale.note ? `<div class="note">NOTE: ${fbText(sale.note)}</div>` : ''}
         </div>
 
         <div class="items">
@@ -226,10 +227,10 @@ function generateKitchenTicketHtml(sale) {
                 <div class="item">
                     <div class="qty">${item.qty}</div>
                     <div class="details">
-                        <div class="name">${item.name}</div>
-                        ${item.sizeName ? `<div>(${item.sizeName})</div>` : ''}
-                        ${item.note ? `<span class="item-note">** ${item.note} **</span>` : ''}
-                        ${item.addons && item.items ? '' : (item.addons || []).map(a => `<div class="addons">+ ${a.name}</div>`).join('')}
+                        <div class="name">${fbText(item.name)}</div>
+                        ${item.sizeName ? `<div>(${fbText(item.sizeName)})</div>` : ''}
+                        ${item.note ? `<span class="item-note">** ${fbText(item.note)} **</span>` : ''}
+                        ${item.addons && item.items ? '' : (item.addons || []).map(a => `<div class="addons">+ ${fbText(a.name)}</div>`).join('')}
                     </div>
                 </div>
             `).join('')}

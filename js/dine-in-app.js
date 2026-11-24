@@ -1,3 +1,4 @@
+const fbText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /**
  * Dine-In App — Waiter Interface & Table Workstation
  * Manages table grid, order workstation modal, cart item operations,
@@ -316,6 +317,8 @@
                             </div>
                         </div>`;
                 }).join('');
+                container.querySelectorAll('[data-change-line]').forEach(button=>button.onclick=()=>changeQty(button.dataset.changeLine,Number(button.dataset.delta)));
+                container.querySelectorAll('[data-cancel-line]').forEach(button=>button.onclick=()=>cancelItem(button.dataset.cancelLine));
             }
         }
 
@@ -366,12 +369,12 @@
             <div class="item-row flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-slate-600 transition-colors">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
-                        <p class="text-sm font-bold text-white truncate">${item.name}</p>
+                        <p class="text-sm font-bold text-white truncate">${fbText(item.name)}</p>
                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${s.color} shrink-0">
                             <span class="material-symbols-outlined text-[11px]">${s.icon}</span>${s.label}
                         </span>
                     </div>
-                    ${item.note ? `<p class="text-xs text-amber-400/80 truncate mt-0.5">📝 ${item.note}</p>` : ''}
+                    ${item.note ? `<p class="text-xs text-amber-400/80 truncate mt-0.5">📝 ${fbText(item.note)}</p>` : ''}
                     <p class="text-xs text-slate-400 mt-1">
                         ${item.qty} × ${formatCurrency(item.price)} = <span class="font-bold text-amber-400 font-mono">${formatCurrency(itemLineTotal)} EGP</span>
                     </p>
@@ -379,16 +382,16 @@
                 <div class="flex items-center gap-2 shrink-0">
                     ${canEdit ? `
                     <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-700">
-                        <button onclick="DineIn.changeQty('${item.lineId}', -1)"
+                        <button data-change-line="${fbText(item.lineId)}" data-delta="-1"
                             class="w-7 h-7 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded font-bold text-sm transition-colors">−</button>
                         <span class="text-sm font-bold text-white w-6 text-center">${item.qty}</span>
-                        <button onclick="DineIn.changeQty('${item.lineId}', 1)"
+                        <button data-change-line="${fbText(item.lineId)}" data-delta="1"
                             class="w-7 h-7 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded font-bold text-sm transition-colors">+</button>
                     </div>` : `
                     <span class="text-sm font-bold text-slate-300 px-2 py-1 bg-slate-900 rounded-lg">x${item.qty}</span>
                     `}
                     ${canCancel ? `
-                    <button onclick="DineIn.cancelItem('${item.lineId}')" title="Remove item"
+                    <button data-cancel-line="${fbText(item.lineId)}" title="Remove item"
                         class="w-8 h-8 flex items-center justify-center text-rose-400 hover:text-white hover:bg-rose-500/20 rounded-lg transition-colors">
                         <span class="material-symbols-outlined text-lg">delete</span>
                     </button>` : ''}
@@ -452,7 +455,7 @@
 
         grid.innerHTML = filtered.map(p => `
             <button class="menu-item-card" onclick="DineIn.addItem('${p.id}')">
-                <span class="text-sm font-semibold text-white leading-tight line-clamp-2">${p.name}</span>
+                <span class="text-sm font-semibold text-white leading-tight line-clamp-2">${fbText(p.name)}</span>
                 ${p.category ? `<span class="text-[10px] text-slate-500">${p.category}</span>` : ''}
                 <span class="text-sm font-bold text-amber-400 mt-auto">${formatCurrency(p.price || 0)}</span>
             </button>`).join('');
@@ -635,7 +638,7 @@
                     <div class="divider"></div>
                     ${validItems.map(i => `
                         <div class="row">
-                            <span style="flex:1;">${i.qty}x ${i.name}</span>
+                            <span style="flex:1;">${i.qty}x ${fbText(i.name)}</span>
                             <span class="right font-mono">${formatCurrency(i.price * i.qty)}</span>
                         </div>
                     `).join('')}

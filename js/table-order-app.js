@@ -1,3 +1,4 @@
+const fbText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /**
  * Table Order App — Customer QR Page
  *
@@ -163,7 +164,7 @@
                     <div class="w-full aspect-square bg-slate-700 rounded-xl mb-2 flex items-center justify-center">
                         <span class="material-symbols-outlined text-3xl text-slate-500">restaurant</span>
                     </div>
-                    <p class="text-xs font-bold text-white leading-tight truncate">${p.name}</p>
+                    <p class="text-xs font-bold text-white leading-tight truncate">${fbText(p.name)}</p>
                     <p class="text-xs text-amber-400 font-semibold mt-0.5">${formatCurrency(p.price)}</p>
                 </button>`;
         }).join('');
@@ -281,6 +282,7 @@
         }
 
         list.innerHTML = html;
+        list.querySelectorAll("[data-remove-line]").forEach(button=>button.onclick=()=>removeItem(button.dataset.removeLine));
 
         const hasPending = pending.length > 0;
         document.getElementById('btn-send-order').disabled = !hasPending;
@@ -293,15 +295,15 @@
         return `
             <div class="flex items-center gap-3 py-2 border-b border-slate-800/50 fade-up">
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-white truncate">${item.name}</p>
-                    ${item.note ? `<p class="text-xs text-slate-500">📝 ${item.note}</p>` : ''}
+                    <p class="text-sm font-semibold text-white truncate">${fbText(item.name)}</p>
+                    ${item.note ? `<p class="text-xs text-slate-500">📝 ${fbText(item.note)}</p>` : ''}
                     <p class="text-xs text-slate-400">${item.qty} × ${formatCurrency(item.price)}</p>
                 </div>
-                <span class="text-xs font-semibold px-2 py-0.5 rounded-full status-${item.kitchenStatus}">
+                <span class="text-xs font-semibold px-2 py-0.5 rounded-full status-${fbText(item.kitchenStatus)}">
                     ${s.icon} ${s.label}
                 </span>
                 ${canDelete ? `
-                <button onclick="TableOrder.removeItem('${item.lineId}')"
+                <button data-remove-line="${fbText(item.lineId)}"
                     class="w-7 h-7 flex items-center justify-center text-red-400 hover:bg-red-500/20 rounded-lg">
                     <span class="material-symbols-outlined text-base">delete</span>
                 </button>` : ''}
