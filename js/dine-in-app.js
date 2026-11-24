@@ -7,6 +7,8 @@
 (function () {
     'use strict';
 
+    const label=(en,ar)=>localStorage.getItem('pos_language')==='ar'?ar:en;
+
     // ─── State ───
     let tables = [];           // All tables for this branch
     let products = [];         // Menu items (loaded once)
@@ -91,8 +93,8 @@
             grid.innerHTML = `
                 <div class="col-span-full flex flex-col items-center justify-center p-20 text-slate-600">
                     <span class="material-symbols-outlined text-5xl mb-3">table_restaurant</span>
-                    <p class="text-lg">No tables yet.</p>
-                    <p class="text-sm mt-1">Click "Tables Setup" to add your first table.</p>
+                    <p class="text-lg">${label('No tables yet.','لا توجد طاولات بعد.')}</p>
+                    <p class="text-sm mt-1">${label('Use Tables Setup to add your first table.','استخدم إعداد الطاولات لإضافة أول طاولة.')}</p>
                 </div>`;
             return;
         }
@@ -106,7 +108,7 @@
             let borderColor = 'border-slate-700/80';
             let bgColor = 'bg-slate-800/90 hover:bg-slate-750 hover:border-slate-600';
             let statusDot = '<span class="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm shadow-emerald-500/50"></span>';
-            let statusText = 'Available';
+            let statusText = label('Available','متاحة');
             let extraClass = '';
 
             if (isOccupied) {
@@ -114,12 +116,12 @@
                     borderColor = 'border-amber-500/80';
                     bgColor = 'bg-amber-950/20 hover:bg-amber-950/30';
                     statusDot = '<span class="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse"></span>';
-                    statusText = 'Billing Requested';
+                    statusText = label('Billing Requested','مطلوب الحساب');
                 } else {
                     borderColor = 'border-rose-500/70';
                     bgColor = 'bg-rose-950/20 hover:bg-rose-950/30';
                     statusDot = '<span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span>';
-                    statusText = 'Occupied';
+                    statusText = label('Occupied','مشغولة');
                     if (allReady) extraClass = 'all-ready-pulse border-emerald-500/80';
                 }
             }
@@ -155,7 +157,7 @@
             ` : `
                 <div class="mt-3 text-[11px] text-slate-500 group-hover:text-slate-400 flex items-center gap-1">
                     <span class="material-symbols-outlined text-xs">touch_app</span>
-                    <span>Tap to start order</span>
+                    <span>${label('Tap to start order','اضغط لبدء الطلب')}</span>
                 </div>
             `;
 
@@ -237,7 +239,7 @@
         activeOrderId = null;
         activeTableId = null;
         activeOrder = null;
-        document.getElementById('product-results').classList.add('hidden');
+        document.getElementById('product-results')?.classList.add('hidden');
         document.getElementById('item-search').value = '';
     }
 
@@ -292,7 +294,7 @@
                 container.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-16 text-slate-500">
                         <span class="material-symbols-outlined text-4xl mb-2 text-slate-600">restaurant</span>
-                        <p class="text-sm font-medium">No items yet in this order.</p>
+                        <p class="text-sm font-medium">${label('No items yet in this order.','لا توجد أصناف في الطلب بعد.')}</p>
                         <p class="text-xs text-slate-600 mt-1">Select products from the right menu to add.</p>
                     </div>`;
             } else {
@@ -426,7 +428,7 @@
         container.innerHTML = categories.map(cat => `
             <button class="cat-chip ${selectedCategory === cat ? 'active' : ''}"
                 onclick="DineIn.selectCategory('${cat.replace(/'/g, "\\'")}')">
-                ${cat}
+                ${cat==='All'?label('All','الكل'):cat}
             </button>`).join('');
     }
 
@@ -443,7 +445,7 @@
         if (filtered.length === 0) {
             grid.innerHTML = `<div class="col-span-2 text-center py-8 text-slate-600">
                 <span class="material-symbols-outlined text-3xl mb-1">search_off</span>
-                <p class="text-sm">No items found</p>
+                <p class="text-sm">${label('No items found','لا توجد أصناف مطابقة')}</p>
             </div>`;
             return;
         }
@@ -747,7 +749,7 @@
     function renderTableManagerList() {
         const list = document.getElementById('table-manager-list');
         if (!tables || tables.length === 0) {
-            list.innerHTML = '<p class="text-slate-500 text-sm text-center py-4">No tables yet.</p>';
+            list.innerHTML = `<p class="text-slate-500 text-sm text-center py-4">${label('No tables yet.','لا توجد طاولات بعد.')}</p>`;
             return;
         }
         list.innerHTML = tables.map(t => `

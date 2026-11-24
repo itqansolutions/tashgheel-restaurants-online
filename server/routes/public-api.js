@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const {readCatalog,snapshotItems}=require('../utils/catalog');
+const {readCatalog}=require('../utils/catalog');
+const {customerOrderItems}=require('../utils/customer-order-items');
 const prisma = require('../prisma');
 const storage = require('../utils/storage');
 const rateLimit = require('express-rate-limit');
@@ -133,7 +134,10 @@ router.post('/order', async (req, res) => {
         const tenantId = branch.tenantId;
 
         const products=await readCatalog(prisma,tenantId);
-        const selected=snapshotItems(cart,products);
+        let selected;
+        try {selected=await customerOrderItems(prisma,tenantId,cart,products);} catch(error) {
+            return res.status(error.status===409?409:400).json({error:error.message});
+        }
         let subtotal=0;
         const validItems=selected.map(item=>{
             const product=products.find(p=>String(p.id)===String(item.id));
@@ -200,7 +204,7 @@ router.post('/order', async (req, res) => {
         });
 
     } catch (err) {
-        res.status(500).json({ error: 'Failed to place order: ' + err.message });
+        res.status(err.status===409?409:500).json({ error: 'Failed to place order: ' + err.message });
     }
 });
 

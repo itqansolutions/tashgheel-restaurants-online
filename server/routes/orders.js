@@ -13,7 +13,7 @@ const storage = require('../utils/storage');
 const {readCatalog,snapshotItems,parseArray}=require('../utils/catalog');
 const {applyStock}=require('../utils/stock');
 const crypto=require('crypto');
-const {customerItems}=require('../utils/customer-items');
+const {customerOrderItems}=require('../utils/customer-order-items');
 
 // ─── Structured logger ───────────────────────────────────────
 function log(event, ctx = {}) {
@@ -108,7 +108,8 @@ router.post('/',async(req,res)=>{
             if(!table || table.tenantId!==req.tenantId || table.branchId!==req.branchId || (req.userRole==='customer' && table.id!==req.tableId)) fail('Table not found',404);
             if(table.activeOrderId) {const active=await tx.order.findUnique({where:{id:table.activeOrderId}});if(active?.status==='open') fail('Table already has an active order');}
             const input=req.body.items||[];
-            const items=input.length?(req.userRole==='customer'?customerItems:snapshotItems)(input,await readCatalog(tx,req.tenantId)):[];
+            const catalog=await readCatalog(tx,req.tenantId);
+            const items=input.length?(req.userRole==='customer'?await customerOrderItems(tx,req.tenantId,input,catalog):snapshotItems(input,catalog)):[];
             const order=await tx.order.create({data:{tenantId:req.tenantId,branchId:req.branchId,tableId:table.id,tableName:table.name,note:req.body.note||'',openedBy:req.userRole==='customer'?'customer':req.userId||'waiter',items:{create:items.map(i=>({productId:String(i.id),productCode:i.code,name:i.name,qty:i.qty,price:i.price,cost:i.cost,note:i.note,addedBy:req.userRole==='customer'?'customer':req.userId||'waiter',lineId:i.lineId||genLineId(),modifiers:{stockSelection:{sizeId:i.sizeId,sizeName:i.sizeName,addons:i.addons||[]}}}))}},include:{items:true}});
             await tx.table.update({where:{id:table.id},data:{status:'occupied',activeOrderId:order.id}});return order;
         });res.status(201).json({success:true,order});
@@ -126,7 +127,7 @@ router.patch('/:id/items',async(req,res)=>{
                 if(existing && existing.kitchenStatus!=='pending') fail('Item cannot be edited after sending to kitchen');
                 const candidate={...(existing||{}),...(existing?.modifiers?.stockSelection||{}),...input};
                 if(existing && String(input.productId ?? input.id ?? existing.productId)!==String(existing.productId)) fail('Product cannot be changed on an existing line',400);
-                const item=(req.userRole==='customer'?customerItems:snapshotItems)([candidate],catalog)[0];
+                const item=(req.userRole==='customer'?await customerOrderItems(tx,req.tenantId,[candidate],catalog):snapshotItems([candidate],catalog))[0];
                 const data={qty:item.qty,price:item.price,note:item.note,cost:item.cost,modifiers:{stockSelection:{sizeId:item.sizeId,sizeName:item.sizeName,addons:item.addons||[]}}};
                 if(existing) await tx.orderItem.update({where:{id:existing.id},data});
                 else await tx.orderItem.create({data:{...data,orderId:order.id,productId:String(item.id),productCode:item.productCode||item.code,name:item.name,addedBy:req.userRole==='customer'?'customer':req.userId||'waiter',lineId:item.lineId||genLineId(),modifiers:{stockSelection:{sizeId:item.sizeId,sizeName:item.sizeName,addons:item.addons||[]}}}});
