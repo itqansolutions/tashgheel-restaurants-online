@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initVendorsApp() {
     console.log('Session valid, rendering vendors...');
     try {
-        await renderVendors();
+        try{await renderVendors();}catch(refreshError){console.warn('Payment saved, refresh failed:',refreshError);alert(t('Payment was saved. Reload the statement to refresh it, do not pay again.','تم حفظ السداد. أعد فتح كشف الحساب لتحديثه، ولا تسدد مرة أخرى.'));}
     } catch (error) {
         console.error('Error rendering vendors:', error);
         alert(t('vendor_load_error') + error.message);
@@ -223,7 +223,10 @@ async function deleteVendor(id) {
     }
 }
 
+let vendorPaymentRequestId=null;
+let vendorPaymentBusy=false;
 function openPaymentModal(vendorId) {
+    if(vendorPaymentBusy)return;
     const vendors = (window.DataCache && window.DataCache['vendors']) || window.DB.getVendors() || [];
     const vendor = vendors.find(v => (v.id || v._id) == vendorId || v.name == vendorId);
     if (!vendor) return;
@@ -233,62 +236,52 @@ function openPaymentModal(vendorId) {
     document.getElementById('paymentCurrentCredit').value = (parseFloat(vendor.credit) || 0).toFixed(2);
     document.getElementById('paymentAmount').value = '';
     document.getElementById('paymentNotes').value = '';
+    try {
+        const pending=JSON.parse(sessionStorage.getItem('vendor-payment-pending:'+(vendor.id||vendor._id||vendorId))||'null');
+        if(pending){
+            document.getElementById('paymentAmount').value=pending.intent.amount;
+            document.getElementById('paymentNotes').value=pending.intent.notes||'';
+            vendorPaymentRequestId=pending.requestId;
+        }
+    }catch(e){alert('Pending payment could not be loaded. Review the statement before submitting.');return;}
 
     document.getElementById('paymentModal').style.display = 'flex';
 }
 
 async function handlePaymentSubmit(e) {
     e.preventDefault();
-
-    const vendorId = document.getElementById('paymentVendorId').value;
-    const vendorName = document.getElementById('paymentVendorName')?.value || '';
-    const amount = parseFloat(document.getElementById('paymentAmount').value);
-    const notes = document.getElementById('paymentNotes').value.trim();
-
-    if (amount <= 0) {
-        alert(t('payment_amount_error'));
-        return;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    const description = `Vendor Payment: ${vendorName || vendorId}${notes ? ' - ' + notes : ''}`;
-
-    if (window.apiFetch) {
-        try {
-            await window.apiFetch(`/parties/vendors/${vendorId}/transactions`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    type: 'payment',
-                    amount: amount,
-                    description: description,
-                    method: 'cash',
-                    date: today,
-                    notes: notes || null
-                })
-            });
-        } catch (err) {
-            console.warn('Backend payment save failed, saving locally:', err);
-        }
-    }
-
-    window.DB.recordVendorPayment(vendorId, amount, notes);
-
-    // Also cache in vendor_payments for local/offline access
-    if (window.EnhancedSecurity) {
-        const vp = window.EnhancedSecurity.getSecureData('vendor_payments') || [];
-        vp.push({
-            id: `${Date.now()}-payment`,
-            vendorId: vendorId,
-            amount: amount,
-            date: today,
-            notes: notes || ''
-        });
-        window.EnhancedSecurity.storeSecureData('vendor_payments', vp);
-    }
-
-    alert(t('payment_recorded'));
-    closeModal('paymentModal');
-    renderVendors();
+    if(vendorPaymentBusy)return;
+    const vendorId=document.getElementById('paymentVendorId').value;
+    const vendorName=document.getElementById('paymentVendorName')?.value||'';
+    const amount=Number(document.getElementById('paymentAmount').value);
+    const notes=document.getElementById('paymentNotes').value.trim();
+    if(!Number.isFinite(amount)||amount<=0){alert(t('payment_amount_error'));return;}
+    if(!window.apiFetch){alert(t('Payment requires a server connection. Nothing was recorded.','السداد يحتاج اتصالًا بالخادم. لم يتم تسجيل شيء.'));return;}
+    const date=new Date();const today=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+    const intent={type:'payment',amount,description:`Vendor Payment: ${vendorName||vendorId}${notes?' - '+notes:''}`,method:'cash',date:today,notes:notes||null};
+    const pendingKey='vendor-payment-pending:'+vendorId;
+    let pending;
+    try{pending=JSON.parse(sessionStorage.getItem(pendingKey)||'null');}catch(e){alert('Could not verify pending payment. Reload and review the statement.');return;}
+    if(pending)intent.date=pending.intent.date;
+    if(pending && JSON.stringify(pending.intent)!==JSON.stringify(intent)){alert(t('An earlier payment is unconfirmed. Retry its original details or ask the manager to reconcile it first.','هناك سداد سابق غير مؤكد. أعد بياناته الأصلية أو اطلب من المسؤول مراجعته أولًا.'));return;}
+    pending=pending||{requestId:crypto.randomUUID(),intent};
+    try{sessionStorage.setItem(pendingKey,JSON.stringify(pending));}catch(e){alert('Cannot preserve safe retry. No payment was submitted.');return;}
+    vendorPaymentRequestId=pending.requestId;
+    vendorPaymentBusy=true;
+    const button=e.submitter;if(button)button.disabled=true;
+    let confirmed=false;
+    try {
+        const result=await window.apiFetch(`/parties/vendors/${vendorId}/transactions`,{method:'POST',body:JSON.stringify({...pending.intent,requestId:vendorPaymentRequestId})});
+        if(!result?.success)throw new Error('Server did not confirm payment');
+        confirmed=true;
+        // Refresh the authoritative ledger. Never create a second local financial transaction.
+        sessionStorage.removeItem(pendingKey);alert(t('payment_recorded'));closeModal('paymentModal');vendorPaymentRequestId=null;
+        try{await renderVendors();}catch(refreshError){console.warn('Payment saved, refresh failed:',refreshError);alert(t('Payment was saved. Reload the statement to refresh it, do not pay again.','تم حفظ السداد. أعد فتح كشف الحساب لتحديثه، ولا تسدد مرة أخرى.'));}
+    }catch(err){
+        console.warn('Vendor payment result handling:',err);
+        if(confirmed){alert(t('Payment was saved. Reload the statement to refresh it, do not pay again.','تم حفظ السداد. أعد فتح كشف الحساب لتحديثه، ولا تسدد مرة أخرى.'));return;}
+        alert(t('Payment was not confirmed. Check the statement and retry unchanged; do not record a second payment.','لم يتم تأكيد السداد. راجع كشف الحساب وأعد المحاولة بنفس البيانات، ولا تسجل سدادًا ثانيًا.'));
+    }finally{vendorPaymentBusy=false;if(button)button.disabled=false;}
 }
 
 // Print Vendor Transaction Report

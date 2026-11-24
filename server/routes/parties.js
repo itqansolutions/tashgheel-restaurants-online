@@ -121,102 +121,53 @@ router.get('/vendors/:id/transactions', async (req, res) => {
 });
 
 // POST /parties/vendors/:id/transactions — manual payment against a vendor
-router.post('/vendors/:id/transactions', async (req, res) => {
+router.post('/vendors/:id/transactions', async (req,res)=>{
+    const reject=(message,status=400)=>{const e=new Error(message);e.status=status;throw e};
     try {
-        const vendorId = req.params.id;
-        const { type, amount, description, method, date, notes } = req.body;
-
-        if (!type || !amount || amount <= 0) {
-            return res.status(400).json({ error: 'type and amount are required' });
-        }
-
-        const vendorTxKey = `vendor_transactions_${vendorId}`;
-        const today = date || new Date().toISOString().split('T')[0];
-
-        await prisma.$transaction(async (tx) => {
-            const existing = await tx.data.findUnique({
-                where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } }
-            });
-            let transactions = existing
-                ? (typeof existing.value === 'string' ? JSON.parse(existing.value) : existing.value)
-                : [];
-            if (!Array.isArray(transactions)) transactions = [];
-
-            transactions.push({
-                id: `${Date.now()}-${type}`,
-                vendorId,
-                type,
-                amount: parseFloat(amount),
-                description: description || (type === 'payment' ? 'Manual Payment' : 'Manual Purchase'),
-                date: today,
-                method: method || 'cash',
-                notes: notes || null,
-                createdAt: new Date().toISOString()
-            });
-
-            await tx.data.upsert({
-                where: { key_tenantId: { key: vendorTxKey, tenantId: req.tenantId } },
-                update: { value: JSON.stringify(transactions), updatedAt: new Date() },
-                create: { key: vendorTxKey, tenantId: req.tenantId, value: JSON.stringify(transactions) }
-            });
-
-            // Update vendor credit balance
-            const delta = type === 'purchase' ? parseFloat(amount) : -parseFloat(amount);
-            await tx.vendor.updateMany({
-                where: {
-                    tenantId: req.tenantId,
-                    OR: [
-                        { id: String(vendorId) },
-                        { name: String(vendorId) }
-                    ]
-                },
-                data: { credit: { increment: delta } }
-            });
-
-            // 💰 If this is a vendor payment, record it as an Expense so it appears on expenses.html
-            if (type === 'payment') {
-                try {
-                    const vendor = await tx.vendor.findFirst({
-                        where: {
-                            tenantId: req.tenantId,
-                            OR: [{ id: String(vendorId) }, { name: String(vendorId) }]
-                        }
-                    });
-
-                    // Resolve a valid branchId for this tenant
-                    let expBranchId = req.branchId || vendor?.branchId;
-                    if (!expBranchId || expBranchId === 'default') {
-                        const fallbackBranch = await tx.branch.findFirst({
-                            where: { tenantId: req.tenantId },
-                            select: { id: true }
-                        });
-                        expBranchId = fallbackBranch?.id || 'default';
-                    }
-
-                    await tx.expense.create({
-                        data: {
-                            description: description || `Vendor Payment: ${vendor?.name || vendorId}`,
-                            amount: parseFloat(amount),
-                            date: today,
-                            seller: vendor?.name || String(vendorId),
-                            method: method || 'cash',
-                            notes: notes || null,
-                            category: 'Raw Materials',
-                            type: 'vendor_payment',
-                            tenantId: req.tenantId,
-                            branchId: expBranchId,
-                            createdBy: req.userId || 'system'
-                        }
-                    });
-                    console.log(`[VendorPayment] ✅ Expense recorded for ${vendor?.name || vendorId}: ${amount} EGP`);
-                } catch (expErr) {
-                    console.warn('[VendorPayment] Expense record skipped:', expErr.message);
-                }
+        const {type,amount,description,method='cash',date,notes,requestId}=req.body;
+        const value=Number(amount);
+        if(!['payment','purchase'].includes(type) || !Number.isFinite(value) || value<=0 || typeof amount==='boolean' || amount===null || typeof amount==='object') reject('Valid type and positive finite amount required');
+        if((type==='payment' || requestId!==undefined) && (typeof requestId!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))) reject('A unique requestId is required');
+        if(typeof date!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0,10)!==date) reject('Valid date required');
+        if(typeof method!=='string' || !method || method.length>40 || (description!==undefined && (typeof description!=='string' || description.length>1000)) || (notes!=null && (typeof notes!=='string' || notes.length>2000))) reject('Invalid payment details');
+        const intent={type,amount:value,description:description|| (type==='payment'?'Manual Payment':'Manual Purchase'),method,date,notes:notes||null};
+        const result=await prisma.$transaction(async tx=>{
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            let vendor=await tx.vendor.findFirst({where:{id:req.params.id,tenantId:req.tenantId}});
+            if(!vendor && type==='purchase') {
+                const matches=await tx.vendor.findMany({where:{name:req.params.id,tenantId:req.tenantId},take:2});
+                if(matches.length>1) reject('Ambiguous vendor needs review',409);
+                vendor=matches[0];
             }
+            if(!vendor) reject('Vendor not found',404);
+            const key=`vendor_transactions_${vendor.id}`;
+            const doc=await tx.data.findUnique({where:{key_tenantId:{key,tenantId:req.tenantId}}});
+            let transactions=doc?(typeof doc.value==='string'?JSON.parse(doc.value):doc.value):[];
+            if(!Array.isArray(transactions)) reject('Vendor history needs review',409);
+            if(!transactions.length) {
+                const legacy=await tx.data.findUnique({where:{key_tenantId:{key:`vendor_transactions_${vendor.name}`,tenantId:req.tenantId}}});
+                const rows=legacy?(typeof legacy.value==='string'?JSON.parse(legacy.value):legacy.value):[];
+                if(!Array.isArray(rows)||rows.length) reject('Legacy vendor history needs review before adding payment',409);
+            }
+            const existing=requestId?transactions.find(t=>t.requestId===requestId):null;
+            if(existing) {
+                if(JSON.stringify(existing.intent)!==JSON.stringify(intent)) reject('Request was already used for different payment details',409);
+                return {success:true,replayed:true,transactionId:existing.id};
+            }
+            const transactionId=require('crypto').randomUUID();
+            if(type==='payment') {
+                const branchId=req.branchId||vendor.branchId||req.user?.defaultBranchId;
+                const branch=branchId?await tx.branch.findFirst({where:{id:branchId,tenantId:req.tenantId}}):null;
+                if(!branch) reject('Valid payment branch required',409);
+                await tx.expense.create({data:{description:intent.description,amount:value,date,seller:vendor.name,method,notes:intent.notes,category:'Raw Materials',type:'vendor_payment',tenantId:req.tenantId,branchId:branch.id,createdBy:req.userId||'system'}});
+            }
+            transactions.push({id:transactionId,vendorId:vendor.id,...intent,requestId,intent,createdAt:new Date().toISOString()});
+            await tx.data.upsert({where:{key_tenantId:{key,tenantId:req.tenantId}},update:{value:JSON.stringify(transactions),updatedAt:new Date()},create:{key,tenantId:req.tenantId,value:JSON.stringify(transactions)}});
+            await tx.vendor.update({where:{id:vendor.id},data:{credit:{increment:type==='purchase'?value:-value}}});
+            return {success:true,transactionId};
         });
-
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        res.json(result);
+    }catch(err){res.status(err.status||500).json({error:err.status?err.message:'Payment could not be saved. Check the statement before retrying with the same request.'});}
 });
 
 
