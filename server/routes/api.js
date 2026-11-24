@@ -787,7 +787,7 @@ router.get('/kitchen/orders', async (req, res) => {
                 tenantId: req.tenantId,
                 branchId: req.branchId,
                 kitchenStatus: { in: ['pending', 'preparing'] },
-                status: { notIn: ['void', 'refunded'] }
+                status: { notIn: ['void', 'refunded', 'cancelled', 'rejected'] }
             },
             include: { items: true },
             orderBy: { date: 'asc' }
@@ -801,21 +801,15 @@ router.get('/kitchen/orders', async (req, res) => {
 // 1.1 Get Pending Online Orders (For POS)
 router.get('/kitchen/online-pending', async (req, res) => {
     try {
-        const branchFilter = req.branchId ? {
-            OR: [
-                { branchId: req.branchId },
-                { branchId: null }
-            ]
-        } : {};
-
         const orders = await prisma.sale.findMany({
             where: {
                 tenantId: req.tenantId,
-                ...branchFilter,
+                branchId: req.branchId,
+                status: {notIn:['void','refunded','cancelled','rejected']},
                 OR: [
                     { source: 'online_store', status: 'pending' },
                     { source: 'online_store', kitchenStatus: 'pending' },
-                    { source: 'aggregator', kitchenStatus: 'pending' },
+                    { source: 'aggregator', kitchenStatus:'pending' },
                     { source: 'online', status: 'pending' }
                 ]
             },
@@ -828,52 +822,22 @@ router.get('/kitchen/online-pending', async (req, res) => {
     }
 });
 
-// 2. Mark Order as Complete (Ready/Out for Delivery)
-router.post('/kitchen/complete/:id', async (req, res) => {
+// Sale-level kitchen state changes share the tenant lock with refund/finalization.
+for (const action of ['complete','preparing']) router.post('/kitchen/'+action+'/:id',async(req,res)=>{
     try {
-        const { id } = req.params;
-        const sale = await prisma.sale.findUnique({
-            where: { id }
-        });
-
-        if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-
-        const newKitchenStatus = sale.source === 'online_store' ? 'out_for_delivery' : 'ready';
-
-        await prisma.sale.update({
-            where: { id },
-            data: {
-                kitchenStatus: newKitchenStatus
-            }
-        });
-
-        res.json({ success: true, status: newKitchenStatus });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// 3. Mark Order as Preparing
-router.post('/kitchen/preparing/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const sale = await prisma.sale.findUnique({
-            where: { id }
-        });
-
-        if (!sale || sale.tenantId !== req.tenantId) return res.status(404).json({ error: 'Order not found' });
-
-        await prisma.sale.update({
-            where: { id },
-            data: {
-                kitchenStatus: 'preparing'
-            }
-        });
-
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        const result=await prisma.$transaction(async tx=>{
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const sale=await tx.sale.findUnique({where:{id:req.params.id}});
+            const fail=(message,status)=>{const err=new Error(message);err.status=status;throw err};
+            if(!sale || sale.tenantId!==req.tenantId || sale.branchId!==req.branchId) fail('Order not found',404);
+            if(['void','refunded','cancelled','rejected'].includes(sale.status)) fail('Order is not active',409);
+            const kitchenStatus=action==='preparing'?'preparing':sale.source==='online_store'?'out_for_delivery':'ready';
+            if(action==='preparing' && !['pending','preparing'].includes(sale.kitchenStatus)) fail('Order is no longer pending preparation',409);
+            if(action==='complete' && !['pending','preparing','ready','out_for_delivery'].includes(sale.kitchenStatus)) fail('Order is no longer in kitchen',409);
+            if(sale.kitchenStatus!==kitchenStatus) await tx.sale.update({where:{id:sale.id},data:{kitchenStatus}});
+            return {success:true,status:kitchenStatus};
+        });res.json(result);
+    } catch(err) {res.status(err.status||500).json({error:err.message});}
 });
 
 // === INVENTORY MANAGEMENT ===
