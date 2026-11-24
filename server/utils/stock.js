@@ -1,87 +1,31 @@
 const crypto=require('crypto');
 const {readCatalog}=require('./catalog');
-async function deductIngredientsStock(tenantId, branchId, items, txClient) {
-    try {
-        const products = await readCatalog(txClient, tenantId);
-
-        const ingData = await txClient.data.findUnique({
-            where: { key_tenantId: { key: 'ingredients', tenantId } }
-        });
-        if (!ingData) {
-            if (items.some(item => { const p = products.find(p => String(p.id) === String(item.productId ?? item.id)); return (p?.recipe || []).length || (p?.sizes || []).some(size => (size.recipe || []).length); })) throw new Error('Recipe ingredients are missing');
-            return [];
+const {recipeLines}=require('./recipes');
+async function deductIngredientsStock(tenantId,branchId,items,txClient) {
+    const products=await readCatalog(txClient,tenantId);
+    const doc=await txClient.data.findUnique({where:{key_tenantId:{key:'ingredients',tenantId}}});
+    const ingredients=doc?(typeof doc.value==='string'?JSON.parse(doc.value):doc.value):[];
+    if(!Array.isArray(ingredients))throw new Error('Invalid ingredients data');
+    const required=new Map();
+    for(const item of items) {
+        const product=products.find(product=>String(product.id)===String(item.productId??item.id));
+        if(!product)throw new Error('Product not found');
+        for(const line of recipeLines(product,item,ingredients)) {
+            const id=String(line.ingredient.id);const current=required.get(id)||{ingredient:line.ingredient,qty:0};current.qty+=line.qty;required.set(id,current);
         }
-
-        let ingredients = typeof ingData.value === 'string' ? JSON.parse(ingData.value) : ingData.value;
-        if (!Array.isArray(ingredients)) return;
-
-        let changed = false;
-        const movements = [];
-
-        for (const item of items) {
-            const product = products.find(p => String(p.id) === String(item.productId ?? item.id));
-            if (!product) continue;
-
-            let recipeToUse = [];
-            if ((item.sizeId || item.sizeName) && product.hasSizes && product.sizes) {
-                const size = product.sizes.find(s => s.id == item.sizeId || s.name === item.sizeName);
-                recipeToUse = size ? (size.recipe || []) : [];
-            } else {
-                recipeToUse = product.recipe || [];
-            }
-
-            if (recipeToUse && recipeToUse.length > 0) {
-                recipeToUse.forEach(ingItem => {
-                    const idx = ingredients.findIndex(i => String(i.id) === String(ingItem.ingredientId));
-                    if (idx !== -1) {
-                        const factor = parseFloat(ingItem.conversionFactor || 1);
-                        let consumeQty = 0;
-                        const qtyToDeduct = parseFloat(item.qty || 0);
-
-                        if (ingItem.wasteType === 'fixed') {
-                            consumeQty = (parseFloat(ingItem.qty || 0) + parseFloat(ingItem.wasteValue || 0)) * qtyToDeduct * factor;
-                        } else {
-                            const w = parseFloat(ingItem.wasteValue || ingItem.wastePercent || 0);
-                            if (w < 100) {
-                                const yieldPct = (100 - w) / 100;
-                                const grossUsageQty = parseFloat(ingItem.qty || 0) / yieldPct;
-                                consumeQty = grossUsageQty * qtyToDeduct * factor;
-                            } else {
-                                consumeQty = parseFloat(ingItem.qty || 0) * qtyToDeduct * factor;
-                            }
-                        }
-
-                        // 🌿 Branch-aware stock: use stockByBranch[branchId] when available
-                        if (!ingredients[idx].stockByBranch) ingredients[idx].stockByBranch = {};
-                        const branchKey = branchId || 'default';
-                        const currentBranchStock = parseFloat(
-                            ingredients[idx].stockByBranch[branchKey] ?? ingredients[idx].stock ?? 0
-                        );
-                        if (!Number.isFinite(consumeQty) || consumeQty < 0) throw new Error('Invalid ingredient quantity');
-                        movements.push({ kind: 'ingredient', id: String(ingredients[idx].id), branchId: branchKey, qty: consumeQty });
-                        ingredients[idx].stockByBranch[branchKey] = currentBranchStock - consumeQty;
-                        // Keep flat stock in sync for backward compatibility
-                        ingredients[idx].stock = Object.values(ingredients[idx].stockByBranch)
-                            .reduce((sum, v) => sum + parseFloat(v || 0), 0);
-                        ingredients[idx].lastUsedAt = new Date().toISOString();
-                        ingredients[idx].updatedAt = new Date().toISOString();
-                        ingredients[idx].stockRevision = crypto.randomUUID();
-                        changed = true;
-                    } else throw new Error('Recipe ingredient not found');
-                });
-            }
-        }
-
-        if (changed) {
-            await txClient.data.update({
-                where: { key_tenantId: { key: 'ingredients', tenantId } },
-                data: { value: JSON.stringify(ingredients), updatedAt: new Date() }
-            });
-        }
-        return movements;
-    } catch (err) {
-        throw err;
     }
+    const movements=[];
+    for(const {ingredient,qty} of required.values()) {
+        const branchStock=ingredient.stockByBranch?.[branchId];
+        if(branchStock===undefined||branchStock===null||!Number.isFinite(Number(branchStock))) {const error=new Error('Ingredient branch balance is unknown: '+ingredient.name);error.status=409;throw error;}
+        const current=Number(branchStock);if(current+1e-9<qty){const error=new Error('Insufficient ingredient stock: '+ingredient.name);error.status=409;throw error;}
+        ingredient.stockByBranch[branchId]=Math.max(0,current-qty);
+        ingredient.stock=Object.values(ingredient.stockByBranch).reduce((sum,value)=>sum+Number(value||0),0);
+        ingredient.lastUsedAt=new Date().toISOString();ingredient.updatedAt=new Date().toISOString();ingredient.stockRevision=crypto.randomUUID();
+        movements.push({kind:'ingredient',id:String(ingredient.id),branchId,qty});
+    }
+    if(required.size)await txClient.data.update({where:{key_tenantId:{key:'ingredients',tenantId}},data:{value:JSON.stringify(ingredients),updatedAt:new Date()}});
+    return movements;
 }
 
 async function applyStock(tx,tenantId,branchId,items) {

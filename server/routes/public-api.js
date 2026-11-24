@@ -83,10 +83,14 @@ router.get('/menu/:branchId', async (req, res) => {
         let products = [];
         try { products = JSON.parse(productsRaw || '[]'); } catch (e) { }
 
+        const ingredientsRaw=await storage.readData('ingredients',tenantId);
+        const ingredients=typeof ingredientsRaw==='string'?JSON.parse(ingredientsRaw||'[]'):(ingredientsRaw||[]);
+        products=require('../utils/recipe-availability').withRecipeAvailability(products,Array.isArray(ingredients)?ingredients:[]);
+
         // Build a map of all products so we can resolve add-on details
         const productMap = new Map(products.map(p => [String(p.id), p]));
 
-        products = products.filter(p => p.isActive !== false)
+        products = products.filter(p => p.isActive !== false && p.recipeAvailable!==false)
             .map(p => ({
                 id: p.id,
                 name: p.name,
@@ -97,13 +101,13 @@ router.get('/menu/:branchId', async (req, res) => {
                 image: p.image,
                 taxRate: p.taxRate,
                 hasSizes: !!p.hasSizes,
-                sizes: Array.isArray(p.sizes) ? p.sizes.map(size=>({id:size.id,name:size.name,price:size.price,isActive:size.isActive})) : [],
+                sizes: Array.isArray(p.sizes) ? p.sizes.filter(size=>size.isActive!==false && !(p.recipeUnavailableSizes||[]).includes(String(size.id))).map(size=>({id:size.id,name:size.name,price:size.price,isActive:size.isActive})) : [],
                 isService: !!p.isService,
                 allowAllAddons: !!p.allowAllAddons,
                 allowedAddons: Array.isArray(p.allowedAddons)
                     ? p.allowedAddons.map(addonId => {
                         const addon = productMap.get(String(addonId));
-                        return addon ? { id: String(addonId), name: addon.name, price: addon.price || 0 } : null;
+                        return addon && addon.isActive!==false && addon.recipeAvailable!==false ? { id: String(addonId), name: addon.name, price: addon.price || 0 } : null;
                     }).filter(Boolean)
                     : []
             }));

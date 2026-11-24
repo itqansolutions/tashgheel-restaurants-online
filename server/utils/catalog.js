@@ -24,12 +24,15 @@ function snapshotItems(items, products) {
         const productId = String(item.productId ?? item.id ?? '');
         const product = products.find(p => String(p.id) === productId);
         if (!product) throw new Error('Product not found in current catalog');
+        if(product.isActive===false) {const error=new Error('Product is inactive');error.status=409;throw error;}
         const size = product.hasSizes ? (product.sizes || []).find(s => String(s.id) === String(item.sizeId) || (item.sizeName && s.name === item.sizeName)) : null;
         if (product.hasSizes && !size) throw new Error('Product size is required');
+        if(size?.isActive===false) {const error=new Error('Product size is inactive');error.status=409;throw error;}
         let cost = finite(size ? size.cost ?? 0 : product.cost ?? 0, 'product cost');
         for (const addon of item.addons || []) {
             const master = products.find(p => String(p.id) === String(addon.id));
             if (!master) throw new Error('Add-on not found in current catalog');
+            if(master.isActive===false) {const error=new Error('Add-on is inactive');error.status=409;throw error;}
             const quantity = finite(addon.qty ?? 1, 'add-on quantity');
             if (quantity <= 0) throw new Error('Add-on quantity must be positive');
             cost += finite(master.cost ?? 0, 'add-on cost') * quantity;

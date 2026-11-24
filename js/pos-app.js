@@ -622,7 +622,10 @@ function renderProducts() {
       ? `<img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover transition-transform group-hover:scale-105" onerror="this.parentElement.innerHTML='<span class=\\'material-symbols-outlined text-4xl text-slate-300\\'>restaurant</span>'">` 
       : `<span class="material-symbols-outlined text-4xl text-slate-300">restaurant</span>`;
 
+    const unavailable=product.isActive===false || product.recipeAvailable===false;
+    if(unavailable) {card.classList.add('opacity-50');card.setAttribute('aria-disabled','true');}
     card.innerHTML = `
+      ${unavailable?'<p class="text-xs text-red-600">غير متاح، راجع الريسبي</p>':''}
       <div class="aspect-square bg-slate-100 dark:bg-slate-700 rounded-lg mb-2.5 overflow-hidden flex items-center justify-center relative">
         ${imgHtml}
         ${(product.stock || 0) <= 5 && !product.hasSizes ? `<span class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">Low</span>` : ''}
@@ -1568,6 +1571,7 @@ let selectedAddons = [];
 let selectedSize = null; // {id, name, price}
 
 function addToCart(product) {
+  if(product.isActive===false || product.recipeAvailable===false) {alert('الصنف غير متاح: الريسبي ناقصة أو غير صالحة، راجع إعدادات الصنف.');return;}
   // Logic: 
   // 1. If hasSizes -> Open Modal (Force size selection).
   // 2. If allowAllAddons or specific addons -> Open Modal.
@@ -1606,7 +1610,7 @@ function prodWithAddons(product) {
     // Let's require click visually, but maybe default to first?
     // Better to require click.
 
-    product.sizes.forEach(size => {
+    product.sizes.filter(size=>size.isActive!==false && !(product.recipeUnavailableSizes||[]).includes(String(size.id))).forEach(size => {
       const btn = document.createElement('button');
       btn.className = 'btn btn-outline-primary size-btn'; // need css for active
       btn.textContent = `${size.name} (${size.price})`;
@@ -1633,7 +1637,7 @@ function prodWithAddons(product) {
   modal.style.display = 'flex';
 
   let allowedItems = [];
-  const allParts = window.DB.getParts();
+  const allParts = window.DB.getParts().filter(item=>item.isActive!==false && item.recipeAvailable!==false);
 
   if (product.allowAllAddons) {
     // Case-insensitive category matching (consistent with products-app.js)

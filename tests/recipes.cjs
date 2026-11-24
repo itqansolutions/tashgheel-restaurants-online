@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');const {recipeLines,selectedRecipe}=require('../server/utils/recipes');const {applyStock}=require('../server/utils/stock');
+(async()=>{
+ const ingredients=[{id:'flour',name:'Flour',unit:'kg',cost:100,stockByBranch:{A:5,B:50},stock:55},{id:'milk',name:'Milk',unit:'l',cost:40,stockByBranch:{A:5}}];
+ const meal={id:'meal',name:'Meal',itemType:'recipe',cost:999,recipe:[{ingredientId:'flour',qty:500,unit:'g',baseUnit:'kg',conversionFactor:.001,wasteType:'percent',wasteValue:20}]};
+ assert.equal(recipeLines(meal,{qty:2},ingredients)[0].qty,1.25);assert.equal(recipeLines({...meal,recipe:[{ingredientId:'flour',qty:100,unit:'g',wasteType:'fixed',wasteValue:25}]},{qty:2},ingredients)[0].qty,.25);
+ const sized={id:'latte',name:'Latte',itemType:'recipe',hasSizes:true,sizes:[{id:'large',recipe:[{ingredientId:'milk',qty:250,unit:'ml'}]},{id:'missing',recipe:[]}]};assert.equal(recipeLines(sized,{qty:2,sizeId:'large'},ingredients)[0].qty,.5);assert.throws(()=>selectedRecipe(sized,{sizeId:'missing'}),/missing/);assert.throws(()=>selectedRecipe({...meal,recipe:[]},{}),/missing/);
+ for(const line of [{...meal.recipe[0],wasteValue:100},{...meal.recipe[0],wasteValue:-1},{...meal.recipe[0],qty:0},{...meal.recipe[0],unit:'ml'},{...meal.recipe[0],baseUnit:'g'},{ingredientId:'unknown',qty:1}])assert.throws(()=>recipeLines({...meal,recipe:[line]},{qty:1},ingredients));
+ let catalog=[meal,sized];let stored=structuredClone(ingredients),writes=0;
+ const tx={data:{findUnique:async({where})=>({value:JSON.stringify(where.key_tenantId.key==='ingredients'?stored:catalog)}),update:async({data})=>{writes++;stored=JSON.parse(data.value)}},productStock:{updateMany:async()=>({count:1})}};
+ let moves=await applyStock(tx,'T','A',[{id:'meal',qty:2,addons:[{id:'latte',qty:2}]}]).catch(e=>e);assert.ok(moves instanceof Error);assert.equal(writes,0);
+ catalog=[meal];moves=await applyStock(tx,'T','A',[{id:'meal',qty:2},{id:'meal',qty:1}]);assert.equal(moves.length,1);assert.equal(moves[0].qty,1.875);assert.equal(stored[0].stockByBranch.A,3.125);assert.equal(stored[0].stockByBranch.B,50);
+ const prior=JSON.stringify(stored);await assert.rejects(()=>applyStock(tx,'T','A',[{id:'meal',qty:100}]),/Insufficient/);assert.equal(JSON.stringify(stored),prior);delete stored[0].stockByBranch.A;await assert.rejects(()=>applyStock(tx,'T','A',[{id:'meal',qty:1}]),/unknown/);
+ const {snapshotItems}=require('../server/utils/catalog');assert.throws(()=>snapshotItems([{id:'meal',qty:1}],[{...meal,isActive:false}]),/inactive/);assert.throws(()=>snapshotItems([{id:'latte',sizeId:'large',qty:1}],[{...sized,sizes:[{...sized.sizes[0],isActive:false}]}]),/inactive/);
+ console.log('PASS recipe500g/20% x2=1.25kg, fixed100g+25g x2=.25kg, size250ml x2=.5L; missing/invalidrecipe/unit/waste/changedbase denied; duplicates aggregate1.875kg, foreignbranch50 retained, shortage/unknown balance no ingredient writes. Costpolicy unchanged/held.');
+})().catch(e=>{console.error(e);process.exitCode=1});

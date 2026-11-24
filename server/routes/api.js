@@ -164,11 +164,13 @@ router.get('/data/read/:key', async (req, res) => {
                 products.forEach(p => {
                     p.stock = stockMap[p.id] || 0;
                 });
-                return res.json(products);
+                const ingredientsDoc=await prisma.data.findUnique({where:{key_tenantId:{key:'ingredients',tenantId:req.tenantId}}});
+                const ingredients=ingredientsDoc?(typeof ingredientsDoc.value==='string'?JSON.parse(ingredientsDoc.value):ingredientsDoc.value):[];
+                return res.json(require('../utils/recipe-availability').withRecipeAvailability(products,Array.isArray(ingredients)?ingredients:[]));
 
             } catch (e) {
                 console.error('Stock Merge Error', e);
-                return res.json(products);
+                return res.status(503).json({error:'Catalog availability could not be verified'});
             }
         }
 

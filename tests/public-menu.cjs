@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');const {chromium}=require('playwright'
 const prisma=require('../server/prisma');const storage=require('../server/utils/storage');
 (async()=>{
  const rawSize={id:'large',name:'Large',price:30,isActive:true,cost:9,recipe:[{ingredientId:'private',qty:2}],internalNotes:'private'};
- const catalog=[{id:'coffee',name:'Coffee',price:20,category:'Drinks',hasSizes:true,sizes:[rawSize],cost:7,recipe:[{id:'private'}],allowedAddons:['milk']},{id:'milk',name:'Milk',price:5,cost:2}];
+ const catalog=[{id:'coffee',name:'Coffee',price:20,category:'Drinks',hasSizes:true,sizes:[rawSize,{...rawSize,id:'inactive-size',isActive:false}],cost:7,recipe:[{id:'private'}],allowedAddons:['milk']},{id:'milk',name:'Milk',price:5,cost:2}];
  prisma.branch.findFirst=async()=>({id:'fixture',tenantId:'fixture'});storage.readData=async key=>JSON.stringify(key==='categories'?[{id:'drinks',name:'Drinks',order:1,isActive:true,cost:777,internalNotes:'private'},'Legacy category']:catalog);
  const router=require('../server/routes/public-api');const handler=router.stack.find(l=>l.route?.path==='/menu/:branchId').route.stack[0].handle;
  let menu;await handler({params:{branchId:'fixture'}},{json(data){menu=JSON.parse(JSON.stringify(data))},status(){throw new Error('Unexpected handler failure')}});
