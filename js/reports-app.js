@@ -470,8 +470,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // === ACTIONS ===
-  window.openExpenseModal = () => document.getElementById('modal-add-expense').classList.remove('hidden');
-  window.closeExpenseModal = () => document.getElementById('modal-add-expense').classList.add('hidden');
+  window.openExpenseModal = () => document.getElementById('modal-add-expense')?.classList.remove('hidden');
+  window.closeExpenseModal = () => document.getElementById('modal-add-expense')?.classList.add('hidden');
 
   // Re-attach handleSaveExpense if needed or keep inline? Layout suggested inline in previous phase
   // But strictly we should define it here

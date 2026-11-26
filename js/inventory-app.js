@@ -265,10 +265,7 @@ function loadInventory() {
         tbody.appendChild(row);
     });
 
-    document.getElementById('alert-expired-count').textContent = expiredCount;
-    document.getElementById('alert-expiring-count').textContent = expiringCount;
-    document.getElementById('alert-dead-count').textContent = deadCount;
-    document.getElementById('alert-healthy-count').textContent = healthyCount;
+    [['alert-expired-count', expiredCount], ['alert-expiring-count', expiringCount], ['alert-dead-count', deadCount], ['alert-healthy-count', healthyCount]].forEach(([id, n]) => { const el = document.getElementById(id); if (el) el.textContent = n; });
 }
 
 // === FORM HANDLING ===
@@ -328,7 +325,9 @@ async function handleSaveMaterial(e) {
             if (!result?.success) throw new Error(result?.error || 'Material was not saved');
             window.DataCache.ingredients = result.ingredients;
             if (window.electronAPI.getVendors) { try { window.DataCache.vendors = await window.electronAPI.getVendors(); } catch(e) { console.warn('Vendor refresh unavailable after confirmed save',e); } }
-            resetForm(); loadInventory(); alert(id ? 'Material Updated' : 'Material Added');
+            try { resetForm(); } catch (uiErr) { console.warn('Form reset failed after confirmed save', uiErr); }
+            try { await loadInventory(); } catch (uiErr) { console.warn('List refresh failed after confirmed save', uiErr); }
+            alert(id ? 'Material Updated' : 'Material Added');
         } catch (err) { alert('Material save failed: ' + err.message); }
         return;
     }
@@ -461,8 +460,8 @@ async function editMaterial(id) {
     document.getElementById('material-min').value = mat.minStock || 5;
     document.getElementById('material-exp').value = mat.expirationDate ? mat.expirationDate.split('T')[0] : "";
 
-    document.getElementById('form-title').textContent = "Edit Raw Material";
-    document.getElementById('btn-cancel').classList.remove('hidden');
+    const formTitleEl = document.getElementById('form-title'); if (formTitleEl) formTitleEl.textContent = "Edit Raw Material";
+    const cancelBtnEl = document.getElementById('btn-cancel'); if (cancelBtnEl) cancelBtnEl.classList.remove('hidden');
 
     // Scroll to form
     document.getElementById('inventory-form').scrollIntoView({ behavior: 'smooth' });
@@ -478,8 +477,8 @@ function resetForm() {
     materialEditSnapshot = null;
     document.getElementById('inventory-form').reset();
     document.getElementById('material-id').value = "";
-    document.getElementById('form-title').textContent = "Add New Raw Material";
-    document.getElementById('btn-cancel').classList.add('hidden');
+    const formTitleEl = document.getElementById('form-title'); if (formTitleEl) formTitleEl.textContent = "Add New Raw Material";
+    const cancelBtnEl = document.getElementById('btn-cancel'); if (cancelBtnEl) cancelBtnEl.classList.add('hidden');
 }
 
 // Expose globally
