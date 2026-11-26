@@ -113,6 +113,9 @@ router.put('/:id', async (req, res) => {
         if (!user || user.tenantId !== req.tenantId) {
             return res.status(404).json({ msg: 'User not found' });
         }
+        if (req.user.role !== 'admin' && String(user.role).toLowerCase() === 'admin') {
+            return res.status(403).json({ msg: 'Only an admin can change an admin account' });
+        }
 
         const updateData = {};
         if (username) updateData.username = username;

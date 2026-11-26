@@ -67,16 +67,17 @@ startServer();
 
 const auth = require('./middleware/auth');
 const branchScope = require('./middleware/branchScope');
+const roleGuard = require('./middleware/roleGuard');
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/super-admin', require('./routes/super-admin'));
-app.use('/api/taxes', auth, require('./routes/taxes')); // 🆕 Tax Management
-app.use('/api/expenses', auth, branchScope, require('./routes/expenses')); // 🆕 Expenses Management
-app.use('/api/parties', auth, branchScope, require('./routes/parties')); // 🆕 Vendors & Customers
-app.use('/api/branches', auth, require('./routes/branches')); // 🆕 Branch Management
-app.use('/api/delivery-zones', auth, require('./routes/delivery-zones')); // 🆕 Delivery Zones Management
-app.use('/api/users', auth, require('./routes/users')); // 🆕 User Management
+app.use('/api/taxes', auth, roleGuard, require('./routes/taxes')); // 🆕 Tax Management
+app.use('/api/expenses', auth, roleGuard, branchScope, require('./routes/expenses')); // 🆕 Expenses Management
+app.use('/api/parties', auth, roleGuard, branchScope, require('./routes/parties')); // 🆕 Vendors & Customers
+app.use('/api/branches', auth, roleGuard, require('./routes/branches')); // 🆕 Branch Management
+app.use('/api/delivery-zones', auth, roleGuard, require('./routes/delivery-zones')); // 🆕 Delivery Zones Management
+app.use('/api/users', auth, roleGuard, require('./routes/users')); // 🆕 User Management
 
 // 🌍 Public Store API (Rate Limited, No Auth Required for Read)
 app.use('/api/public', require('./routes/public-api'));
@@ -96,7 +97,7 @@ app.use('/api/orders', qrAuth, require('./routes/orders'));                     
 app.use('/api/dine-in/kitchen', auth, branchScope, require('./routes/kitchen-orders')); // Kitchen display (staff only)
 
 app.use('/api/kitchen-drafts', auth, branchScope, require('./routes/kitchen-drafts'));
-app.use('/api', auth, branchScope, apiRoutes);
+app.use('/api', auth, roleGuard, branchScope, apiRoutes);
 
 // Serve Static Files (Frontend)
 // Serve from the parent directory (project root)
