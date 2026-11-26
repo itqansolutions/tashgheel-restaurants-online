@@ -7,7 +7,8 @@
   "scripts": {
     "start": "NODE_OPTIONS=\"--dns-result-order=ipv4first\" node server/index.js",
     "dev": "nodemon server/index.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "build:css": "node tailwind/build.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -23,7 +24,12 @@
     "prisma": "^5.22.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/typography": "^0.5.20",
+    "nodemon": "^3.0.1",
+    "tailwindcss": "^3.4.19"
   },
   "engines": {
     "node": "20.x"

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tashgheel-cache-v8-current-client-assets';
+const CACHE_NAME = 'tashgheel-cache-v9-built-tailwind-css';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -47,6 +47,24 @@ const ASSETS_TO_CACHE = [
   '/js/reports-engine.js',
   '/js/reports-export.js',
   '/js/salesmen-app.js',
+  '/css/tw/admin.css',
+  '/css/tw/backup.css',
+  '/css/tw/customers.css',
+  '/css/tw/dine-in.css',
+  '/css/tw/expenses.css',
+  '/css/tw/index.css',
+  '/css/tw/inventory.css',
+  '/css/tw/kitchen.css',
+  '/css/tw/online_ordering.css',
+  '/css/tw/pos.css',
+  '/css/tw/products.css',
+  '/css/tw/receipts.css',
+  '/css/tw/reports.css',
+  '/css/tw/salesmen.css',
+  '/css/tw/super-admin.css',
+  '/css/tw/table-order.css',
+  '/css/tw/tables.css',
+  '/css/tw/vendors.css',
   '/js/dine-in-app.js',
   '/js/kitchen-app.js',
   '/js/receipts-app.js',
@@ -58,10 +76,6 @@ const ASSETS_TO_CACHE = [
 ];
 
 const EXTERNAL_ASSETS_TO_CACHE = [
-  'https://cdn.tailwindcss.com?plugins=forms,typography,container-queries',
-  'https://cdn.tailwindcss.com?plugins=forms,typography',
-  'https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio',
-  'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap',

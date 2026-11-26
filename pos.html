@@ -5,49 +5,17 @@
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>Branded Desktop POS Dashboard</title>
-  <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
     rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" /> <!-- Keeping original styles for modals -->
   <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            primary: "#1e293b",
-            accent: "#f59e0b",
-            success: "#22c55e",
-            danger: "#ef4444",
-            "background-light": "#f1f5f9",
-            "background-dark": "#0f172a",
-          },
-          fontFamily: {
-            sans: ["Inter", "sans-serif"],
-          },
-          borderRadius: {
-            DEFAULT: "12px",
-          },
-        },
-      },
-    };
     // Safe early stub for online order sound
     window.playOnlineOrderSound = window.playOnlineOrderSound || function() {
       console.log('Audio engine initializing...');
     };
   </script>
-  <style type="text/tailwindcss">
-    @layer base {
-      body { @apply font-sans; }
-    }
-    .hide-scrollbar::-webkit-scrollbar { display: none; }
-    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .material-symbols-outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-    }
-  </style>
   <style>
     body {
       /* Reset min-height to allow standard h-screen behavior */
@@ -189,6 +157,7 @@
     #cartExpandBtn .expand-icon { transition: transform 0.2s; }
     #cartSidebar.cart-floating #cartExpandBtn .expand-icon { transform: rotate(180deg); }
   </style>
+  <link rel="stylesheet" href="css/tw/pos.css">
 </head>
 
 <body
