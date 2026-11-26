@@ -61,7 +61,7 @@
         'Stock Audit': 'جرد المخزون', 'Adjust / Waste Stock': 'تعديل / هالك المخزون', 'For Waste/Damage, enter positive number (system will subtract).': 'للهالك/التالف أدخل رقمًا موجبًا (سيخصمه النظام).',
         'Transfer Stock': 'تحويل مخزون', 'Available Stock:': 'المخزون المتاح:', 'Cash': 'نقدي', 'Card': 'بطاقة', 'Mobile': 'محفظة', 'Confirm Restock': 'تأكيد إعادة التعبئة', 'Why is this matching happening?': 'ما سبب هذا الفرق؟',
         'No address provided': 'لا يوجد عنوان', 'Kitchen Orders': 'طلبات المطبخ', 'Delivery Orders': 'طلبات التوصيل', 'No delivery orders': 'لا توجد طلبات توصيل', 'Waiting for orders from delivery apps...': 'في انتظار طلبات تطبيقات التوصيل...',
-        'Receipts': 'الفواتير', 'Search by cashier or ID...': 'ابحث بالكاشير أو الرقم...', 'Reason...': 'السبب...',
+        'Receipts': 'الفواتير', 'Search by cashier or ID...': 'ابحث بالكاشير أو الرقم...', 'Reason...': 'السبب...', 'Reason (required)': 'السبب (مطلوب)',
         'Access Denied': 'غير مسموح', 'Viewing Mode': 'وضع المشاهدة', 'Low': 'منخفض', 'Expand': 'توسيع', '+ New Address': '+ عنوان جديد', '+ New Customer': '+ عميل جديد', 'Talabat Cash': 'طلبات نقدي', 'Talabat Visa': 'طلبات فيزا',
         'Toggle taxes for this specific order.': 'تفعيل/إيقاف الضرائب لهذا الطلب فقط.', 'None': 'بدون', 'Percentage (%)': 'نسبة (%)', 'Fixed Value': 'قيمة ثابتة', 'Split Payment': 'تقسيم الدفع', 'Split the check between Cash and Card amounts': 'قسّم الفاتورة بين النقدي والبطاقة',
         'Total to Pay': 'الإجمالي المطلوب', 'Cash Portion (EGP)': 'الجزء النقدي (ج.م)', 'Card Portion (EGP)': 'الجزء بالبطاقة (ج.م)', 'Remaining:': 'المتبقي:', 'Add Note': 'إضافة ملاحظة', 'Quick Tags:': 'وسوم سريعة:',
@@ -121,8 +121,8 @@
         new MutationObserver(muts => {
             if (busy) return;
             busy = true;
-            try { muts.forEach(m => { m.addedNodes.forEach(walk); if (m.type === 'characterData') walk(m.target); }); } finally { busy = false; }
-        }).observe(document.body, { childList: true, subtree: true, characterData: true });
+            try { muts.forEach(m => { m.addedNodes.forEach(walk); if (m.type === 'characterData' || m.type === 'attributes') walk(m.target); }); } finally { busy = false; }
+        }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['placeholder', 'title'] });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

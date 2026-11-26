@@ -417,6 +417,6 @@ window.printHtml = function (html) {
 if (localStorage.getItem('pos_language') === 'ar' && !window.__arFallbackLoaded) {
     window.__arFallbackLoaded = true;
     const s = document.createElement('script');
-    s.src = 'js/ar-fallback.js?v=20261126b';
+    s.src = 'js/ar-fallback.js?v=20261126c';
     document.head.appendChild(s);
 }
