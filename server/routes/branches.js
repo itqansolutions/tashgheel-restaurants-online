@@ -6,6 +6,17 @@ const auth = require('../middleware/auth');
 // Apply Auth Middleware to ALL routes in this file
 router.use(auth);
 
+// Never send stored delivery-app keys to the browser.
+function publicBranch(b) {
+    if (!b || !b.settings || !b.settings.aggregators) return b;
+    const aggregators = {};
+    for (const [k, v] of Object.entries(b.settings.aggregators)) {
+        const { encryptedCredentials, ...rest } = v || {};
+        aggregators[k] = { ...rest, hasCredentials: !!encryptedCredentials };
+    }
+    return { ...b, settings: { ...b.settings, aggregators } };
+}
+
 // @route   GET /api/branches
 router.get('/', async (req, res) => {
     try {
@@ -13,7 +24,7 @@ router.get('/', async (req, res) => {
             where: { tenantId: req.tenantId },
             orderBy: { createdAt: 'desc' }
         });
-        res.json(branches);
+        res.json(branches.map(publicBranch));
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Server Error' });
@@ -43,7 +54,7 @@ router.post('/', async (req, res) => {
             }
         });
 
-        res.json(branch);
+        res.json(publicBranch(branch));
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Server Error' });

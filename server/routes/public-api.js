@@ -35,7 +35,8 @@ router.get('/branches', async (req, res) => {
             }
         });
 
-        res.json(branches);
+        // Public endpoint: never expose delivery-app keys or settings stored on the branch.
+        res.json(branches.map(b => { const { aggregators, ...safe } = (b.settings || {}); return { ...b, settings: safe }; }));
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch branches' });
     }

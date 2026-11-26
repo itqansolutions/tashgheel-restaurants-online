@@ -12,14 +12,21 @@ const storage = require('../utils/storage');
 const {readCatalog,snapshotItems}=require('../utils/catalog');
 const {applyStock}=require('../utils/stock');
 const crypto=require('crypto');
-const { getAdapter } = require('./adapters');
+const { getAdapter, listProviders } = require('./adapters');
+const auth = require('../middleware/auth');
+const branchScope = require('../middleware/branchScope');
+const roleGuard = require('../middleware/roleGuard');
+const rateLimit = require('express-rate-limit');
 const { mapToSale, enrichItemCosts } = require('./aggregatorMapper');
 const {
     encryptCredentials,
     decryptCredentials,
     getHealthStatus,
     getAllHealthStatuses,
-    getAllDisplayInfo
+    getAllDisplayInfo,
+    CREDENTIAL_FIELDS,
+    readBranchConfig,
+    getProviderStatus
 } = require('./aggregatorService');
 
 const AGGREGATOR_STATUSES = {
@@ -55,69 +62,54 @@ async function transitionOrder(orderId, newStatus, note, tenantId) {
 // ─── Helper: Load decrypted credentials ───
 async function loadProviderCredentials(provider, branchId) {
     const branch = await prisma.branch.findUnique({ where: { id: branchId } });
-    const settings = branch?.settings || {};
-    const aggregators = settings.aggregators || {};
-    const config = aggregators[provider];
-    
-    if (!config?.encryptedCredentials) return null;
-    try {
-        return decryptCredentials(config.encryptedCredentials, provider);
-    } catch (e) {
-        console.warn(`⚠️ Could not decrypt ${provider} credentials:`, e.message);
-        return null;
-    }
+    return readBranchConfig(branch, provider).credentials;
 }
 
 // ═══════════════════════════════════════════════
-// WEBHOOK — Public
+// WEBHOOK — Public, one URL per provider AND branch:
+//   POST /api/aggregator/:provider/webhook/:branchId
+// The branch id picks the tenant. The payload must be signed with the webhook secret the owner
+// saved for that provider and branch; unsigned or wrongly signed calls are rejected.
 // ═══════════════════════════════════════════════
-router.post('/:provider/webhook', async (req, res) => {
-    const { provider } = req.params;
+const webhookLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, message: { error: 'Too many requests' } });
+
+router.post('/:provider/webhook', webhookLimiter, (req, res) => {
+    res.status(400).json({ error: 'Use the per-branch webhook URL shown in Settings > Delivery Integrations' });
+});
+
+router.post('/:provider/webhook/:branchId', webhookLimiter, async (req, res) => {
+    const { provider, branchId } = req.params;
     const adapter = getAdapter(provider);
     if (!adapter) return res.status(404).json({ error: 'Unknown provider' });
-
     if (!adapter.capabilities.webhook) {
-        return res.status(400).json({ error: `${provider} does not support webhooks` });
+        return res.status(501).json({ error: `${provider} integration is not available yet` });
     }
 
     try {
-        const rawBody = req.body;
-        const signature = req.headers[adapter.getSignatureHeader()];
-        const secretEnvKey = `${provider.toUpperCase()}_WEBHOOK_SECRET`;
-        const webhookSecret = process.env[secretEnvKey];
-
-        if (webhookSecret && !adapter.verifySignature(rawBody, signature, webhookSecret)) {
-            return res.status(401).json({ error: 'Invalid signature' });
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+        const { config, credentials } = readBranchConfig(branch, provider);
+        // Same answer for unknown branch, switched off, or no secret: nothing to learn from probing.
+        if (!branch || !branch.isActive || !config.enabled || !credentials?.webhookSecret) {
+            return res.status(404).json({ error: 'Not configured' });
         }
+
+        const rawBody = req.body;
+        if (!Buffer.isBuffer(rawBody)) return res.status(400).json({ error: 'JSON body required' });
+        const signature = req.headers[adapter.getSignatureHeader()];
+        let valid = false;
+        try { valid = adapter.verifySignature(rawBody, signature, credentials.webhookSecret); } catch (e) { valid = false; }
+        if (!valid) return res.status(401).json({ error: 'Invalid signature' });
 
         const payload = JSON.parse(rawBody.toString());
         const parsed = adapter.parseOrder(payload);
+        if (!parsed.providerOrderId || parsed.providerOrderId === 'undefined') return res.status(400).json({ error: 'Order id missing' });
 
-        // Idempotency
         const existing = await prisma.aggregatorOrder.findUnique({
-            where: {
-                provider_providerOrderId: {
-                    provider,
-                    providerOrderId: parsed.providerOrderId
-                }
-            }
+            where: { provider_providerOrderId: { provider, providerOrderId: parsed.providerOrderId } }
         });
-
         if (existing) return res.sendStatus(200);
 
-        // Resolve branch - need to find a branch where this aggregator is enabled
-        // In PostgreSQL with Json, we might need a specific query
-        const branches = await prisma.branch.findMany({
-            where: { isActive: true }
-        });
-        
-        const branch = branches.find(b => b.settings?.aggregators?.[provider]?.enabled);
-
-        if (!branch) {
-            return res.status(400).json({ error: `No branch configured for ${provider}` });
-        }
-
-        const aggOrder = await prisma.aggregatorOrder.create({
+        await prisma.aggregatorOrder.create({
             data: {
                 provider,
                 providerOrderId: parsed.providerOrderId,
@@ -132,15 +124,16 @@ router.post('/:provider/webhook', async (req, res) => {
                 paymentMethod: parsed.paymentMethod
             }
         });
-
-        console.log(`✅ [Aggregator] New ${provider} order ${parsed.providerOrderId} saved`);
+        console.log(`[Aggregator] New ${provider} order ${parsed.providerOrderId} saved`);
         return res.sendStatus(200);
-
     } catch (err) {
-        console.error(`❌ [Aggregator] Webhook error (${provider}):`, err.message);
+        console.error(`[Aggregator] Webhook error (${provider}):`, err.message);
         return res.status(500).json({ error: 'Internal error' });
     }
 });
+
+// Everything below needs a logged-in staff user and a resolved branch.
+router.use(auth, roleGuard, branchScope);
 
 // ─── Provider display info (kitchen screen colours and labels) ───
 router.get('/providers', (req, res) => {
@@ -254,10 +247,10 @@ router.post('/orders/:id/ready', async (req, res) => {
 router.post('/orders/:id/retry', async (req, res) => {
     try {
         const order = await prisma.aggregatorOrder.findUnique({ where: { id: req.params.id } });
-        if (!order) return res.status(404).json({ error: 'Order not found' });
+        if (!order || order.tenantId !== req.tenantId || order.branchId !== req.branchId) return res.status(404).json({ error: 'Order not found' });
         if (order.status !== AGGREGATOR_STATUSES.MAPPING_FAILED) return res.status(400).json({ error: 'Order is not in failed state' });
 
-        await transitionOrder(order.id, AGGREGATOR_STATUSES.PENDING, `Retry #${order.retryCount + 1}`);
+        await transitionOrder(order.id, AGGREGATOR_STATUSES.PENDING, `Retry #${order.retryCount + 1}`, req.tenantId);
         await prisma.aggregatorOrder.update({
             where: { id: order.id },
             data: { retryCount: { increment: 1 }, lastError: null }
@@ -289,70 +282,103 @@ router.post('/menu/:provider/sync', async (req, res) => {
     }
 });
 
-// ─── Config ───
-router.get('/config/:provider', async (req, res) => {
+// ─── Status, config, test (never returns secrets) ───
+const baseUrlOf = req => (process.env.PUBLIC_BASE_URL || `${req.headers['x-forwarded-proto'] || req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+
+async function currentBranch(req) { return prisma.branch.findFirst({ where: { id: req.branchId, tenantId: req.tenantId } }); }
+
+router.get('/status', async (req, res) => {
     try {
-        const branch = await prisma.branch.findUnique({ where: { id: req.branchId } });
-        const config = branch?.settings?.aggregators?.[req.params.provider] || {};
-        res.json({
-            enabled: config.enabled || false,
-            hasCredentials: !!config.encryptedCredentials,
-            lastMenuSync: config.lastMenuSync || null
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        const branch = await currentBranch(req);
+        if (!branch) return res.status(404).json({ error: 'Branch not found' });
+        const providers = {};
+        for (const p of listProviders()) providers[p] = await getProviderStatus(p, branch, req.tenantId, baseUrlOf(req));
+        res.json({ branchId: branch.id, providers });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/config/:provider', async (req, res) => {
+    try {
+        if (!getAdapter(req.params.provider)) return res.status(404).json({ error: 'Unknown provider' });
+        const branch = await currentBranch(req);
+        if (!branch) return res.status(404).json({ error: 'Branch not found' });
+        res.json(await getProviderStatus(req.params.provider, branch, req.tenantId, baseUrlOf(req)));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Save credentials (partial: blank fields keep what is already stored) and the on/off switch.
 router.put('/config/:provider', async (req, res) => {
     try {
         const { provider } = req.params;
-        const { apiKey, clientId, clientSecret, enabled } = req.body;
+        if (!getAdapter(provider)) return res.status(404).json({ error: 'Unknown provider' });
+        const allowed = (CREDENTIAL_FIELDS[provider] || []).map(f => f.key);
+        const incoming = (req.body && typeof req.body.credentials === 'object' && req.body.credentials) || req.body || {};
 
-        const branch = await prisma.branch.findUnique({ where: { id: req.branchId } });
-        const settings = branch.settings || {};
-        const aggregators = settings.aggregators || {};
-        const config = aggregators[provider] || {};
+        const branch = await currentBranch(req);
+        if (!branch) return res.status(404).json({ error: 'Branch not found' });
+        const settings = { ...(branch.settings || {}) };
+        const aggregators = { ...(settings.aggregators || {}) };
+        const config = { ...(aggregators[provider] || {}) };
+        const existing = readBranchConfig(branch, provider).credentials || {};
 
-        if (typeof enabled === 'boolean') config.enabled = enabled;
-        if (apiKey && clientId && clientSecret) {
-            config.encryptedCredentials = encryptCredentials({ apiKey, clientId, clientSecret }, provider);
+        const merged = { ...existing };
+        for (const key of allowed) {
+            const v = incoming[key];
+            if (typeof v === 'string' && v.trim()) {
+                if (v.trim().length > 500) return res.status(400).json({ error: `${key} is too long` });
+                merged[key] = v.trim();
+            }
         }
+        if (Object.keys(merged).length) config.encryptedCredentials = encryptCredentials(merged, provider);
+        if (typeof req.body.enabled === 'boolean') config.enabled = req.body.enabled;
 
         aggregators[provider] = config;
         settings.aggregators = aggregators;
-
-        await prisma.branch.update({
-            where: { id: req.branchId },
-            data: { settings }
-        });
-
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        await prisma.branch.update({ where: { id: branch.id }, data: { settings } });
+        const fresh = await currentBranch(req);
+        res.json({ success: true, ...(await getProviderStatus(provider, fresh, req.tenantId, baseUrlOf(req))) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-module.exports = router;
-
-// ─── Health Check ───
-router.get('/health/:provider', async (req, res) => {
+// Remove the saved keys and switch the provider off.
+router.delete('/config/:provider', async (req, res) => {
     try {
         const { provider } = req.params;
-        const health = await getHealthStatus(provider, req.branchId, req.tenantId);
-        res.json(health);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        if (!getAdapter(provider)) return res.status(404).json({ error: 'Unknown provider' });
+        const branch = await currentBranch(req);
+        if (!branch) return res.status(404).json({ error: 'Branch not found' });
+        const settings = { ...(branch.settings || {}) };
+        const aggregators = { ...(settings.aggregators || {}) };
+        aggregators[provider] = { enabled: false };
+        settings.aggregators = aggregators;
+        await prisma.branch.update({ where: { id: branch.id }, data: { settings } });
+        const fresh = await currentBranch(req);
+        res.json({ success: true, ...(await getProviderStatus(provider, fresh, req.tenantId, baseUrlOf(req))) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Live check against the provider. Only runs when the owner has saved keys and the adapter is built.
+router.post('/test/:provider', async (req, res) => {
+    try {
+        const { provider } = req.params;
+        const adapter = getAdapter(provider);
+        if (!adapter) return res.status(404).json({ error: 'Unknown provider' });
+        if (!adapter.capabilities.webhook) return res.json({ ok: false, reason: 'not_available', message: 'This provider integration is not built yet.' });
+        const branch = await currentBranch(req);
+        const { credentials } = readBranchConfig(branch, provider);
+        if (!credentials || !(credentials.apiKey || credentials.clientSecret)) return res.json({ ok: false, reason: 'no_credentials', message: 'Save the provider keys first.' });
+        const ok = await adapter.testConnection(credentials);
+        res.json({ ok, reason: ok ? 'ok' : 'rejected', message: ok ? 'Provider accepted the keys.' : 'Provider did not accept the keys.' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/health', async (req, res) => {
     try {
-        const health = await getAllHealthStatuses(req.branchId, req.tenantId);
-        res.json(health);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        const branch = await currentBranch(req);
+        const out = {};
+        for (const p of listProviders()) out[p] = await getProviderStatus(p, branch, req.tenantId, baseUrlOf(req));
+        res.json({ providers: out });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

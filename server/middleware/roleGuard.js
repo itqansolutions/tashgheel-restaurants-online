@@ -22,6 +22,9 @@ module.exports = function roleGuard(req, res, next) {
     const isAdmin = role === 'admin';
     const low = COUNTER.has(role.toLowerCase());
 
+    // Delivery-app keys and settings: admin or manager only (reads and writes)
+    if (/^\/api\/aggregator\/(config|test|status|health|menu)(\/|$)/.test(path) && !isAdmin && role.toLowerCase() !== 'manager') return forbid(res);
+
     // Refunds: manager or admin only
     if (write && /^\/api\/sales\/refund(\/|$)/.test(path) && !isAdmin && role.toLowerCase() !== 'manager') return forbid(res);
 

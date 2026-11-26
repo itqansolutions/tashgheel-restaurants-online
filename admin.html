@@ -720,8 +720,7 @@
             <!-- Webhook URL Display -->
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <label class="block text-xs font-bold text-blue-600 uppercase mb-1">Your Webhook URL</label>
-              <p class="text-[11px] text-slate-500 mb-2">Give this URL to each delivery provider during onboarding.
-                Replace <code>[provider]</code> with: talabat, uber_eats, careem_now, or mrsool.</p>
+              <p class="text-[11px] text-slate-500 mb-2">Give this URL to the selected delivery provider during onboarding. It is unique to this branch and changes when you pick another provider tab.</p>
               <div class="flex items-center gap-2">
                 <input type="text" id="webhook-url-display" readonly
                   class="flex-1 p-2 bg-white border border-blue-200 rounded-lg text-sm font-mono text-slate-700 select-all"
@@ -1037,7 +1036,7 @@
       // Set webhook URL display
       const webhookInput = document.getElementById('webhook-url-display');
       if (webhookInput) {
-        webhookInput.value = window.location.origin + '/api/aggregator/[provider]/webhook';
+        webhookInput.value = window.location.origin + '/api/aggregator/talabat/webhook/<branch>';
       }
       // Load health on page load
       refreshHealthStatus();
@@ -1056,6 +1055,7 @@
       document.querySelectorAll('.provider-tab').forEach(t => {
         t.className = 'provider-tab px-4 py-2.5 text-sm font-bold rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all flex items-center gap-1.5';
       });
+      currentProvider = provider; updateWebhookDisplay();
       const panel = document.getElementById('panel-' + provider);
       const tab = document.getElementById('ptab-' + provider);
       const colors = PROVIDER_COLORS[provider];
@@ -1074,85 +1074,128 @@
       });
     }
 
-    // ─── Save Provider Config ───
+    // ─── Delivery integrations: status + credentials (secrets are never sent back to the page) ───
+    let providerState = {};
+    let currentProvider = 'talabat';
+    const STATUS_TEXT = {
+      not_connected: ['⚪ Not connected', 'Paste the keys from the delivery app and save.', 'amber'],
+      saved: ['🟡 Keys saved, switched off or missing the Webhook Secret', 'Turn the integration on and add the Webhook Secret to start receiving orders.', 'amber'],
+      connected: ['🟢 Connected', 'Ready to receive orders. Keys are saved on the server and cannot be viewed.', 'green'],
+      not_available: ['⚪ Not available yet', 'The connection for this app is not built yet. It will be added once the official API details are available.', 'amber']
+    };
+
+    function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+    function renderProvider(p, info) {
+      const panel = document.getElementById('panel-' + p);
+      if (!panel || !info) return;
+      const grid = panel.querySelector('.grid');
+      if (grid) {
+        grid.innerHTML = info.fields.map(f => `<div>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">${esc(f.label)}</label>
+          <input type="password" id="${p}-${f.key}" autocomplete="off" placeholder="${f.set ? '•••••• saved (leave blank to keep)' : 'Enter ' + esc(f.label)}"
+            class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none text-sm font-mono">
+        </div>`).join('');
+      }
+      const toggle = document.getElementById('toggle-' + p);
+      if (toggle) toggle.checked = !!info.enabled;
+      let badge = document.getElementById('conn-' + p);
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'conn-' + p;
+        const holder = panel.querySelector('.space-y-4');
+        if (holder) holder.insertBefore(badge, holder.firstChild);
+      }
+      const [title, hint, color] = STATUS_TEXT[info.status] || STATUS_TEXT.not_connected;
+      const colorMap = { green: 'bg-green-50 text-green-700 border border-green-200', amber: 'bg-amber-50 text-amber-700 border border-amber-200' };
+      const last = info.lastOrderAt ? ` Last order: ${new Date(info.lastOrderAt).toLocaleString()}.` : (info.status === 'connected' ? ' No order received yet.' : '');
+      badge.className = `p-3 rounded-lg text-sm ${colorMap[color]}`;
+      badge.innerHTML = `<div class="font-bold">${esc(title)}</div><div class="text-xs mt-0.5">${esc(hint + last)}</div>`;
+      if (!panel.querySelector('.disconnect-btn') && info.adapterReady !== undefined) {
+        const row = panel.querySelector('.flex.flex-wrap.gap-2');
+        if (row) {
+          const btn = document.createElement('button');
+          btn.className = 'disconnect-btn px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-bold transition-all active:scale-95 flex items-center gap-1.5';
+          btn.innerHTML = '<span class="material-symbols-outlined text-sm">link_off</span> Remove Keys';
+          btn.onclick = () => removeProviderKeys(p);
+          row.appendChild(btn);
+        }
+      }
+      updateWebhookDisplay();
+    }
+
+    function updateWebhookDisplay() {
+      const input = document.getElementById('webhook-url-display');
+      const info = providerState[currentProvider];
+      if (input && info) input.value = info.webhookUrl;
+    }
+
+    async function refreshHealthStatus() {
+      const grid = document.getElementById('health-status-grid');
+      try {
+        const data = await apiFetch('/aggregator/status');
+        providerState = (data && data.providers) || {};
+        Object.entries(providerState).forEach(([p, info]) => renderProvider(p, info));
+        if (grid) grid.innerHTML = Object.entries(providerState).map(([key, info]) => {
+          const dot = info.status === 'connected' ? '🟢' : info.status === 'saved' ? '🟡' : '⚪';
+          const label = { connected: 'Connected', saved: 'Keys saved', not_available: 'Not available yet', not_connected: 'Not connected' }[info.status];
+          return `<div class="text-center p-2 bg-white rounded border text-xs">
+            <div class="text-lg">${dot}</div>
+            <div class="font-bold text-slate-700 mt-0.5">${esc(info.name || key)}</div>
+            <div class="text-slate-400">${label}</div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        if (grid) grid.innerHTML = '<div class="col-span-full text-center text-xs text-red-400">Failed to load status</div>';
+      }
+    }
+
     async function saveProviderConfig(provider) {
-      const fields = document.querySelectorAll(`[id^="${provider}-"]`);
+      const info = providerState[provider];
       const credentials = {};
-      fields.forEach(f => {
-        const key = f.id.replace(provider + '-', '');
-        if (f.value.trim()) credentials[key] = f.value.trim();
+      (info?.fields || []).forEach(f => {
+        const el = document.getElementById(provider + '-' + f.key);
+        if (el && el.value.trim()) credentials[f.key] = el.value.trim();
       });
       const enabled = document.getElementById('toggle-' + provider)?.checked || false;
-
-      if (Object.keys(credentials).length === 0) {
-        showProviderStatus(provider, '⚠️ Please enter at least one credential field.', 'amber');
-        return;
-      }
-
       try {
         showProviderStatus(provider, '⏳ Saving...', 'blue');
-        const result = await apiFetch(`/aggregator/config/${provider}`, {
-          method: 'PUT',
-          body: JSON.stringify({ credentials, enabled })
-        });
-        showProviderStatus(provider, '✅ Credentials saved & encrypted successfully!', 'green');
-        // Clear fields after save for security
-        fields.forEach(f => f.value = '');
+        await apiFetch(`/aggregator/config/${provider}`, { method: 'PUT', body: JSON.stringify({ credentials, enabled }) });
+        await refreshHealthStatus();
+        showProviderStatus(provider, '✅ Saved. Keys are encrypted on the server.', 'green');
       } catch (err) {
         showProviderStatus(provider, '❌ Failed to save: ' + err.message, 'red');
       }
     }
 
-    // ─── Test Connection ───
-    async function testConnection(provider) {
+    async function removeProviderKeys(provider) {
+      if (!confirm('Remove the saved keys for this delivery app and switch it off?')) return;
       try {
-        showProviderStatus(provider, '⏳ Testing connection...', 'blue');
-        const result = await apiFetch(`/aggregator/health/${provider}`);
-        if (result.connected) {
-          showProviderStatus(provider, '✅ Connected! Last order: ' + (result.lastOrderAt || 'none'), 'green');
-        } else {
-          showProviderStatus(provider, '⚠️ Not connected — check credentials. ' + (result.error || ''), 'amber');
-        }
+        await apiFetch(`/aggregator/config/${provider}`, { method: 'DELETE' });
+        await refreshHealthStatus();
+        showProviderStatus(provider, '✅ Keys removed.', 'green');
       } catch (err) {
-        showProviderStatus(provider, '❌ Connection test failed: ' + err.message, 'red');
+        showProviderStatus(provider, '❌ Failed: ' + err.message, 'red');
       }
     }
 
-    // ─── Sync Menu ───
+    async function testConnection(provider) {
+      try {
+        showProviderStatus(provider, '⏳ Checking with the provider...', 'blue');
+        const r = await apiFetch(`/aggregator/test/${provider}`, { method: 'POST', body: '{}' });
+        showProviderStatus(provider, (r.ok ? '✅ ' : '⚠️ ') + r.message, r.ok ? 'green' : 'amber');
+      } catch (err) {
+        showProviderStatus(provider, '❌ Check failed: ' + err.message, 'red');
+      }
+    }
+
     async function syncMenu(provider) {
       try {
         showProviderStatus(provider, '⏳ Syncing menu...', 'blue');
         const result = await apiFetch(`/aggregator/menu/${provider}/sync`, { method: 'POST', body: '{}' });
-        if (result.success) {
-          showProviderStatus(provider, `✅ Menu synced! ${result.syncedCount || 0} items sent.`, 'green');
-        } else {
-          showProviderStatus(provider, '⚠️ Sync issue: ' + (result.error || 'unknown'), 'amber');
-        }
+        showProviderStatus(provider, result.success ? '✅ Menu sent to the provider.' : '⚠️ Sync issue: ' + (result.error || 'unknown'), result.success ? 'green' : 'amber');
       } catch (err) {
         showProviderStatus(provider, '❌ Sync failed: ' + err.message, 'red');
-      }
-    }
-
-    // ─── Health Status ───
-    async function refreshHealthStatus() {
-      const grid = document.getElementById('health-status-grid');
-      try {
-        const data = await apiFetch('/aggregator/health');
-        if (!data || !data.providers) {
-          grid.innerHTML = '<div class="col-span-full text-center text-xs text-slate-400">No health data</div>';
-          return;
-        }
-        grid.innerHTML = Object.entries(data.providers).map(([key, info]) => {
-          const dot = info.connected ? '🟢' : info.enabled ? '🟡' : '⚪';
-          const label = info.name || key;
-          return `<div class="text-center p-2 bg-white rounded border text-xs">
-            <div class="text-lg">${dot}</div>
-            <div class="font-bold text-slate-700 mt-0.5">${label}</div>
-            <div class="text-slate-400">${info.connected ? 'Connected' : info.enabled ? 'Enabled' : 'Disabled'}</div>
-          </div>`;
-        }).join('');
-      } catch (e) {
-        grid.innerHTML = '<div class="col-span-full text-center text-xs text-red-400">Failed to load health</div>';
       }
     }
 
