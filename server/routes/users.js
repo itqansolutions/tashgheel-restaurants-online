@@ -67,6 +67,15 @@ router.post('/', async (req, res) => {
             }
         }
 
+        // A staff member with no branch could not open anything ("Access Denied to this Branch").
+        // When the business has exactly one branch, give it to them automatically.
+        let effBranchIds = branchIds || [];
+        let effDefault = defaultBranchId || null;
+        if (!effBranchIds.length && !effDefault) {
+            const tenantBranches = await prisma.branch.findMany({ where: { tenantId: req.tenantId }, select: { id: true }, take: 2 });
+            if (tenantBranches.length === 1) { effBranchIds = [tenantBranches[0].id]; effDefault = tenantBranches[0].id; }
+        }
+
         const user = await prisma.user.create({
             data: {
                 tenantId: req.tenantId,
@@ -76,10 +85,10 @@ router.post('/', async (req, res) => {
                 role,
                 active: true,
                 createdBy: req.user.id,
-                defaultBranchId: defaultBranchId || null,
+                defaultBranchId: effDefault,
                 allowedPages: allowedPages || [],
-                branches: branchIds ? {
-                    connect: branchIds.map(id => ({ id }))
+                branches: effBranchIds.length ? {
+                    connect: effBranchIds.map(id => ({ id }))
                 } : undefined
             }
         });
