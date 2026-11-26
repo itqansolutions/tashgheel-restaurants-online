@@ -216,7 +216,7 @@ const translations = {
     // Existing keys continue below...
     shop_pos_system: { en: 'F&B POS System', ar: 'نظام كاشير المطاعم' },
     enhanced_security: { en: "Powered By itqan", ar: "بواسطة اتقان" },
-    login_btn: { en: "🚀 Launch System", ar: "🚀 تشغيل النظام" },
+    login_btn: { en: "Launch System", ar: "تشغيل النظام" },
     activation_required: { en: "System Activation Required", ar: "مطلوب تفعيل النظام" },
     license_key: { en: "License Key", ar: "مفتاح الترخيص" },
     business_name: { en: "Business Name", ar: "اسم النشاط التجاري" },

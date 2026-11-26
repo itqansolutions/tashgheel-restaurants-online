@@ -109,6 +109,11 @@
                             <span class="material-symbols-outlined text-sm">edit</span>
                             Edit
                         </button>
+                        <button onclick="TablesAdmin.printQr('${t._id}')" title="Print QR"
+                            class="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-colors">
+                            <span class="material-symbols-outlined text-sm">qr_code_2</span>
+                            QR
+                        </button>
                         <button onclick="TablesAdmin.openArchiveModal('${t._id}', '${t.name.replace(/'/g, "\\'")}')"
                             class="flex items-center justify-center gap-1.5 px-3 py-2 ${isOccupied ? 'bg-slate-700/50 text-slate-600 cursor-not-allowed' : 'bg-red-500/10 hover:bg-red-500/20 text-red-400'} text-xs font-bold rounded-xl transition-colors"
                             ${isOccupied ? 'disabled title="Close bill first"' : ''}>
@@ -265,11 +270,28 @@
         toastTimer = setTimeout(() => toast.classList.add('hidden'), 3000);
     }
 
+    // ─── Printable QR card for a table ──────────────────────────────────
+    function printQr(id) {
+        const t = tables.find(x => String(x._id) === String(id));
+        if (!t || typeof qrcode !== 'function') return;
+        const url = location.origin + '/table-order.html?' + new URLSearchParams({ code: t.code, branch: t.branchId || localStorage.getItem('activeBranchId') || '' }).toString();
+        const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
+        const esc = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const w = window.open('', '_blank', 'width=420,height=560');
+        if (!w) { alert('Allow pop-ups to print the QR code'); return; }
+        w.document.write('<!doctype html><title>' + esc(t.name) + ' QR</title><body style="font-family:sans-serif;text-align:center;padding:24px">'
+            + '<h1 style="margin:0 0 4px">' + esc(t.name) + '</h1><p style="margin:0 0 16px;color:#555">Scan to order / امسح للطلب</p>'
+            + qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true }).replace('<svg', '<svg style="width:300px;height:300px"')
+            + '<p style="font-size:11px;color:#888;word-break:break-all">' + esc(url) + '</p>'
+            + '<button onclick="window.print()" style="margin-top:12px;padding:8px 20px">Print</button></body>');
+        w.document.close();
+    }
+
     // ─── Expose & Boot ───────────────────────────────────────────────────
     window.TablesAdmin = {
         openAddModal, openEditModal, closeModal,
         adjustSeats, saveTable,
-        openArchiveModal, confirmArchive
+        openArchiveModal, confirmArchive, printQr
     };
 
     document.addEventListener('DOMContentLoaded', init);
