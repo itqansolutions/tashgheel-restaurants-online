@@ -412,3 +412,11 @@ window.printHtml = function (html) {
         }, 400);
     } catch (e) { console.error('Print failed:', e); }
 };
+
+// ─── Arabic fallback translator (only active when UI language is Arabic) ───
+if (localStorage.getItem('pos_language') === 'ar' && !window.__arFallbackLoaded) {
+    window.__arFallbackLoaded = true;
+    const s = document.createElement('script');
+    s.src = 'js/ar-fallback.js?v=20261126';
+    document.head.appendChild(s);
+}
