@@ -142,6 +142,11 @@ router.post('/:provider/webhook', async (req, res) => {
     }
 });
 
+// ─── Provider display info (kitchen screen colours and labels) ───
+router.get('/providers', (req, res) => {
+    try { res.json(getAllDisplayInfo()); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── List Orders ───
 router.get('/orders', async (req, res) => {
     try {
