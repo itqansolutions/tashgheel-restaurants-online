@@ -669,6 +669,7 @@
         const fetchOptions = {
             method: options.method || "GET",
             credentials: "include",
+            cache: "no-store",
             headers: {}
         };
 

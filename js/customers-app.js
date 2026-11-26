@@ -43,7 +43,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // === RENDER ===
+let customerRenderSeq = 0;
 async function renderApp() {
+    const renderSeq = ++customerRenderSeq;
     const container = document.getElementById('customersContainer');
     const searchTerm = document.getElementById('searchBox').value.toLowerCase();
 
@@ -51,6 +53,7 @@ async function renderApp() {
 
     // Async Fetch
     let customers = await window.electronAPI.getCustomers() || [];
+    if (renderSeq !== customerRenderSeq) return; // newer render in flight
 
     // Filter
     if (searchTerm) {
@@ -149,13 +152,16 @@ let zoneMarker = null;
 let zoneCircle = null;
 let loadedAreas = [];
 
+let areasRenderSeq = 0;
 async function renderAreasList() {
+    const renderSeq = ++areasRenderSeq;
     const list = document.getElementById('areasList');
     list.innerHTML = '<div class="p-2 text-center text-xs text-slate-400">Loading...</div>';
 
     let areas = [];
     try {
         areas = await window.apiFetch('/delivery-zones') || [];
+        if (renderSeq !== areasRenderSeq) return;
         loadedAreas = areas;
     } catch (e) {
         console.error('Failed to load zones', e);

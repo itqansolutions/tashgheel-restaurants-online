@@ -55,7 +55,9 @@ async function initVendorsApp() {
     });
 }
 
+let vendorRenderSeq = 0;
 async function renderVendors() {
+    const renderSeq = ++vendorRenderSeq; // latest call wins: an older, slower render must not overwrite newer data
     console.log('renderVendors called');
     const container = document.getElementById('vendorsContainer');
 
@@ -68,33 +70,24 @@ async function renderVendors() {
     const vendors = await window.electronAPI.getVendors() || [];
     console.log('Vendors loaded:', vendors.length);
 
-    // Reconcile/sync transactions for each vendor
-    for (let i = 0; i < vendors.length; i++) {
-        const v = vendors[i];
+    // Fetch every vendor's transactions in parallel (was one request after another, which kept the old list on screen for seconds)
+    const txResults = await Promise.all(vendors.map(async (v) => {
         const vId = v.id || v._id;
-        let trans = [];
-        let serverTxFetched = false;
         if (window.apiFetch) {
             try {
                 const serverTx = await window.apiFetch(`/parties/vendors/${vId}/transactions`);
-                if (Array.isArray(serverTx)) {
-                    trans = serverTx;
-                    serverTxFetched = true;
-                    // Cache transactions in local DB so reports and print work
-                    const allTrans = window.EnhancedSecurity.getSecureData('vendor_transactions') || [];
-                    const otherTrans = allTrans.filter(t => t.vendorId != vId);
-                    if (!window.DataCache) window.DataCache = {};
-                    window.DataCache.vendor_transactions = [...otherTrans, ...trans];
-                }
-            } catch (e) {
-                trans = window.DB.getVendorTransactions(vId) || [];
-            }
-        } else {
-            trans = window.DB.getVendorTransactions(vId) || [];
+                if (Array.isArray(serverTx)) return { vId, trans: serverTx };
+            } catch (e) { /* fall back to local cache below */ }
         }
-
-        // Read-only: a mismatch is evidence, not permission to rewrite a balance
-        // or manufacture a purchase from current stock.
+        return { vId, trans: window.DB.getVendorTransactions(vId) || [], local: true };
+    }));
+    if (renderSeq !== vendorRenderSeq) return; // a newer render started while we waited
+    const fetchedIds = new Set(txResults.filter(r => !r.local).map(r => String(r.vId)));
+    if (fetchedIds.size) {
+        const allTrans = window.EnhancedSecurity.getSecureData('vendor_transactions') || [];
+        const otherTrans = allTrans.filter(t => !fetchedIds.has(String(t.vendorId)));
+        if (!window.DataCache) window.DataCache = {};
+        window.DataCache.vendor_transactions = [...otherTrans, ...txResults.filter(r => !r.local).flatMap(r => r.trans)];
     }
 
     // Sync to local DB & window.DataCache to ensure other parts (modals, reports) work with up-to-date vendor credit

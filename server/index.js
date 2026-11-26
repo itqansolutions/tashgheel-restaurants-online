@@ -26,6 +26,9 @@ app.options('*', cors({
 app.use('/api/aggregator/:provider/webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json({ limit: '50mb' }));
+// API answers must never be reused by a browser or proxy: lists have to show a just-saved record.
+app.set('etag', false);
+app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store, max-age=0'); res.set('Pragma', 'no-cache'); next(); });
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
