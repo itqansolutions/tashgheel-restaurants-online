@@ -1,6 +1,8 @@
 const {snapshotItems,finite}=require('./catalog');
 function customerItems(items,catalog) {
+    if((items||[]).length>30) {const e=new Error('Too many items in one request');e.status=400;throw e;}
     return snapshotItems(items,catalog).map(item=>{
+        if(!(item.qty>0 && item.qty<=20)) {const e=new Error('Quantity must be between 1 and 20');e.status=400;throw e;}
         const product=catalog.find(p=>String(p.id)===String(item.id));
         if(product.isActive===false) throw new Error('Product is unavailable');
         const size=product.hasSizes?(product.sizes||[]).find(s=>String(s.id)===String(item.sizeId)||(item.sizeName&&s.name===item.sizeName)):null;

@@ -90,6 +90,7 @@ const qrAuth = require('./middleware/qrAuth');
 // directly from the token payload — branchScope is NOT used here because:
 //   1. Customer QR tokens don't send x-branch-id header
 //   2. req.user is undefined for customer tokens, which crashes branchScope
+app.use('/api/tables/by-code', require('./routes/qr-public'));                    // Public QR session (rate limited, no staff login)
 app.use('/api/tables', auth, branchScope, require('./routes/tables'));             // Table management (staff only)
 app.use('/api/orders', qrAuth, require('./routes/orders'));                        // Orders (staff + customer QR) — auth handled by qrAuth
 app.use('/api/dine-in/kitchen', auth, branchScope, require('./routes/kitchen-orders')); // Kitchen display (staff only)

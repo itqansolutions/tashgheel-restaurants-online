@@ -5,20 +5,13 @@ const router = express.Router();
  *
  * CRUD for restaurant tables + QR session token generation.
  * All routes require staff JWT (via auth middleware registered in index.js).
- * Exception: GET /by-code is public (rate-limited) — used by customer QR page.
+ * The public QR session endpoint lives in qr-public.js, mounted before auth.
  */
 
 const prisma = require('../prisma');
+const safeTable = ({ qrSecret, ...table }) => table;
 const jwt = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
-
-// Rate limit for QR session endpoint (public)
-const qrLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 60,
-    message: { error: 'Too many requests. Please try again later.' }
-});
 
 // GET /api/tables
 router.get('/', async (req, res) => {
@@ -61,51 +54,11 @@ router.get('/', async (req, res) => {
         }
 
         const result = tables.map(t => ({
-            ...t,
+            ...safeTable(t),
             orderSummary: t.activeOrderId ? (orderMap[t.activeOrderId] || null) : null
         }));
 
         res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// GET /api/tables/by-code 
-router.get('/by-code', qrLimiter, async (req, res) => {
-    try {
-        const { code, branch } = req.query;
-        if (!code || !branch) return res.status(400).json({ error: 'code and branch are required' });
-
-        const table = await prisma.table.findFirst({
-            where: {
-                code: code.toUpperCase(),
-                branchId: branch,
-                isActive: true
-            }
-        });
-
-        if (!table) return res.status(404).json({ error: 'Table not found' });
-
-        const token = jwt.sign(
-            {
-                tableId: table.id,
-                branchId: table.branchId,
-                tenantId: table.tenantId,
-                role: 'customer',
-                nonce: crypto.randomBytes(8).toString('hex')
-            },
-            table.qrSecret,
-            { expiresIn: '4h' }
-        );
-
-        res.json({
-            token,
-            tableId: table.id,
-            tableName: table.name,
-            branchId: table.branchId,
-            activeOrderId: table.activeOrderId
-        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -128,7 +81,7 @@ router.post('/', async (req, res) => {
             }
         });
 
-        res.status(201).json({ success: true, table });
+        res.status(201).json({ success: true, table: safeTable(table) });
     } catch (err) {
         if (err.code === 'P2002') {
             return res.status(409).json({ error: 'A table with this code already exists in this branch.' });
@@ -158,7 +111,7 @@ router.put('/:id', async (req, res) => {
         const updatedTable = await prisma.table.findFirst({ 
             where: { id: req.params.id, tenantId: req.tenantId, branchId: req.branchId } 
         });
-        res.json({ success: true, table: updatedTable });
+        res.json({ success: true, table: updatedTable ? safeTable(updatedTable) : updatedTable });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

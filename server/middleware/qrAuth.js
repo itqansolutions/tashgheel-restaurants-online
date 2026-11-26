@@ -51,6 +51,8 @@ module.exports = async function qrAuth(req, res, next) {
                 return res.status(401).json({ error: 'Table not found or QR not configured' });
             }
 
+            if (!(await require('../utils/qr-settings').qrOrderingEnabled(prisma, table.tenantId))) return res.status(403).json({ error: 'Table ordering is not available at this restaurant' });
+
             // Now verify with the per-table secret
             const decoded = jwt.verify(bearerToken, table.qrSecret);
 
