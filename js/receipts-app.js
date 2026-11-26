@@ -680,7 +680,5 @@ window.printStoredReceipt = async function (receiptId) {
     </html>
   `;
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(html);
-    printWindow.document.close();
+    window.printHtml(html);
 };

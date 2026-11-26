@@ -2858,38 +2858,7 @@ window.printStoredReceipt = function (receiptId) {
     </html>
   `;
 
-  try {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      return;
-    }
-  } catch (e) {
-    console.warn('Popup blocked for printing, falling back to hidden iframe:', e);
-  }
-
-  // Fallback: Use hidden iframe to trigger print without popup blocker issues
-  try {
-    let iframe = document.getElementById('receiptPrintIframe');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'receiptPrintIframe';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      document.body.appendChild(iframe);
-    }
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-  } catch (err) {
-    console.error('Print failed:', err);
-  }
+  window.printHtml(html);
 };
 
 function confirmLogout() {
@@ -2957,9 +2926,7 @@ function printDailySummary() {
     </body></html>
   `;
 
-  const win = window.open('', '', 'width=400,height=600');
-  win.document.write(summary);
-  win.document.close();
+  window.printHtml(summary);
 }
 
 // ===================== SHIFT MANAGEMENT =====================

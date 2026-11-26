@@ -389,3 +389,26 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(el);
     }).catch(() => {});
 })();
+
+
+// ─── Print helper: prints HTML in a hidden iframe (no popup window, so the page never freezes) ───
+window.printHtml = function (html) {
+    try {
+        const old = document.getElementById('printFrame');
+        if (old) old.remove();
+        const iframe = document.createElement('iframe');
+        iframe.id = 'printFrame';
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+        document.body.appendChild(iframe);
+        const cleaned = String(html).replace(/<script>[^<]*window\.print\(\)[^<]*<\/script>/g, '');
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(cleaned);
+        doc.close();
+        setTimeout(() => {
+            try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { console.error('Print failed:', e); }
+            setTimeout(() => { try { iframe.remove(); } catch (e) {} }, 60000);
+        }, 400);
+    } catch (e) { console.error('Print failed:', e); }
+};

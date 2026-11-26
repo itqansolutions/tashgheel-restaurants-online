@@ -1400,6 +1400,16 @@ router.get('/reports/return-events', async (req, res) => {
 });
 
 // 2. Sales History (Paginated)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function resolveCashierNames(tenantId, sales) {
+    const list = Array.isArray(sales) ? sales : [sales];
+    const ids = [...new Set(list.map(s => s && s.cashier).filter(c => typeof c === 'string' && UUID_RE.test(c)))];
+    if (!ids.length) return;
+    const users = await prisma.user.findMany({ where: { tenantId, id: { in: ids } }, select: { id: true, username: true, fullName: true } });
+    const map = new Map(users.map(u => [u.id, u.fullName || u.username]));
+    for (const s of list) if (s && map.has(s.cashier)) s.cashier = map.get(s.cashier);
+}
+
 router.get('/reports/history', async (req, res) => {
     try {
         const { tenantId } = req;
@@ -1470,6 +1480,7 @@ router.get('/reports/history', async (req, res) => {
                 retainedCost: Number.isFinite(facts.retainedCost) ? facts.retainedCost : null
             };
         }
+        await resolveCashierNames(tenantId, sales);
         res.json({ total, page, pages: Math.ceil(total / limit), summary, sales });
     } catch (err) {
         console.error('History Report Error:', err);
@@ -1494,6 +1505,7 @@ router.get('/sales/:id', async (req, res) => {
             if(!draft||draft.saleId!==sale.id||draft.branchId!==sale.branchId)return res.status(409).json({error:'Draft receipt metadata needs review'});
             return res.json(require('./kitchen-drafts').receipt(sale,draft));
         }
+        await resolveCashierNames(req.tenantId, sale);
         res.json(sale);
     } catch (err) {
         res.status(500).json({ error: err.message });

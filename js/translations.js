@@ -210,6 +210,7 @@ const translations = {
     status_preparing: { en: "PREPARING", ar: "تحت التجهيز" },
     complete_order: { en: "Complete Order", ar: "إكمال الطلب" },
     confirm_complete_order: { en: "Mark this order as complete?", ar: "تحديد الطلب كمكتمل؟" },
+    sale_completed: { en: 'Sale completed', ar: 'تمت عملية البيع' },
     order_completed: { en: "Order Completed", ar: "تم إكمال الطلب" },
     minute_short: { en: "m", ar: "د" },
 
