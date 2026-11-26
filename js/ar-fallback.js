@@ -104,7 +104,8 @@
             if (r) root.nodeValue = r;
             return;
         }
-        if (root.nodeType !== 1 || SKIP.test(root.tagName)) return;
+        if (root.nodeType !== 1) return;
+        if (SKIP.test(root.tagName)) { if (root.hasAttribute('placeholder')) { const r = tr(root.getAttribute('placeholder')); if (r) root.setAttribute('placeholder', r); } return; }
         if (/material-/.test(root.getAttribute('class') || '')) return;
         ['placeholder', 'title'].forEach(a => {
             if (root.hasAttribute && root.hasAttribute(a)) { const r = tr(root.getAttribute(a)); if (r) root.setAttribute(a, r); }
