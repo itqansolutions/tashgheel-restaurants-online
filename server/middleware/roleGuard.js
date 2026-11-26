@@ -18,10 +18,24 @@ module.exports = function roleGuard(req, res, next) {
     if (role === 'SUPER_ADMIN') return next();
     const method = req.method.toUpperCase();
     const write = !['GET', 'HEAD', 'OPTIONS'].includes(method);
-    if (!write) return next();
     const path = (req.baseUrl + req.path).replace(/\/+$/, '');
     const isAdmin = role === 'admin';
     const low = COUNTER.has(role.toLowerCase());
+
+    // Refunds: manager or admin only
+    if (write && /^\/api\/sales\/refund(\/|$)/.test(path) && !isAdmin && role.toLowerCase() !== 'manager') return forbid(res);
+
+    // Counter roles may not read the user list or business reports.
+    // /reports/history stays open for small lookups (the receipts page: reprint, find a bill to refund),
+    // but not for the bulk pull that the reports page uses.
+    if (!write) {
+        if (low) {
+            if (/^\/api\/users(\/|$)/.test(path)) return forbid(res);
+            if (/^\/api\/reports\/(live|expenses|inventory|return-events)(\/|$)/.test(path)) return forbid(res);
+            if (/^\/api\/reports\/history/.test(path) && Number(req.query?.limit || 50) > 200) return forbid(res);
+        }
+        return next();
+    }
 
     // Admin only
     if (!isAdmin && (/^\/api\/branches(\/|$)/.test(path))) return forbid(res);

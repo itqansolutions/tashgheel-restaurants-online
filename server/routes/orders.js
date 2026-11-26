@@ -156,6 +156,12 @@ router.post('/:id/send',async(req,res)=>{
         const result=await prisma.$transaction(async tx=>{
             const order=await lockedOrder(tx,req);const pending=order.items.filter(i=>i.kitchenStatus==='pending');
             if(!pending.length) fail('No pending items',400);
+            if(req.userRole==='customer') {
+                // Guest orders need staff approval: mark the lines as requested, staff presses Send Kitchen to accept.
+                for(const i of pending) await tx.orderItem.update({where:{id:i.id},data:{modifiers:{...(i.modifiers||{}),guestRequested:true}}});
+                await tx.order.update({where:{id:order.id},data:{version:{increment:1},lastActivityAt:new Date()}});
+                return {success:true,awaitingStaff:true,sentCount:0,requestedCount:pending.length,version:order.version+1};
+            }
             const batchNo=order.currentBatch+1;const now=new Date();
             await tx.orderItem.updateMany({where:{orderId:order.id,kitchenStatus:'pending'},data:{kitchenStatus:'sent',sentAt:now,batchNo}});
             await tx.order.update({where:{id:order.id},data:{currentBatch:batchNo,version:{increment:1},lastActivityAt:now}});

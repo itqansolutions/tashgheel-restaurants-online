@@ -43,6 +43,7 @@ router.get('/', async (req, res) => {
                     itemsPreview: itemsPreview,
                     moreCount: Math.max(0, nonCancelled.length - 3),
                     pendingCount: o.items.filter(i => i.kitchenStatus === 'pending').length,
+                    guestRequestCount: o.items.filter(i => i.kitchenStatus === 'pending' && i.modifiers && i.modifiers.guestRequested).length,
                     sentCount: o.items.filter(i => i.kitchenStatus === 'sent').length,
                     readyCount: o.items.filter(i => i.kitchenStatus === 'ready').length,
                     requestedBillAt: o.requestedBillAt,

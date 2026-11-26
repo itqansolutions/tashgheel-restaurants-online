@@ -398,7 +398,12 @@ const fbText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
         if (!orderId) return;
         try {
             const res = await fetchAuth(`/api/orders/${orderId}/send`, { method: 'POST' });
-            if (res?.success) {
+            if (res?.success && res.awaitingStaff) {
+                showToast('✅ Order sent to your waiter for approval. It goes to the kitchen once accepted.', 'success');
+                const fresh = await fetchAuth(`/api/orders/${orderId}`);
+                if (fresh) { order = fresh; renderOrderState(); }
+                hideMyOrder();
+            } else if (res?.success) {
                 showToast(`✅ ${res.sentCount} item(s) sent to kitchen!`, 'success');
                 const fresh = await fetchAuth(`/api/orders/${orderId}`);
                 if (fresh) { order = fresh; renderOrderState(); }

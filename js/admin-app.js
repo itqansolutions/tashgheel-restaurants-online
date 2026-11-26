@@ -108,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const dineinToggle = document.getElementById('toggle-dinein');
     if (kitchenToggle) kitchenToggle.checked = s.enableKitchen !== false; // Default true
     if (dineinToggle) dineinToggle.checked = s.enableDineIn !== false;   // Default true
+    const qrToggle = document.getElementById('toggle-qr');
+    if (qrToggle) qrToggle.checked = s.qrOrderingEnabled !== false;      // Default on
   }
   loadFeatureToggles();
 
@@ -116,8 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const existing = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
     const kitchenToggle = document.getElementById('toggle-kitchen');
     const dineinToggle = document.getElementById('toggle-dinein');
+    const qrToggle = document.getElementById('toggle-qr');
     const updated = {
       ...existing,
+      qrOrderingEnabled: qrToggle ? qrToggle.checked : existing.qrOrderingEnabled !== false,
       enableKitchen: kitchenToggle ? kitchenToggle.checked : true,
       enableDineIn: dineinToggle ? dineinToggle.checked : true
     };

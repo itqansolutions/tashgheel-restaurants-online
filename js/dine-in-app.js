@@ -129,6 +129,7 @@ const fbText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 
             const badge = table.orderSummary
                 ? `<div class="mt-2 flex flex-wrap justify-center gap-1">
+                    ${table.orderSummary.guestRequestCount > 0 ? `<span class="text-[10px] px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded-full font-bold animate-pulse">🔔 Guest order (${table.orderSummary.guestRequestCount})</span>` : ''}
                     ${table.orderSummary.pendingCount > 0 ? `<span class="text-[10px] px-2 py-0.5 bg-slate-700 text-slate-200 rounded-full font-medium">${table.orderSummary.pendingCount} pending</span>` : ''}
                     ${table.orderSummary.sentCount > 0 ? `<span class="text-[10px] px-2 py-0.5 bg-blue-600/30 border border-blue-500/40 text-blue-300 rounded-full font-medium">${table.orderSummary.sentCount} sent</span>` : ''}
                     ${hasBillRequest ? `<span class="text-[10px] px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded-full font-bold animate-pulse">🔔 Bill</span>` : ''}
