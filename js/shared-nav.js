@@ -370,3 +370,22 @@ document.addEventListener('DOMContentLoaded', () => {
     injectManagerPinModal();
 });
 
+
+
+// ─── Free-trial banner (shows days left; hidden once the business is subscribed) ───
+(function () {
+    if (location.pathname.endsWith('index.html') || location.pathname === '/' || location.pathname.endsWith('register.html') || location.pathname.endsWith('super-admin.html')) return;
+    fetch('/api/auth/subscription', { credentials: 'include' }).then(r => r.ok ? r.json() : null).then(d => {
+        if (!d || d.plan !== 'free_trial' || d.daysLeft == null) return;
+        const ar = localStorage.getItem('pos_language') === 'ar';
+        const n = d.daysLeft;
+        const arDays = n === 0 ? 'تنتهي اليوم' : n === 1 ? 'يوم واحد' : n === 2 ? 'يومان' : n <= 10 ? n + ' أيام' : n + ' يوم';
+        const text = ar ? 'تجربة مجانية: متبقي ' + arDays : 'Free trial: ' + (n === 0 ? 'ends today' : n + (n === 1 ? ' day' : ' days') + ' left');
+        const el = document.createElement('div');
+        el.id = 'trial-banner';
+        el.textContent = text;
+        el.title = d.endsAt ? new Date(d.endsAt).toLocaleString() : '';
+        el.style.cssText = 'position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:9999;background:' + (n <= 1 ? '#dc2626' : '#f59e0b') + ';color:#fff;font:600 12px sans-serif;padding:4px 14px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,.25);pointer-events:none';
+        document.body.appendChild(el);
+    }).catch(() => {});
+})();

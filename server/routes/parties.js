@@ -3,6 +3,8 @@ const router = express.Router();
 const prisma = require('../prisma');
 
 // --- VENDORS ROUTES ---
+const openShiftFor=(tx,tenantId,branchId,userId)=>tx.shift.findFirst({where:{tenantId,branchId,status:'open',OR:[{cashierId:userId},{cashiers:{path:[],array_contains:userId}}]}});
+
 router.get('/vendors', async (req, res) => {
     try {
         const { tenantId } = req;
@@ -159,7 +161,8 @@ router.post('/vendors/:id/transactions', async (req,res)=>{
                 const branchId=req.branchId||vendor.branchId||req.user?.defaultBranchId;
                 const branch=branchId?await tx.branch.findFirst({where:{id:branchId,tenantId:req.tenantId}}):null;
                 if(!branch) reject('Valid payment branch required',409);
-                await tx.expense.create({data:{description:intent.description,amount:value,date,seller:vendor.name,method,notes:intent.notes,category:'Raw Materials',type:'vendor_payment',tenantId:req.tenantId,branchId:branch.id,createdBy:req.userId||'system'}});
+                const payShift=await openShiftFor(tx,req.tenantId,branch.id,req.userId);
+                await tx.expense.create({data:{description:intent.description,amount:value,date,seller:vendor.name,method,notes:intent.notes,category:'Raw Materials',type:'vendor_payment',tenantId:req.tenantId,branchId:branch.id,shiftId:payShift?payShift.id:null,createdBy:req.userId||'system'}});
             }
             transactions.push({id:transactionId,vendorId:vendor.id,...intent,requestId,intent,createdAt:new Date().toISOString()});
             await tx.data.upsert({where:{key_tenantId:{key,tenantId:req.tenantId}},update:{value:JSON.stringify(transactions),updatedAt:new Date()},create:{key,tenantId:req.tenantId,value:JSON.stringify(transactions)}});

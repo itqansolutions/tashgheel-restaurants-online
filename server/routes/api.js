@@ -1011,6 +1011,7 @@ router.post('/inventory/restock', async (req, res) => {
             // 3. Create Expense record ONLY IF paid_now (Credit purchases do NOT create expense until actually paid to vendor)
             if (purchaseType === 'paid_now') {
                 try {
+                    const restockShift = await tx.shift.findFirst({ where: { tenantId: req.tenantId, branchId: targetBranchId || req.branchId, status: 'open', OR: [{ cashierId: req.userId }, { cashiers: { path: [], array_contains: req.userId } }] } });
                     await tx.expense.create({
                         data: {
                             description,
@@ -1023,6 +1024,7 @@ router.post('/inventory/restock', async (req, res) => {
                             type: 'expense',
                             tenantId: req.tenantId,
                             branchId: targetBranchId || req.branchId || 'default',
+                            shiftId: restockShift ? restockShift.id : null,
                             createdBy: req.userId || 'system'
                         }
                     });

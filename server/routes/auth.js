@@ -287,6 +287,20 @@ router.get('/me', auth, async (req, res) => {
     }
 });
 
+// @route   GET /api/auth/subscription  (trial / subscription status for the banner)
+router.get('/subscription', auth, async (req, res) => {
+    try {
+        const tenant = await prisma.tenant.findUnique({ where: { id: req.user.tenantId || req.tenantId } });
+        if (!tenant) return res.status(404).json({ msg: 'Not found' });
+        const subscribed = !!tenant.isSubscribed;
+        const endsAt = subscribed ? (tenant.subscriptionEndsAt || null) : tenant.trialEndsAt;
+        const daysLeft = endsAt ? Math.max(0, Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86400000)) : null;
+        res.json({ plan: subscribed ? 'subscribed' : 'free_trial', endsAt, daysLeft });
+    } catch (err) {
+        res.status(500).json({ msg: 'Server Error' });
+    }
+});
+
 // Helper for Email
 async function sendRegistrationEmail(businessName, email, phone, username, trialEndsAt) {
     try {
