@@ -1,197 +1,127 @@
 /**
- * Talabat Adapter — Full Implementation
- * 
- * Reference adapter for the Aggregator Hub.
- * All other adapters must implement the same interface.
+ * Talabat adapter (Delivery Hero POS "plugin" model)
+ *
+ * Built from the public Delivery Hero / Talabat integration docs:
+ *   https://integration.talabat.com/en/documentation/
+ *   https://developers.deliveryhero.com/documentation/pos.html
+ * Talabat is partner-only: the middleware pushes orders to OUR plugin endpoint
+ * (POST {base}/order/{remoteId}, body = order dispatch payload with `token`, `code`, `customer`,
+ * `delivery`, `products`, `price`, `payment`, `callbackUrls`), and we report order status
+ * to the callback URLs carried inside that payload.
+ *
+ * NOT verifiable without partner access (NDA): how the middleware authenticates to the plugin,
+ * the middleware login endpoint, and the exact reject-reason values. Those parts are marked below.
  */
-
 const crypto = require('crypto');
 const axios = require('axios');
 
-const TALABAT_API_BASE = process.env.TALABAT_API_BASE_URL || 'https://api.talabat.com/v2';
+const capabilities = { webhook: true, pushStatus: true, syncMenu: false, codSupported: true, polling: false };
+const displayInfo = { name: 'Talabat', color: '#FF5A00', badgeClass: 'talabat', icon: '🟠' };
 
-// ─── Capability Flags ───
-const capabilities = {
-    webhook: true,
-    pushStatus: true,
-    syncMenu: true,
-    codSupported: true,
-    polling: false  // Talabat uses webhooks, no polling needed
-};
+const ALLOWED_CALLBACK_HOSTS = ['restaurant-partners.com', 'talabat.com', 'deliveryhero.com', 'foodpanda.com'];
 
-// ─── Provider Display Info ───
-const displayInfo = {
-    name: 'Talabat',
-    color: '#FF5A00',       // Talabat orange
-    badgeClass: 'talabat',
-    icon: '🟠'
-};
+function safeEqual(a, b) {
+    const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+    return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
 
 /**
- * Verify HMAC-SHA256 webhook signature
- * @param {Buffer} rawBody - Raw request body buffer
- * @param {string} signature - Signature from header
- * @param {string} secret - Webhook signing secret
- * @returns {boolean}
+ * Request authentication (UNVERIFIED: the plugin security spec is behind the partner docs).
+ * Accepts, in constant time, any of: Authorization "Bearer <secret>", HTTP Basic whose password is the secret,
+ * or an HMAC-SHA256 hex of the raw body in x-talabat-signature. All use the per-branch secret.
  */
+function verifyRequest(headers, rawBody, secret) {
+    if (!secret) return false;
+    const auth = String(headers['authorization'] || '');
+    if (/^bearer /i.test(auth)) return safeEqual(auth.slice(7).trim(), secret);
+    if (/^basic /i.test(auth)) {
+        const decoded = Buffer.from(auth.slice(6).trim(), 'base64').toString();
+        const pwd = decoded.includes(':') ? decoded.slice(decoded.indexOf(':') + 1) : decoded;
+        return safeEqual(pwd, secret);
+    }
+    const sig = headers[getSignatureHeader()];
+    if (sig) return verifySignature(rawBody, sig, secret);
+    return false;
+}
+
 function verifySignature(rawBody, signature, secret) {
     if (!signature || !secret) return false;
-    const computed = crypto
-        .createHmac('sha256', secret)
-        .update(rawBody)
-        .digest('hex');
-    return crypto.timingSafeEqual(
-        Buffer.from(computed, 'hex'),
-        Buffer.from(signature, 'hex')
-    );
+    const computed = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+    return safeEqual(computed, String(signature).toLowerCase());
 }
 
-/**
- * Parse raw Talabat order payload into unified format
- * @param {object} rawPayload - Parsed JSON from Talabat webhook
- * @returns {object} Unified order fields
- */
-function parseOrder(rawPayload) {
-    const order = rawPayload.order || rawPayload;
+const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
 
+/** Map a Delivery Hero order dispatch payload (field names per the published Order schema). */
+function parseOrder(raw) {
+    const order = raw.order || raw;
+    // Cancellation notices use the same shape with a `status` of cancelled: ignore them here.
+    if (order.status && String(order.status).toLowerCase().includes('cancel')) return null;
+    if (!order.token) return { providerOrderId: undefined };
+    const cust = order.customer || {};
+    const addr = (order.delivery && order.delivery.address) || {};
+    const price = order.price || {};
+    const pay = order.payment || {};
+    const addrText = [addr.street, addr.number, addr.building, addr.floor && ('floor ' + addr.floor), addr.flatNumber && ('flat ' + addr.flatNumber), addr.deliveryArea, addr.city, addr.deliveryInstructions]
+        .filter(Boolean).join(', ');
+    const payType = String(pay.type || '').toLowerCase();
+    const isCash = payType.includes('cash') || payType.includes('cod') || (String(pay.status || '').toLowerCase() !== 'paid' && payType !== '' && !payType.includes('paid') && !payType.includes('online') && !payType.includes('card'));
     return {
-        providerOrderId: String(order.id || order.order_id || order.orderId),
+        providerOrderId: String(order.token),
         customer: {
-            name: order.customer?.name || order.customerName || '',
-            phone: order.customer?.phone || order.customerPhone || '',
-            address: order.delivery_address?.address || order.customer?.address || ''
+            name: [cust.firstName, cust.lastName].filter(Boolean).join(' '),
+            phone: [cust.mobilePhoneCountryCode, cust.mobilePhone].filter(Boolean).join(' '),
+            address: addrText
         },
-        items: (order.items || order.order_items || []).map(item => ({
-            providerItemId: String(item.id || item.item_id || ''),
-            name: item.name || item.title || '',
-            qty: item.quantity || item.qty || 1,
-            price: parseFloat(item.unit_price || item.price || 0),
-            notes: item.special_instructions || item.notes || ''
+        items: (order.products || []).map(p => ({
+            providerItemId: String(p.remoteCode || p.id || ''),
+            name: p.name || '',
+            qty: num(p.quantity) || 1,
+            price: num(p.unitPrice) || num(p.paidPrice),
+            notes: [p.comment, ...(p.selectedToppings || []).map(t => '+ ' + t.name)].filter(Boolean).join('; ')
         })),
         financials: {
-            total: parseFloat(order.total || order.grand_total || 0),
-            vat: parseFloat(order.vat || order.tax || 0),
-            currency: order.currency || 'EGP',
-            fees: {
-                commission: parseFloat(order.commission || 0),
-                service: parseFloat(order.service_fee || 0),
-                delivery: parseFloat(order.delivery_fee || order.deliveryFee || 0)
-            }
+            total: num(price.grandTotal),
+            vat: num(price.vatTotal),
+            currency: (order.localInfo && order.localInfo.currencySymbol) || 'EGP',
+            fees: { commission: num(price.comission), service: num(price.serviceFeeTotal), delivery: num(price.deliveryFee) }
         },
-        paymentMethod: (order.payment_method || order.paymentMethod || '').toLowerCase().includes('cash') ? 'cod' : 'online'
+        paymentMethod: isCash ? 'cod' : 'online'
     };
 }
 
-/**
- * Map internal status → Talabat API status string
- * @param {string} internalStatus - One of AGGREGATOR_STATUSES
- * @returns {string} Talabat status string
- */
-function mapStatus(internalStatus) {
-    const map = {
-        'accepted': 'ACCEPTED',
-        'preparing': 'IN_PREPARATION',
-        'ready': 'READY_FOR_PICKUP',
-        'delivered': 'DELIVERED',
-        'rejected': 'REJECTED'
-    };
-    return map[internalStatus] || internalStatus.toUpperCase();
+function mapStatus(s) {
+    return { accepted: 'order_accepted', rejected: 'order_rejected', ready: 'order_prepared', picked_up: 'order_picked_up' }[s] || s;
+}
+
+function callbackFor(order, status) {
+    const cb = (order && order.rawPayload && (order.rawPayload.order || order.rawPayload).callbackUrls) || {};
+    const url = { accepted: cb.orderAcceptedUrl, rejected: cb.orderRejectedUrl, ready: cb.orderPreparedUrl, picked_up: cb.orderPickedUpUrl }[status];
+    if (!url) return null;
+    let u; try { u = new URL(url); } catch (e) { return null; }
+    const hostOk = ALLOWED_CALLBACK_HOSTS.some(h => u.hostname === h || u.hostname.endsWith('.' + h));
+    return u.protocol === 'https:' && hostOk ? u.toString() : null;
 }
 
 /**
- * Push status update back to Talabat
- * @param {string} providerOrderId 
- * @param {string} internalStatus 
- * @param {object} credentials - { apiKey, clientId, clientSecret }
- * @returns {Promise<object>}
+ * Report status to the callback URL Delivery Hero sent with the order.
+ * Body fields and the bearer token are per the public overview only (UNVERIFIED): accept needs a formatted
+ * datetime, reject needs a reason. Skipped (no call) when the order carries no allowed callback URL.
  */
-async function pushStatus(providerOrderId, internalStatus, credentials) {
-    const talabatStatus = mapStatus(internalStatus);
-    const response = await axios.put(
-        `${TALABAT_API_BASE}/orders/${providerOrderId}/status`,
-        { status: talabatStatus },
-        {
-            headers: {
-                'Authorization': `Bearer ${credentials.apiKey}`,
-                'Content-Type': 'application/json',
-                'X-Client-Id': credentials.clientId
-            },
-            timeout: 10000
-        }
-    );
-    return response.data;
+async function pushStatus(providerOrderId, internalStatus, credentials, order) {
+    const url = callbackFor(order, internalStatus);
+    if (!url) return { skipped: true, reason: 'no callback url for this status' };
+    let body = {};
+    if (internalStatus === 'accepted') body = { acceptanceTime: new Date(Date.now() + 25 * 60000).toISOString() };
+    if (internalStatus === 'rejected') body = { message: 'Restaurant unable to fulfil this order' };
+    const headers = { 'Content-Type': 'application/json' };
+    if (credentials && credentials.apiKey) headers.Authorization = `Bearer ${credentials.apiKey}`;
+    const r = await axios.put(url, body, { headers, timeout: 10000 });
+    return r.data;
 }
 
-/**
- * Sync menu/catalog to Talabat
- * @param {Array} products - Your product list
- * @param {object} credentials 
- * @returns {Promise<object>}
- */
-async function syncMenu(products, credentials) {
-    const catalog = products.map(p => ({
-        id: String(p.id),
-        name: p.name,
-        description: p.description || '',
-        price: parseFloat(p.price || 0),
-        category: p.category || 'General',
-        available: p.available !== false,
-        image_url: p.image || ''
-    }));
+async function syncMenu() { throw new Error('Talabat catalog sync needs the partner Catalog Import spec (not public)'); }
+async function testConnection() { return false; }
+function getSignatureHeader() { return 'x-talabat-signature'; }
 
-    const response = await axios.post(
-        `${TALABAT_API_BASE}/catalog/items`,
-        { items: catalog },
-        {
-            headers: {
-                'Authorization': `Bearer ${credentials.apiKey}`,
-                'Content-Type': 'application/json',
-                'X-Client-Id': credentials.clientId
-            },
-            timeout: 30000
-        }
-    );
-    return response.data;
-}
-
-/**
- * Test API connection
- * @param {object} credentials 
- * @returns {Promise<boolean>}
- */
-async function testConnection(credentials) {
-    try {
-        const response = await axios.get(
-            `${TALABAT_API_BASE}/restaurant/status`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${credentials.apiKey}`,
-                    'X-Client-Id': credentials.clientId
-                },
-                timeout: 10000
-            }
-        );
-        return response.status === 200;
-    } catch (err) {
-        return false;
-    }
-}
-
-/**
- * Get the webhook signature header name
- */
-function getSignatureHeader() {
-    return 'x-talabat-signature';
-}
-
-module.exports = {
-    capabilities,
-    displayInfo,
-    verifySignature,
-    parseOrder,
-    mapStatus,
-    pushStatus,
-    syncMenu,
-    testConnection,
-    getSignatureHeader
-};
+module.exports = { capabilities, displayInfo, verifySignature, verifyRequest, parseOrder, mapStatus, pushStatus, syncMenu, testConnection, getSignatureHeader };

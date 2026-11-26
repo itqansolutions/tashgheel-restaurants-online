@@ -77,7 +77,7 @@ router.post('/:provider/webhook', webhookLimiter, (req, res) => {
     res.status(400).json({ error: 'Use the per-branch webhook URL shown in Settings > Delivery Integrations' });
 });
 
-router.post('/:provider/webhook/:branchId', webhookLimiter, async (req, res) => {
+router.post(['/:provider/webhook/:branchId', '/:provider/webhook/:branchId/order/:remoteId'], webhookLimiter, async (req, res) => {
     const { provider, branchId } = req.params;
     const adapter = getAdapter(provider);
     if (!adapter) return res.status(404).json({ error: 'Unknown provider' });
@@ -95,13 +95,18 @@ router.post('/:provider/webhook/:branchId', webhookLimiter, async (req, res) => 
 
         const rawBody = req.body;
         if (!Buffer.isBuffer(rawBody)) return res.status(400).json({ error: 'JSON body required' });
-        const signature = req.headers[adapter.getSignatureHeader()];
         let valid = false;
-        try { valid = adapter.verifySignature(rawBody, signature, credentials.webhookSecret); } catch (e) { valid = false; }
+        try {
+            if (typeof adapter.verifyRequest === 'function') valid = adapter.verifyRequest(req.headers, rawBody, credentials.webhookSecret);
+            else valid = adapter.verifySignature(rawBody, req.headers[adapter.getSignatureHeader()], credentials.webhookSecret);
+        } catch (e) { valid = false; }
         if (!valid) return res.status(401).json({ error: 'Invalid signature' });
 
-        const payload = JSON.parse(rawBody.toString());
+        let payload;
+        try { payload = JSON.parse(rawBody.toString()); } catch (e) { return res.status(400).json({ error: 'Invalid JSON' }); }
         const parsed = adapter.parseOrder(payload);
+        // Non-order events (store status, cancellations handled below) are acknowledged and ignored.
+        if (!parsed) return res.sendStatus(200);
         if (!parsed.providerOrderId || parsed.providerOrderId === 'undefined') return res.status(400).json({ error: 'Order id missing' });
 
         const existing = await prisma.aggregatorOrder.findUnique({
@@ -190,7 +195,7 @@ router.post('/orders/:id/accept', async (req, res) => {
             const adapter = getAdapter(order.provider);
             if (!result.replayed && adapter.capabilities.pushStatus) {
                 const credentials = await loadProviderCredentials(order.provider, order.branchId);
-                if (credentials) await adapter.pushStatus(order.providerOrderId, 'accepted', credentials);
+                if (credentials) await adapter.pushStatus(order.providerOrderId, 'accepted', credentials, order);
             }
         } catch (e) { }
 
@@ -213,7 +218,7 @@ router.post('/orders/:id/reject', async (req, res) => {
             const adapter = getAdapter(order.provider);
             if (adapter.capabilities.pushStatus) {
                 const credentials = await loadProviderCredentials(order.provider, order.branchId);
-                if (credentials) await adapter.pushStatus(order.providerOrderId, 'rejected', credentials);
+                if (credentials) await adapter.pushStatus(order.providerOrderId, 'rejected', credentials, order);
             }
         } catch (e) { }
 
@@ -233,7 +238,7 @@ router.post('/orders/:id/ready', async (req, res) => {
             const adapter = getAdapter(order.provider);
             if (adapter.capabilities.pushStatus) {
                 const credentials = await loadProviderCredentials(order.provider, order.branchId);
-                if (credentials) await adapter.pushStatus(order.providerOrderId, 'ready', credentials);
+                if (credentials) await adapter.pushStatus(order.providerOrderId, 'ready', credentials, order);
             }
         } catch (e) { }
 
