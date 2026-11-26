@@ -54,6 +54,26 @@
         'Kitchen': 'المطبخ', 'Waiting for orders...': 'في انتظار الطلبات...', 'Loading delivery orders...': 'جار تحميل طلبات التوصيل...',
         'No active dine-in items': 'لا توجد أصناف نشطة بالصالة', 'All orders completed!': 'جميع الطلبات مكتملة!', 'Waiting for new orders...': 'في انتظار طلبات جديدة...',
         'Dine In': 'صالة', 'Take Away': 'تيك أواي', 'Takeaway': 'تيك أواي', 'Table:': 'الطاولة:', 'PREPARING': 'جار التحضير', 'Complete': 'تم', 'KITCHEN TICKET': 'تذكرة المطبخ',
+
+        'Product Name': 'اسم الصنف', 'Product Name *': 'اسم الصنف *', 'Total Cost:': 'إجمالي التكلفة:', 'Calculated automatically': 'يُحسب تلقائيًا', 'Recipe & Costing:': 'الوصفة والتكلفة:', 'Total:': 'الإجمالي:',
+        'For pre-packaged items (e.g. bottled water). Direct stock tracking, manual cost.': 'للأصناف المعبأة (مثل زجاجة مياه). تتبع مخزون مباشر وتكلفة يدوية.',
+        'Manager Authorization': 'تصريح المدير', 'Enter manager PIN to continue': 'أدخل رقم المدير السري للمتابعة', '✅ Connected & Synced': '✅ متصل ومتزامن', 'Synchronizing Data...': 'جار مزامنة البيانات...',
+        'Stock Audit': 'جرد المخزون', 'Adjust / Waste Stock': 'تعديل / هالك المخزون', 'For Waste/Damage, enter positive number (system will subtract).': 'للهالك/التالف أدخل رقمًا موجبًا (سيخصمه النظام).',
+        'Transfer Stock': 'تحويل مخزون', 'Available Stock:': 'المخزون المتاح:', 'Cash': 'نقدي', 'Card': 'بطاقة', 'Mobile': 'محفظة', 'Confirm Restock': 'تأكيد إعادة التعبئة', 'Why is this matching happening?': 'ما سبب هذا الفرق؟',
+        'No address provided': 'لا يوجد عنوان', 'Kitchen Orders': 'طلبات المطبخ', 'Delivery Orders': 'طلبات التوصيل', 'No delivery orders': 'لا توجد طلبات توصيل', 'Waiting for orders from delivery apps...': 'في انتظار طلبات تطبيقات التوصيل...',
+        'Receipts': 'الفواتير', 'Search by cashier or ID...': 'ابحث بالكاشير أو الرقم...', 'Reason...': 'السبب...',
+        'Access Denied': 'غير مسموح', 'Viewing Mode': 'وضع المشاهدة', 'Low': 'منخفض', 'Expand': 'توسيع', '+ New Address': '+ عنوان جديد', '+ New Customer': '+ عميل جديد', 'Talabat Cash': 'طلبات نقدي', 'Talabat Visa': 'طلبات فيزا',
+        'Toggle taxes for this specific order.': 'تفعيل/إيقاف الضرائب لهذا الطلب فقط.', 'None': 'بدون', 'Percentage (%)': 'نسبة (%)', 'Fixed Value': 'قيمة ثابتة', 'Split Payment': 'تقسيم الدفع', 'Split the check between Cash and Card amounts': 'قسّم الفاتورة بين النقدي والبطاقة',
+        'Total to Pay': 'الإجمالي المطلوب', 'Cash Portion (EGP)': 'الجزء النقدي (ج.م)', 'Card Portion (EGP)': 'الجزء بالبطاقة (ج.م)', 'Remaining:': 'المتبقي:', 'Add Note': 'إضافة ملاحظة', 'Quick Tags:': 'وسوم سريعة:',
+        'VIP': 'مميز', 'Spicy': 'حار', 'No Onion': 'بدون بصل', 'Extra': 'إضافي', 'No Sugar': 'بدون سكر', 'Well Done': 'مستوي جيدًا', 'Change Size': 'تغيير الحجم', 'Global Invoice Discount': 'خصم على الفاتورة',
+        'Apply discount to the entire bill': 'تطبيق الخصم على الفاتورة كاملة', 'Discount Type': 'نوع الخصم', 'No Discount': 'بدون خصم', 'Fixed Amount (EGP)': 'مبلغ ثابت (ج.م)', 'Discount Value': 'قيمة الخصم', 'Extras:': 'الإضافات:',
+        'Special Instructions / Note:': 'تعليمات خاصة / ملاحظة:', 'Add to Cart': 'أضف للسلة', 'New Customer': 'عميل جديد', 'Add Address': 'إضافة عنوان', 'Pending Orders': 'طلبات معلقة', 'Test Sound': 'تجربة الصوت',
+        'No pending online orders.': 'لا توجد طلبات أونلاين معلقة.', 'Open Tables': 'الطاولات المفتوحة', 'Select a table to view and close the bill': 'اختر طاولة لعرض الفاتورة وإغلاقها', 'Order Items': 'أصناف الطلب',
+        'Percent %': 'نسبة %', 'Fixed Amount': 'مبلغ ثابت', 'Some items are still being prepared.': 'بعض الأصناف ما زالت قيد التحضير.', 'Close Bill': 'إغلاق الفاتورة', 'Force Close': 'إغلاق إجباري',
+        'Force Close requires manager confirmation and overrides item readiness checks.': 'الإغلاق الإجباري يحتاج تأكيد المدير ويتجاوز فحص جاهزية الأصناف.',
+        'Choose how you want to handle this order session': 'اختر طريقة التعامل مع هذا الطلب', 'Tables overview, live table cart, & orders': 'نظرة على الطاولات والطلبات المفتوحة', 'Customer address, delivery zones & rider assignment': 'عنوان العميل ومناطق التوصيل وتعيين المندوب',
+        'Direct counter sales & fast pickup orders': 'بيع مباشر من الكاونتر واستلام سريع', 'Phone/Name...': 'الهاتف/الاسم...', 'Order Note (Kitchen)...': 'ملاحظة الطلب (للمطبخ)...', 'Value': 'القيمة', 'e.g. No onions, Extra spicy...': 'مثال: بدون بصل، حار زيادة...',
+        'Street': 'الشارع', 'Bldg': 'مبنى', 'Floor': 'الدور', 'Apt': 'شقة', 'Landmark': 'علامة مميزة', 'Area': 'المنطقة', 'Go to Activation': 'اذهب للتفعيل', 'This system requires a valid license to operate.': 'يتطلب النظام ترخيصًا ساريًا للعمل.',
         // POS misc
         'Tables': 'الطاولات', 'Online Orders': 'الطلبات الأونلاين', 'Manage Taxes': 'إدارة الضرائب', 'Total Amount': 'الإجمالي', 'Split': 'تقسيم',
         'Preview': 'معاينة', 'Subtotal': 'المجموع الفرعي', 'Select Order Type': 'اختر نوع الطلب'
@@ -66,6 +86,8 @@
         if (!raw) return null;
         const s = raw.replace(/\s+/g, ' ').trim();
         if (!s || /[\u0600-\u06FF]/.test(s)) return null;
+        if (L[s.toLowerCase()]) return L[s.toLowerCase()];
+        const tb = s.match(/^Table (\d+)$/i); if (tb) return 'طاولة ' + tb[1];
         const m = s.match(/^([^A-Za-z0-9\u0600-\u06FF]*(?:\d+\.\s+)?)(.*?)([\s:*]*)$/);
         if (!m) return null;
         if (/^[a-z_0-9]+$/.test(m[2])) return null;
