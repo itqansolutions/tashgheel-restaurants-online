@@ -2965,7 +2965,8 @@ function startTitleBlink(count) {
     let state = false;
     _titleBlinkTimer = setInterval(() => {
         state = !state;
-        document.title = state ? `🔔 (${count}) NEW ORDER! - Tashgheel POS` : _originalDocTitle;
+        const _arTitle = localStorage.getItem('pos_language') === 'ar';
+        document.title = state ? (_arTitle ? `🔔 (${count}) طلب جديد! - Tashgheel POS` : `🔔 (${count}) NEW ORDER! - Tashgheel POS`) : _originalDocTitle;
     }, 1000);
 }
 

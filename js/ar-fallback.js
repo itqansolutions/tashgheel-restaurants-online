@@ -287,6 +287,11 @@
         'Geolocation not supported': 'تحديد الموقع غير مدعوم',
         // Reports: profitability rows; products: recipe banner + type hints
         // Products page save/validation alerts (translated via the alert/confirm override)
+        // POS online-orders panel
+        'Online Orders': 'الطلبات الأونلاين', 'Resume': 'استكمال', 'No pending online orders.': 'لا توجد طلبات أونلاين معلقة.',
+        'Checking for new orders...': 'جار البحث عن طلبات جديدة...',
+        'Resume online order? Current cart will be cleared.': 'استكمال الطلب الأونلاين؟ سيتم إفراغ السلة الحالية.',
+        'Take_Away': 'تيك أواي', 'Dine_In': 'صالة',
         'Menu Item Saved!': 'تم حفظ الصنف!', 'Please enter Price.': 'من فضلك أدخل السعر.',
         'Category already exists': 'القسم موجود بالفعل', 'Code already exists!': 'الكود موجود بالفعل!',
         'Enter size name, code, and price': 'أدخل اسم الحجم والكود والسعر',
@@ -344,6 +349,8 @@
         const payl = s.match(/^(.+?) · (\d+) item line\(s\)$/); if (payl) { const tb2 = payl[1].match(/^Table (\d+)$/i); return (tb2 ? 'طاولة ' + tb2[1] : payl[1]) + ' · ' + payl[2] + ' سطر'; }
         const edsz = s.match(/^Editing Recipe for Size: (.+)$/); if (edsz) return 'تعديل وصفة الحجم: ' + edsz[1];
         const svf = s.match(/^(Save failed|Removal failed|Recipe needs review): (.*)$/); if (svf) return ({'Save failed':'فشل الحفظ','Removal failed':'فشل الحذف','Recipe needs review':'الوصفة تحتاج مراجعة'}[svf[1]]) + ': ' + svf[2];
+        const olt = s.match(/^(DELIVERY|TAKE_AWAY|DINE_IN) \| (.*)$/); if (olt) return ({'DELIVERY':'توصيل','TAKE_AWAY':'تيك أواي','DINE_IN':'صالة'}[olt[1]]) + ' | ' + olt[2].replace(' AM',' ص').replace(' PM',' م');
+        const newo = s.match(/^🔔 New Online Order #(\S+)(.*?) \((\d+) pending\)$/); if (newo) return '🔔 طلب أونلاين جديد #' + newo[1] + newo[2] + ' (' + newo[3] + ' معلق)';
         const remzone = s.match(/^Remove geographic region from (.+)\?$/); if (remzone) return 'إزالة النطاق الجغرافي من ' + remzone[1] + '؟';
         const errx = s.match(/^Error: (.+)$/); if (errx && L[errx[1].toLowerCase()]) return 'خطأ: ' + L[errx[1].toLowerCase()];
         const enterl = s.match(/^Enter (.+)$/); if (enterl && L[enterl[1].toLowerCase()]) return 'أدخل ' + L[enterl[1].toLowerCase()];
