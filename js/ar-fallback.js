@@ -286,6 +286,9 @@
         'Delete this area?': 'حذف هذه المنطقة؟', 'Enter valid Name and Fee': 'أدخل اسمًا ورسومًا صحيحة',
         'Geolocation not supported': 'تحديد الموقع غير مدعوم',
         'Total': 'الإجمالي',
+        'Yes, Confirm': 'نعم، تأكيد', 'e.g. HQ': 'مثال: MAIN', 'e.g. Hot Kitchen, Bar': 'مثال: مطبخ ساخن، بار',
+        'e.g. VAT, Service Charge': 'مثال: ضريبة القيمة المضافة، رسوم الخدمة', 'e.g. 14': 'مثال: 14',
+
         'Welcome,': 'أهلًا بك،', 'System Administrator': 'مدير النظام', ',': '،', ', or': '، أو'
     };
     // Case-insensitive lookup (headers are often uppercased in source)
