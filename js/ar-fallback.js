@@ -252,7 +252,13 @@
         '✅ Keys removed.': '✅ تمت إزالة المفاتيح.', '✅ Menu sent to the provider.': '✅ تم إرسال القائمة للمزوّد.',
         '✅ Saved. Keys are encrypted on the server.': '✅ تم الحفظ. المفاتيح مشفرة على الخادم.',
         '📋 Webhook URL copied!': '📋 تم نسخ رابط الويب هوك!',
-        'Remove the saved keys for this delivery app and switch it off?': 'إزالة المفاتيح المحفوظة لهذا التطبيق وإيقافه؟'
+        'Remove the saved keys for this delivery app and switch it off?': 'إزالة المفاتيح المحفوظة لهذا التطبيق وإيقافه؟',
+        // Admin: taxes, shift history, greeting, Manager PIN sentence glue
+        'Save Tax': 'حفظ الضريبة', 'Applies To': 'تُطبق على', 'Configured Taxes': 'الضرائب المضافة', 'Tax Name': 'اسم الضريبة',
+        'Percentage': 'النسبة', 'Percentage (%)': 'النسبة (%)', 'Enable Tax by Default': 'تفعيل الضريبة افتراضيًا',
+        'Shift History Log': 'سجل الورديات', 'Discrepancy': 'الفرق', 'Actual Drawer': 'الدرج الفعلي', 'Expected Drawer': 'الدرج المتوقع',
+        'Opening Cash': 'النقدية الافتتاحية', 'Closed At': 'وقت الإغلاق', 'Opened At': 'وقت الفتح', 'Loading shift history...': 'جار تحميل سجل الورديات...',
+        'Welcome,': 'أهلًا بك،', 'System Administrator': 'مدير النظام', ',': '،', ', or': '، أو'
     };
     // Case-insensitive lookup (headers are often uppercased in source)
     const L = {};
@@ -291,7 +297,7 @@
             const p = root.parentElement;
             if (p && (SKIP.test(p.tagName) || /material-/.test(p.getAttribute('class') || ''))) return;
             const r = tr(root.nodeValue);
-            if (r) root.nodeValue = r;
+            if (r) { const v = root.nodeValue; root.nodeValue = (/^\s/.test(v) ? ' ' : '') + r + (/\s$/.test(v) ? ' ' : ''); }
             return;
         }
         if (root.nodeType !== 1) return;
