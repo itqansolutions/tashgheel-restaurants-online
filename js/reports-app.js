@@ -59,6 +59,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // === 4. BRANCH LOADER ===
+  const branchNameById = {};
+
   async function loadBranches() {
     if (!branchFilter) return;
     try {
@@ -74,6 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       branchFilter.innerHTML = `<option value="all">${t('All Branches', 'كل الفروع')}</option>`;
       branches.forEach(b => {
+        branchNameById[String(b.id)] = b.name;
         const opt = document.createElement('option');
         opt.value = b.id;
         opt.textContent = b.name;
@@ -220,11 +223,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50 border-b border-slate-50 transition-colors cursor-pointer";
         tr.onclick = () => showReceiptModal ? showReceiptModal(r) : alert('Receipt detail not implemented');
+        const employees = (window.DB && DB.getEmployees) ? (DB.getEmployees() || []) : [];
+        const linkedEmp = employees.find(e => e.linkedUser === r.cashier);
+        const statusMap = { finished: t('finished', 'منتهي'), returned: t('returned', 'مسترد'), pending: t('pending', 'معلق'), cancelled: t('cancelled', 'ملغي'), open: t('open', 'مفتوح') };
         const cells = [
           '#' + (r.receiptNo || r.invoiceNumber || String(r.id || '').slice(-6)),
-          r.branchName || r.branchId || 'Main',
-          Number(r.total || 0).toFixed(2), r.method || '-', r.cashier || '-',
-          r.status || 'finished',
+          r.branchName || branchNameById[String(r.branchId)] || r.branchId || t('Main', 'الرئيسي'),
+          Number(r.total || 0).toFixed(2), r.method || '-', (linkedEmp && linkedEmp.name) || r.cashier || '-',
+          statusMap[String(r.status || 'finished').toLowerCase()] || r.status || statusMap.finished,
           new Date(r.date || r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         ];
         cells.forEach(value => { const td = document.createElement('td'); td.className = 'px-6 py-3'; td.textContent = value; tr.appendChild(td); });
