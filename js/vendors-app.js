@@ -287,11 +287,20 @@ window.printVendorReport = function printVendorReport(vendorId) {
 
     // Stored transaction descriptions are written in English (some server-side);
     // localize the known prefixes for the Arabic statement.
+    // Units written by the inventory flows stay in the description; render them
+    // in Arabic too (ml before l, kg before g).
+    const localizeUnits = (text) => String(text || '')
+        .replace(/(\d)\s?ml\b/gi, '$1 مل')
+        .replace(/(\d)\s?kg\b/gi, '$1 كجم')
+        .replace(/(\d)\s?g\b/gi, '$1 جم')
+        .replace(/(\d)\s?l\b/gi, '$1 لتر')
+        .replace(/(\d)\s?pcs\b/gi, '$1 قطعة');
     const localizeDesc = (d) => {
         if (lang !== 'ar') return d;
-        return String(d || '')
+        return localizeUnits(String(d || '')
+            .replace(/^Raw Material Purchase:\s*/i, 'شراء خامات: ')
             .replace(/^Material purchase:\s*/i, 'شراء خامات: ')
-            .replace(/^Vendor Payment:\s*/i, 'سداد للمورد: ');
+            .replace(/^Vendor Payment:\s*/i, 'سداد للمورد: '));
     };
 
     const vendor = window.DB.getVendor(vendorId);
