@@ -280,6 +280,7 @@
         // English label + Arabic tenant data (tax names, item names): translate before the Arabic guard
         const taxl = s.match(/^Taxes \((.+)\)$/i); if (taxl) return 'الضرائب (' + taxl[1] + ')';
         const addedt = s.match(/^Added (.+)$/i); if (addedt) return 'تمت إضافة ' + addedt[1];
+        const addt = s.match(/^Add "(.+)"$/i); if (addt) return 'إضافة "' + addt[1] + '"';
         if (/[\u0600-\u06FF]/.test(s)) return null;
         if (L[s.toLowerCase()]) return L[s.toLowerCase()];
         const tb = s.match(/^Table (\d+)$/i); if (tb) return 'طاولة ' + tb[1];
@@ -294,6 +295,8 @@
         const pendb = s.match(/^(\d+) pending$/i); if (pendb) return pendb[1] + ' معلّق';
         const guestb = s.match(/^🔔? ?Guest order \((\d+)\)$/i); if (guestb) return '🔔 طلب ضيف (' + guestb[1] + ')';
         const batchb = s.match(/^Batch (\d+)$/i); if (batchb) return 'الدفعة ' + batchb[1];
+        const item1 = s.match(/^(\d+) item$/i); if (item1) return item1[1] + ' صنف';
+        const batchs = s.match(/^✅ Batch (\d+) sent — (\d+) item\(s\) to kitchen$/i); if (batchs) return '✅ تم إرسال الدفعة ' + batchs[1] + ' — ' + batchs[2] + ' صنف للمطبخ';
         const moreb = s.match(/^\+(\d+) more$/); if (moreb) return '+' + moreb[1] + ' أصناف';
         const openb = s.match(/^Order open · (\d+) items$/); if (openb) return 'طلب مفتوح · ' + openb[1] + ' صنف';
         const lasto = s.match(/^Last order: (.*)\.$/); if (lasto) return 'آخر طلب: ' + lasto[1] + '.';
