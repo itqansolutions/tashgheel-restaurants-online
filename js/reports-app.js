@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // === 7. VIEW RENDERERS ===
 
   // --- LIVE MONITOR ---
-  function renderLiveMonitor(ctx) {
+  async function renderLiveMonitor(ctx) {
     const { receipts, totals } = ctx;
 
     document.getElementById('live-net-sales').textContent = totals.netSales.toFixed(2);
@@ -218,6 +218,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Recent Orders Table
     const tbody = document.getElementById('live-recent-body');
     if (tbody) {
+      if (!Object.keys(branchNameById).length && window.apiFetch) {
+        try {
+          const me = await window.apiFetch('/auth/me');
+          (me.branches || []).forEach(b => { branchNameById[String(b.id)] = b.name; });
+        } catch {}
+      }
       tbody.innerHTML = '';
       ctx.receipts.slice(0, 10).forEach(r => {
         const tr = document.createElement('tr');
@@ -225,11 +231,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         tr.onclick = () => showReceiptModal ? showReceiptModal(r) : alert('Receipt detail not implemented');
         const employees = (window.DB && DB.getEmployees) ? (DB.getEmployees() || []) : [];
         const linkedEmp = employees.find(e => e.linkedUser === r.cashier);
+        const users = (window.DB && DB.getUsers) ? (DB.getUsers() || []) : [];
+        const cashierUser = users.find(u => u.username === r.cashier);
         const statusMap = { finished: t('finished', 'منتهي'), returned: t('returned', 'مسترد'), pending: t('pending', 'معلق'), cancelled: t('cancelled', 'ملغي'), open: t('open', 'مفتوح') };
         const cells = [
           '#' + (r.receiptNo || r.invoiceNumber || String(r.id || '').slice(-6)),
           r.branchName || branchNameById[String(r.branchId)] || r.branchId || t('Main', 'الرئيسي'),
-          Number(r.total || 0).toFixed(2), r.method || '-', (linkedEmp && linkedEmp.name) || r.cashier || '-',
+          Number(r.total || 0).toFixed(2), r.method || '-', (linkedEmp && linkedEmp.name) || (cashierUser && (cashierUser.fullName || cashierUser.name)) || r.cashier || '-',
           statusMap[String(r.status || 'finished').toLowerCase()] || r.status || statusMap.finished,
           new Date(r.date || r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         ];
