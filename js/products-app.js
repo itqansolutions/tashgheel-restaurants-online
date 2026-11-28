@@ -810,7 +810,7 @@ function loadRecipeIngredientsDropdown() {
   ingredients.forEach(ing => {
     const opt = document.createElement('option');
     opt.value = ing.id;
-    opt.textContent = `${ing.name} (${ing.unit}) - ${parseFloat(ing.cost).toFixed(2)}`;
+    opt.textContent = `${ing.name} (${unitLabel(ing.unit)}) - ${parseFloat(ing.cost).toFixed(2)}`;
     select.appendChild(opt);
   });
 }
@@ -1135,7 +1135,7 @@ function loadSingleRecipeIngredientsDropdown() {
   ingredients.forEach(ing => {
     const opt = document.createElement('option');
     opt.value = ing.id;
-    opt.textContent = `${ing.name} (${ing.unit}) - ${parseFloat(ing.cost).toFixed(2)}`;
+    opt.textContent = `${ing.name} (${unitLabel(ing.unit)}) - ${parseFloat(ing.cost).toFixed(2)}`;
     select.appendChild(opt);
   });
 
