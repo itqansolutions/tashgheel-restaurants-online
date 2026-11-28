@@ -296,7 +296,7 @@
         'Checking for new orders...': 'جار البحث عن طلبات جديدة...',
         'Resume online order? Current cart will be cleared.': 'استكمال الطلب الأونلاين؟ سيتم إفراغ السلة الحالية.',
         'Take_Away': 'تيك أواي', 'Dine_In': 'صالة',
-        'Menu Item Saved!': 'تم حفظ الصنف!', 'Please enter Price.': 'من فضلك أدخل السعر.', 'You are currently in Viewing Mode. Please open or join a shift to complete a sale.': 'أنت حاليًا في وضع المشاهدة. يرجى فتح وردية أو الانضمام إلى وردية لإتمام البيع.',
+        'Menu Item Saved!': 'تم حفظ الصنف!', 'Please enter Price.': 'من فضلك أدخل السعر.', 'Authorize global discount': 'تفويض خصم عام', 'Authorize discount on item': 'تفويض خصم على صنف', 'Authorize item removal from cart': 'تفويض حذف صنف من السلة', 'Enter manager PIN to continue': 'أدخل رقم المدير السري للمتابعة', 'Remove the Manager PIN? Hard actions will no longer require authorization.': 'إزالة رقم المدير السري؟ لن تتطلب الإجراءات الحساسة تصريحًا بعد الآن.', '✅ Manager PIN removed. Hard actions now require no PIN.': '✅ تمت إزالة رقم المدير السري. لن تتطلب الإجراءات الحساسة رقمًا سريًا.', '✅ Manager PIN saved. Staff will be prompted for hard actions.': '✅ تم حفظ رقم المدير السري. سيُطلب من الموظفين إدخاله للإجراءات الحساسة.', 'You are currently in Viewing Mode. Please open or join a shift to complete a sale.': 'أنت حاليًا في وضع المشاهدة. يرجى فتح وردية أو الانضمام إلى وردية لإتمام البيع.',
         'Category already exists': 'القسم موجود بالفعل', 'Code already exists!': 'الكود موجود بالفعل!',
         'Enter size name, code, and price': 'أدخل اسم الحجم والكود والسعر',
         'Please add at least one Size Variant.': 'أضف حجمًا واحدًا على الأقل.',
