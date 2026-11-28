@@ -61,6 +61,26 @@ router.post('/', async (req, res) => {
     }
 });
 
+// @route   PATCH /api/branches/:id
+// Rename a branch. Name only: the rest of the branch (settings, codes) is edited
+// elsewhere, and the staff UI has no rename screen yet - this is the API path.
+router.patch('/:id', async (req, res) => {
+    try {
+        const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+        if (!name) return res.status(400).json({ msg: 'Branch name is required' });
+        if (name.length > 80) return res.status(400).json({ msg: 'Branch name is too long' });
+
+        const branch = await prisma.branch.findUnique({ where: { id: req.params.id } });
+        if (!branch || branch.tenantId !== req.tenantId) return res.status(404).json({ msg: 'Branch not found' });
+
+        const updated = await prisma.branch.update({ where: { id: branch.id }, data: { name } });
+        res.json(publicBranch(updated));
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+});
+
 // @route   DELETE /api/branches/:id
 router.delete('/:id', async (req, res) => {
     try {
