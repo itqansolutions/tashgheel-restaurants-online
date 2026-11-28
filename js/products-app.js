@@ -207,9 +207,10 @@ function loadProducts() {
     const defaults = ["Meals", "Drinks", "Desserts", "Appetizers", "Add-ons"];
     defaults.forEach(c => categories.push(c));
     categoriesChanged = true;
-  } else if (!categories.includes('Add-ons')) {
-    // Force Add-ons existence
-    categories.push('Add-ons');
+  } else if (!categories.some(c => (window.isAddonCategory ? window.isAddonCategory(c) : String(c).toLowerCase().includes('add-on')))) {
+    // Ensure an add-ons bucket exists, in the menu's own language. A tenant that
+    // already names it الإضافات must not get a second English "Add-ons" category.
+    categories.push((localStorage.getItem('pos_language') || 'en') === 'ar' ? 'الإضافات' : 'Add-ons');
     categoriesChanged = true;
   }
 
@@ -943,12 +944,67 @@ function loadCategories() {
 
     const li = document.createElement("li");
     li.className = "flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg border border-slate-100 hover:border-blue-200 transition-colors group";
-    li.innerHTML = `
-        <span class="text-sm font-medium text-slate-700">${cat}</span>
-        <!-- Potential delete button here later -->
-    `;
+    const label = document.createElement('span');
+    label.className = 'text-sm font-medium text-slate-700';
+    label.textContent = cat;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors';
+    del.title = (localStorage.getItem('pos_language') || 'en') === 'ar' ? 'حذف القسم' : 'Delete category';
+    del.innerHTML = '<span class="material-symbols-outlined text-[16px]">delete</span>';
+    del.addEventListener('click', () => window.deleteCategory(cat));
+    li.appendChild(label);
+    li.appendChild(del);
     list.appendChild(li);
   });
+}
+
+// Delete a category. A category that still holds items is never dropped
+// silently: the user names an existing category to move them to first.
+window.deleteCategory = async function (cat) {
+  const ar = (localStorage.getItem('pos_language') || 'en') === 'ar';
+  const inUse = (window.DB.getParts() || []).filter(p => (p.category || '') === cat);
+
+  if (inUse.length === 0) {
+    if (!confirm(ar ? `حذف القسم "${cat}"؟` : `Delete the category "${cat}"?`)) return;
+    removeCategory(cat);
+    return;
+  }
+
+  const others = window.DB.getCategories().filter(c => c !== cat);
+  const answer = prompt(
+    ar
+      ? `القسم "${cat}" مستخدم في ${inUse.length} صنف.\nاكتب اسم القسم البديل لنقل الأصناف إليه ثم يُحذف، أو اترك الحقل فارغًا للإلغاء.\nالأقسام المتاحة: ${others.join(' / ')}`
+      : `"${cat}" is used by ${inUse.length} item(s).\nType an existing category to move them to it and delete this one, or leave empty to cancel.\nAvailable: ${others.join(' / ')}`
+  );
+  if (answer === null) return;
+  const target = answer.trim();
+  if (!target) return;
+  const match = others.find(c => c.toLowerCase() === target.toLowerCase());
+  if (!match) {
+    alert(ar ? 'القسم البديل غير موجود. لم يتغير شيء.' : 'That category does not exist. Nothing changed.');
+    return;
+  }
+
+  let failed = 0;
+  for (const p of inUse) {
+    const ok = await window.DB.savePart({ id: p.id, category: match });
+    if (ok === false) failed++;
+  }
+  if (failed) {
+    alert(ar ? 'تعذر نقل بعض الأصناف، لم يُحذف القسم.' : 'Some items could not be moved. The category was not deleted.');
+    loadCategories();
+    return;
+  }
+
+  removeCategory(cat);
+  if (typeof loadProducts === 'function') loadProducts();
+  alert(ar ? `تم نقل ${inUse.length} صنف إلى "${match}" وحذف القسم "${cat}".` : `Moved ${inUse.length} item(s) to "${match}" and deleted "${cat}".`);
+};
+
+function removeCategory(cat) {
+  window.DB.saveCategories(window.DB.getCategories().filter(c => c !== cat));
+  loadCategories();
 }
 
 // Menu PDF Export
