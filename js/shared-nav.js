@@ -68,7 +68,7 @@ function renderNavigation(activePage) {
     ];
 
     let navRole = '';
-    try { navRole = String((JSON.parse(localStorage.getItem('currentUser') || 'null') || {}).role || '').toLowerCase(); } catch (e) { /* ignore */ }
+    try { navRole = String(((typeof window.getCurrentUser === 'function' && window.getCurrentUser()) || {}).role || localStorage.getItem('role') || '').toLowerCase(); } catch (e) { /* ignore */ }
 
     // Check feature flags from shop settings
     let kitchenEnabled = true;
