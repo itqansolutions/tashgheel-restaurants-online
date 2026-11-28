@@ -69,6 +69,22 @@ function getTenantId() {
     return safeSession.get('online_tenant_id') || safeLocal.get('online_tenant_id');
 }
 
+// The tax the store charges, as the server resolves it from the tenant's
+// Taxes & VAT records (the same records the POS charges). The branch form's
+// taxRate is only a fallback, so the cart panel and the checkout always agree.
+function currentOrderType() {
+    return document.querySelector('input[name="orderType"]:checked')?.value || 'takeaway';
+}
+
+function currentTax() {
+    const branchTax = state.branch?.tax?.[currentOrderType()];
+    if (branchTax && Number.isFinite(Number(branchTax.rate))) {
+        return { rate: Number(branchTax.rate), name: branchTax.name || 'VAT' };
+    }
+    const settings = state.branch?.settings || {};
+    return { rate: Number(settings.taxRate) || 0, name: settings.taxName || 'VAT' };
+}
+
 // --- BRANCH MANAGEMENT ---
 
 async function checkBranchSelection() {
@@ -98,12 +114,36 @@ async function checkBranchSelection() {
         }
         if (state.branch) {
             updateUIForBranch();
+            updateCartUI();
+            refreshSavedBranch();
             loadMenu(state.branch.id || state.branch._id);
             loadDeliveryZones(state.branch.id || state.branch._id);
             return;
         }
     }
     openBranchModal();
+}
+
+// The saved branch carries the tax rate it had when the customer picked it.
+// Refresh it quietly so a rate changed in the back office shows up in the cart.
+async function refreshSavedBranch() {
+    const tenantId = getTenantId();
+    if (!tenantId || !state.branch) return;
+    try {
+        const res = await fetch(`${API_BASE}/branches?oid=${encodeURIComponent(tenantId)}`, {
+            headers: { 'x-tenant-id': tenantId }
+        });
+        if (!res.ok) return;
+        const branches = await res.json();
+        if (!Array.isArray(branches)) return;
+        const currentId = state.branch.id || state.branch._id;
+        const fresh = branches.find(b => String(b.id || b._id) === String(currentId));
+        if (!fresh) return;
+        state.branch = fresh;
+        safeSession.set('online_branch', JSON.stringify(fresh));
+        updateCartUI();
+        updateCheckoutSummary();
+    } catch (e) { }
 }
 
 async function fetchBranches() {
@@ -158,22 +198,22 @@ async function fetchBranches() {
 }
 
 function selectBranch(branch) {
+    // Clear cart if branch changes? Optional. For now, we clear to avoid price mismatch.
+    if (state.cart.length > 0) {
+        if (!confirm('تغيير الفرع سيفرغ السلة. هل تريد المتابعة؟')) return;
+        clearCart();
+    }
+
     state.branch = branch;
     safeSession.set('online_branch', JSON.stringify(branch));
     toggleBranchModal(false);
     updateUIForBranch();
+    // The tax rate follows the branch: recompute the cart panel now instead of
+    // leaving the previous branch's (or no-branch) figure next to a checkout total.
+    updateCartUI();
+    updateCheckoutSummary();
     loadMenu(branch.id || branch._id);
     loadDeliveryZones(branch.id || branch._id);
-
-    // Clear cart if branch changes? Optional. For now, we clear to avoid price mismatch.
-    if (state.cart.length > 0) {
-        if (confirm('تغيير الفرع سيفرغ السلة. هل تريد المتابعة؟')) {
-            clearCart();
-        } else {
-            // Revert?
-            return;
-        }
-    }
 }
 
 function updateUIForBranch() {
@@ -535,12 +575,16 @@ function updateCartUI() {
             container.appendChild(div);
         });
 
-        // Footer Calcs
-        const taxRate = state.branch?.settings?.taxRate || 0;
-        const taxVal = subtotal * (taxRate / 100);
+        // Footer Calcs — one tax source for the cart and the checkout.
+        const tax = currentTax();
+        const taxVal = subtotal * (tax.rate / 100);
 
         document.getElementById('cartSubtotal').textContent = subtotal.toFixed(2);
-        document.getElementById('cartTax').textContent = `${taxVal.toFixed(2)} (${taxRate}%)`;
+        // Before a branch is chosen the tax is unknown, not 0%: say so instead of
+        // showing a 0% rate the checkout would contradict a click later.
+        document.getElementById('cartTax').textContent = state.branch
+            ? `${taxVal.toFixed(2)} (${tax.rate}%)`
+            : 'يُحسب حسب الفرع';
         document.getElementById('cartTotal').textContent = (subtotal + taxVal).toFixed(2);
 
         document.getElementById('cartFooter').classList.remove('hidden');
@@ -823,6 +867,7 @@ function toggleDeliveryFields() {
         state.deliveryZone = null;
         zoneSelect.value = '';
     }
+    updateCartUI();
     updateCheckoutSummary();
 }
 
@@ -836,8 +881,8 @@ function updateCheckoutSummary() {
     let subtotal = 0;
     state.cart.forEach(i => subtotal += i.price * i.qty);
 
-    const taxRate = state.branch?.settings?.taxRate || 0;
-    const taxVal = subtotal * (taxRate / 100);
+    const tax = currentTax();
+    const taxVal = subtotal * (tax.rate / 100);
 
     let deliveryFee = 0;
     if (state.deliveryZone) {
@@ -846,7 +891,7 @@ function updateCheckoutSummary() {
 
     const total = subtotal + taxVal + deliveryFee;
 
-    document.getElementById('checkoutSubtotal').textContent = `${subtotal.toFixed(2)} + ${taxVal.toFixed(2)} Tax`;
+    document.getElementById('checkoutSubtotal').textContent = `${subtotal.toFixed(2)} + ${taxVal.toFixed(2)} ${tax.name}`;
     document.getElementById('checkoutDeliveryFee').textContent = deliveryFee.toFixed(2);
     document.getElementById('checkoutTotal').textContent = `${total.toFixed(2)} EGP`;
 }

@@ -3051,13 +3051,44 @@ function renderOnlineOrdersList() {
                 <div class="text-[10px] text-slate-500">${order.orderType.toUpperCase()} | ${new Date(order.date).toLocaleTimeString()}</div>
                 <div class="text-[11px] font-bold text-success mt-1">${parseFloat(order.total || 0).toFixed(2)} EGP</div>
             </div>
-            <button onclick="resumeOnlineOrder('${order.id}')" 
-                class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                Resume
-            </button>
+            <div class="flex items-center gap-2">
+                <button onclick="resumeOnlineOrder('${order.id}')"
+                    class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg">
+                    Resume
+                </button>
+                <button onclick="rejectOnlineOrder('${order.id}')"
+                    class="px-3 py-1.5 bg-white border border-red-200 text-red-600 text-xs font-bold rounded-lg hover:bg-red-50">
+                    رفض / Reject
+                </button>
+            </div>
         </div>
     `).join('');
 }
+
+// Reject a pending online order. It was never paid and never became an invoice,
+// so it is marked rejected (and drops out of the pending list and the invoices).
+async function rejectOnlineOrder(orderId) {
+    const order = (window.latestOnlineOrders || []).find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    if (!confirm(`رفض طلب الأونلاين #${order.receiptNo}؟ لن يتحول إلى فاتورة.\nReject online order #${order.receiptNo}? It will not become an invoice.`)) return;
+    try {
+        const result = await window.apiFetch(`/kitchen/reject/${encodeURIComponent(orderId)}`, { method: 'POST' });
+        if (result && result.success) {
+            window.latestOnlineOrders = (window.latestOnlineOrders || []).filter(o => String(o.id) !== String(orderId));
+            renderOnlineOrdersList();
+            if (window.showToast) window.showToast(`تم رفض الطلب #${order.receiptNo}`, 'success');
+            fetchOnlineOrders();
+        } else {
+            alert('تعذر رفض الطلب: ' + ((result && result.error) || 'خطأ غير معروف'));
+        }
+    } catch (err) {
+        let message = err.message || String(err);
+        try { const parsed = JSON.parse(message); if (parsed && parsed.error) message = parsed.error; } catch (e) { }
+        alert('تعذر رفض الطلب: ' + message);
+    }
+}
+window.rejectOnlineOrder = rejectOnlineOrder;
+
 
 function openOnlineOrders() {
     stopTitleBlink();

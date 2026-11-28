@@ -852,6 +852,25 @@ for (const action of ['complete','preparing']) router.post('/kitchen/'+action+'/
     } catch(err) {res.status(err.status||500).json({error:err.message});}
 });
 
+// Reject a pending online order: it was never paid and never became a sale, so it
+// stops being actionable for the kitchen/POS and never shows up as an invoice.
+router.post('/kitchen/reject/:id', async (req, res) => {
+    try {
+        const result = await prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${req.tenantId} FOR UPDATE`;
+            const sale = await tx.sale.findUnique({ where: { id: req.params.id } });
+            const fail = (message, status) => { const err = new Error(message); err.status = status; throw err; };
+            if (!sale || sale.tenantId !== req.tenantId || sale.branchId !== req.branchId) fail('Order not found', 404);
+            if (!['online_store', 'online', 'aggregator'].includes(sale.source)) fail('Only online orders can be rejected here', 409);
+            if (['void', 'refunded', 'cancelled', 'rejected', 'finished'].includes(sale.status)) fail('Order is no longer pending', 409);
+            await tx.sale.update({ where: { id: sale.id }, data: { status: 'rejected', kitchenStatus: 'rejected' } });
+            await tx.auditLog.create({ data: { tenantId: req.tenantId, branchId: req.branchId, userId: req.userId, action: 'ONLINE_ORDER_REJECTED', details: { saleId: sale.id, total: sale.total, customer: sale.customer?.name || null } } }).catch(() => {});
+            return { success: true, id: sale.id, status: 'rejected' };
+        });
+        res.json(result);
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 // === INVENTORY MANAGEMENT ===
 
 // Save material metadata/entered branch balance and one linked credit purchase atomically.
@@ -1444,6 +1463,7 @@ router.get('/reports/history', async (req, res) => {
         }
         if (cashier) filter.cashierId = cashier;
         if (status) filter.status = status;
+        else filter.status = { not: 'rejected' }; // a rejected online order was never a sale
 
         const total = await prisma.sale.count({ where: filter });
 

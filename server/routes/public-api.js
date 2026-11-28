@@ -4,6 +4,7 @@ const {readCatalog}=require('../utils/catalog');
 const {customerOrderItems}=require('../utils/customer-order-items');
 const prisma = require('../prisma');
 const storage = require('../utils/storage');
+const { resolveStoreTax, resolveStoreTaxForStore, normalizeOrderType } = require('../utils/store-tax');
 const rateLimit = require('express-rate-limit');
 
 // Rate Limiting
@@ -47,7 +48,13 @@ router.get('/branches', async (req, res) => {
         });
 
         // Public endpoint: never expose delivery-app keys or settings stored on the branch.
-        res.json(branches.map(b => { const { aggregators, ...safe } = (b.settings || {}); return { ...b, settings: safe }; }));
+        const taxes = await prisma.tax.findMany({ where: { tenantId, enabled: true } });
+        res.json(branches.map(b => {
+            const { aggregators, ...safe } = (b.settings || {});
+            // The tax the store charges comes from the tenant's Taxes & VAT records
+            // (the same ones the POS uses); the branch rate is only a fallback.
+            return { ...b, settings: safe, tax: resolveStoreTaxForStore(taxes, b) };
+        }));
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch branches' });
     }
@@ -131,7 +138,27 @@ router.get('/menu/:branchId', async (req, res) => {
                     : []
             }));
 
-        res.json({ categories, products });
+        // The store lists the categories its products actually carry. The staff app
+        // seeds English defaults (Meals, Drinks, Desserts...) into the tenant's
+        // category list, and those unused names used to show up as extra chips next
+        // to the tenant's own (often Arabic) categories. Stored order is kept for
+        // the names that are in use; unused names are dropped.
+        const storedOrder = new Map(categories.map((c, i) => [c.name, i]));
+        const usedCategoryNames = [];
+        products.forEach(p => {
+            const name = (p.category || '').toString().trim();
+            if (name && !usedCategoryNames.includes(name)) usedCategoryNames.push(name);
+        });
+        let storeCategories = usedCategoryNames
+            .map((name, index) => ({ name, index, rank: storedOrder.has(name) ? storedOrder.get(name) : Number.MAX_SAFE_INTEGER }))
+            .sort((a, b) => (a.rank - b.rank) || (a.index - b.index))
+            .map(({ name }) => {
+                const stored = categories.find(c => c.name === name) || {};
+                return { id: stored.id || name, name, order: stored.order };
+            });
+        if (storeCategories.length === 0) storeCategories = categories.map(c => ({ id: c.id || c.name, name: c.name, order: c.order }));
+
+        res.json({ categories: storeCategories, products });
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch menu' });
     }
@@ -166,9 +193,12 @@ router.post('/order', async (req, res) => {
             subtotal+=price*Number(item.qty);
             return {id:require('crypto').randomUUID(),productId:String(product.id),productCode:product.partNumber||product.code,name:product.name,qty:Number(item.qty),price,cost:item.cost,note:item.note||''};
         });
-        const settings = branch.settings || {};
-        const taxRate = settings.taxRate || 0;
-        const taxAmount = subtotal * (taxRate / 100);
+        // Same resolver the store page shows in the cart and at checkout, so the
+        // total the customer saw is the total that is charged.
+        const taxes = await prisma.tax.findMany({ where: { tenantId, enabled: true } });
+        const storeOrderType = normalizeOrderType(orderType);
+        const tax = resolveStoreTax(taxes, branch, storeOrderType);
+        const taxAmount = Math.round(subtotal * (tax.rate / 100) * 100) / 100;
 
         let deliveryFee = 0;
         if (orderType === 'delivery') {
@@ -198,7 +228,8 @@ router.post('/order', async (req, res) => {
                 tax: taxAmount,
                 deliveryFee: deliveryFee,
                 total: finalTotal,
-                orderType: orderType,
+                // POS order types use take_away; the store link sends "takeaway".
+                orderType: storeOrderType,
                 source: 'online_store',
                 status: 'pending',
                 kitchenStatus: 'pending',
@@ -219,6 +250,11 @@ router.post('/order', async (req, res) => {
         res.json({
             success: true,
             orderId: sale.id,
+            subtotal: subtotal,
+            tax: taxAmount,
+            taxRate: tax.rate,
+            taxName: tax.name,
+            deliveryFee: deliveryFee,
             total: finalTotal,
             message: 'Order placed successfully'
         });
