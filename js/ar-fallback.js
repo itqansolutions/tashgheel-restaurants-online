@@ -258,6 +258,11 @@
         'Percentage': 'النسبة', 'Percentage (%)': 'النسبة (%)', 'Enable Tax by Default': 'تفعيل الضريبة افتراضيًا',
         'Shift History Log': 'سجل الورديات', 'Discrepancy': 'الفرق', 'Actual Drawer': 'الدرج الفعلي', 'Expected Drawer': 'الدرج المتوقع',
         'Opening Cash': 'النقدية الافتتاحية', 'Closed At': 'وقت الإغلاق', 'Opened At': 'وقت الفتح', 'Loading shift history...': 'جار تحميل سجل الورديات...',
+        'Branch Management': 'إدارة الفروع', 'Add New Branch': 'إضافة فرع جديد', 'Branch Name': 'اسم الفرع', 'Branch Code': 'كود الفرع',
+        'Tax Rate (%)': 'نسبة الضريبة (%)', 'Address': 'العنوان', 'Add Branch': 'إضافة فرع', 'Existing Branches': 'الفروع الحالية', 'Tax %': 'الضريبة %',
+        'Taxes & VAT': 'الضرائب وضريبة القيمة المضافة', 'Add New Tax': 'إضافة ضريبة جديدة', 'Enabled': 'مفعّلة', 'Notes': 'ملاحظات', 'Customers': 'العملاء', 'Protected': 'محمي',
+        'Please choose a location to continue': 'من فضلك اختر الفرع للمتابعة',
+        'View history logs for all cash drawer shifts, Cashier audit figures, expected calculations, physical drawer values, and notes.': 'سجل ورديات الدرج النقدي: أرقام جرد الكاشير، الحسابات المتوقعة، قيم الدرج الفعلية، والملاحظات.',
         'Welcome,': 'أهلًا بك،', 'System Administrator': 'مدير النظام', ',': '،', ', or': '، أو'
     };
     // Case-insensitive lookup (headers are often uppercased in source)
