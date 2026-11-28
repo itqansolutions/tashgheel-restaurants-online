@@ -273,6 +273,19 @@
         'Delete this branch?': 'حذف هذا الفرع؟', 'Name and code required': 'الاسم والكود مطلوبان',
         'Failed to create branch': 'فشل إنشاء الفرع', 'No taxes configured.': 'لا توجد ضرائب مضافة.',
         'e.g. Main Branch': 'مثال: الفرع الرئيسي', 'Full address...': 'العنوان بالكامل...',
+        // Customers page: Areas modal, address modal, map region picker; store cart total
+        'Areas': 'المناطق', 'Add New Address': 'إضافة عنوان جديد', 'Save Address': 'حفظ العنوان',
+        'Landmark / Directions': 'علامة مميزة / الاتجاهات', '-- Select Area --': '-- اختر المنطقة --',
+        'Remove Region Data': 'إزالة بيانات النطاق', 'Search by name or mobile...': 'ابحث بالاسم أو الموبايل...',
+        'Delivery Areas & Map Regions': 'مناطق التوصيل ونطاقات الخريطة',
+        'Define areas, fees, and set geographic regions on the map.': 'حدّد المناطق والرسوم واضبط النطاقات الجغرافية على الخريطة.',
+        'Area Name (e.g. Nasr City)': 'اسم المنطقة (مثال: مدينة نصر)', 'Fee (EGP)': 'الرسوم (ج.م)',
+        'Set Region on Map': 'تحديد النطاق على الخريطة', 'Radius (meters):': 'نصف القطر (متر):',
+        'Click or drag the pin to set the center, and adjust radius to cover your delivery zone.': 'انقر أو اسحب الدبوس لتحديد المركز، واضبط نصف القطر لتغطية منطقة التوصيل.',
+        'Current GPS': 'الموقع الحالي', 'Save Region': 'حفظ النطاق',
+        'Delete this area?': 'حذف هذه المنطقة؟', 'Enter valid Name and Fee': 'أدخل اسمًا ورسومًا صحيحة',
+        'Geolocation not supported': 'تحديد الموقع غير مدعوم',
+        'Total': 'الإجمالي',
         'Welcome,': 'أهلًا بك،', 'System Administrator': 'مدير النظام', ',': '،', ', or': '، أو'
     };
     // Case-insensitive lookup (headers are often uppercased in source)
@@ -308,6 +321,7 @@
         const lasto = s.match(/^Last order: (.*)\.$/); if (lasto) return 'آخر طلب: ' + lasto[1] + '.';
         const synci = s.match(/^⚠️ Sync issue: (.*)$/); if (synci) return '⚠️ مشكلة في المزامنة: ' + synci[1];
         const failc = s.match(/^❌ (Check failed|Failed to save|Sync failed): (.*)$/); if (failc) return '❌ ' + ({'Check failed':'فشل التحقق','Failed to save':'فشل الحفظ','Sync failed':'فشلت المزامنة'}[failc[1]]) + ': ' + failc[2];
+        const remzone = s.match(/^Remove geographic region from (.+)\?$/); if (remzone) return 'إزالة النطاق الجغرافي من ' + remzone[1] + '؟';
         const errx = s.match(/^Error: (.+)$/); if (errx && L[errx[1].toLowerCase()]) return 'خطأ: ' + L[errx[1].toLowerCase()];
         const enterl = s.match(/^Enter (.+)$/); if (enterl && L[enterl[1].toLowerCase()]) return 'أدخل ' + L[enterl[1].toLowerCase()];
         const m = s.match(/^([^A-Za-z0-9\u0600-\u06FF]*(?:\d+\.\s+)?)(.*?)([\s:*]*)$/);
