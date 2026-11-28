@@ -398,7 +398,7 @@ function viewServiceInvoice(visitId) {
                 <!-- Company Footer -->
                 <div style="margin-top:25px; padding:12px; background:#2c3e50; color:white; border-radius:6px; text-align:center;">
                     <h4 style="margin:0 0 6px 0; font-size:1em;">Tashgheel Services</h4>
-                    <p style="margin:0 0 6px 0; font-size:0.8em;">Powered by <strong>itqan solutions</strong></p>
+                    <p style="margin:0 0 6px 0; font-size:0.8em;">${t('Powered by <strong>Itqan Solutions</strong>', 'مدعوم من <strong>إتقان سولوشنز</strong>')}</p>
                     <div style="margin-top:6px; padding-top:6px; border-top:1px solid #34495e; font-size:0.75em;">
                         <p style="margin:2px 0;">📧 info@itqansolutions.org | 🌐 itqansolutions.org</p>
                         <p style="margin:2px 0;">📱 +201126522373 / +201155253886</p>

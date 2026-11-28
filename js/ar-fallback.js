@@ -119,7 +119,7 @@
         'Expense Details': 'تفاصيل المصروفات', 'Export to Excel': 'تصدير إلى إكسل', 'Date': 'التاريخ',
         'Description': 'الوصف', 'Total COGS': 'إجمالي تكلفة البضاعة المباعة', 'Cost of Goods': 'تكلفة البضاعة',
         'Net Sales - COGS': 'صافي المبيعات - تكلفة البضاعة', 'Profit Margin %': 'هامش الربح %',
-        'Profit / Net Sales': 'الربح / صافي المبيعات', 'Avg Cost / Order': 'متوسط التكلفة / الطلب',
+        'Gross Profit / Net Sales': 'إجمالي الربح / صافي المبيعات', 'Avg Cost / Order': 'متوسط التكلفة / الطلب',
         'Efficiency Metric': 'مؤشر الكفاءة', 'Income Breakdown': 'تفصيل الإيرادات', 'Cost by Category': 'التكلفة حسب القسم',
         'Product Profitability': 'ربحية الأصناف', 'Product': 'الصنف', 'Sold': 'المباع', 'Profit': 'الربح',
         'Margin': 'هامش الربح', 'Category Profitability': 'ربحية الأقسام', 'Low Margin Alerts (< 20%)': 'تنبيهات هامش الربح المنخفض (أقل من 20%)',

@@ -185,6 +185,36 @@ async function buildReportContext() {
         return parseFloat(product.cost || product.unitCost) || 0;
     };
 
+    // Category lookup: receipt lines do not store a category, so resolve it from
+    // the catalog by product id / code / name instead of dumping every sale into
+    // an "Uncategorized" bucket.
+    const categoryById = new Map();
+    const categoryByCode = new Map();
+    const categoryByName = new Map();
+    (rawProducts || []).forEach(p => {
+        const cat = String(p.category || '').trim();
+        if (!cat) return;
+        if (p.id !== undefined && p.id !== null) categoryById.set(String(p.id), cat);
+        if (p.code) categoryByCode.set(String(p.code), cat);
+        if (p.name) categoryByName.set(String(p.name).trim(), cat);
+    });
+    const resolveItemCategory = (item) => {
+        if (item.category) return item.category;
+        if (item.productId !== undefined && item.productId !== null) {
+            const byId = categoryById.get(String(item.productId));
+            if (byId) return byId;
+        }
+        if (item.code) {
+            const byCode = categoryByCode.get(String(item.code));
+            if (byCode) return byCode;
+        }
+        if (item.name) {
+            const byName = categoryByName.get(String(item.name).trim());
+            if (byName) return byName;
+        }
+        return 'Uncategorized';
+    };
+
     // 2b. Trend Step: Fetch Previous Period Data?
     // For MVP performance, we might simulate or just skip if too heavy. 
     // Let's try to do it right.
@@ -308,7 +338,7 @@ async function buildReportContext() {
                 prodMap[pName].profit += lineProfit;
 
                 // Category
-                const cat = item.category || 'Uncategorized';
+                const cat = resolveItemCategory(item);
                 if (!catMap[cat]) catMap[cat] = { qty: 0, gross: 0, net: 0, cost: 0, profit: 0 };
                 catMap[cat].qty += qty;
                 catMap[cat].gross += lineTotal;
@@ -495,6 +525,7 @@ async function buildReportContext() {
             expenses: totalExpenses,
             netProfit: netProfit,
             marginPercent: currentStats.net > 0 ? (netProfit / currentStats.net) * 100 : 0,
+            grossMarginPercent: currentStats.net > 0 ? (currentStats.profit / currentStats.net) * 100 : 0,
 
             // Expense details
             largestExpense: largestExp,

@@ -197,6 +197,14 @@ const t = (key) => {
   return key; // Fallback to key if not found
 };
 
+// Shift times follow the UI language, like the other Arabic date renders.
+const shiftTimeLocale = () => ((localStorage.getItem('pos_language') || 'en') === 'ar' ? 'ar-EG' : undefined);
+const formatShiftTime = (value) => {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '--:--';
+  return d.toLocaleTimeString(shiftTimeLocale(), { hour: '2-digit', minute: '2-digit' });
+};
+
 // ===================== INIT =====================// pos-app.js
 window.currentPage = 'pos';
 document.addEventListener("DOMContentLoaded", async () => {
@@ -370,7 +378,7 @@ function promptDiffShift(activeShifts) {
                         </div>
                         <div class="text-left">
                             <div class="font-bold text-sm dark:text-white">${s.cashierId?.fullName || 'Cashier'}</div>
-                            <div class="text-[10px] text-slate-500">Opened: ${new Date(s.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                            <div class="text-[10px] text-slate-500">${t('shift_opened_at')} ${formatShiftTime(s.openedAt)}</div>
                         </div>
                     </div>
                     <span class="text-blue-600 font-bold text-sm" data-i18n-key="join">Join</span>
@@ -423,11 +431,15 @@ function updateShiftUI() {
 
   if (banner) banner.style.display = 'block';
   if (timeEl) {
-    const d = new Date(currentShift.openedAt);
-    timeEl.textContent = `Opened: ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    timeEl.textContent = `${t('shift_opened_at')} ${formatShiftTime(currentShift.openedAt)}`;
   }
   updateShiftCashDisplay();
 }
+
+// Keep the shift badge in the UI language when the user switches language.
+window.addEventListener('languageChanged', () => {
+  if (currentShift) updateShiftUI();
+});
 
 function updateShiftCashDisplay() {
   const cashEl = document.getElementById('shiftCashDisplay');

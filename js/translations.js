@@ -196,7 +196,7 @@ const translations = {
     expected_cash: { en: 'Expected Cash', ar: 'النقد المتوقع' },
     difference: { en: 'Difference', ar: 'العجز / الزيادة' },
     shift_active: { en: 'Shift Active', ar: 'الوردية نشطة' },
-    shift_opened_at: { en: 'Opened:', ar: 'فتحت:' },
+    shift_opened_at: { en: 'Opened:', ar: 'وقت الفتح:' },
     confirm_start_shift: { en: 'Start new shift? Receipt counter will reset to 001.', ar: 'بدء وردية جديدة؟ سيتم إعادة تعيين عداد الفواتير إلى ٠٠١.' },
     shift_started: { en: 'New Shift Started! Receipt # reset to 001.', ar: 'تم بدء وردية جديدة! تم تصفير عداد الفواتير.' },
 

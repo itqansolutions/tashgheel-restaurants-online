@@ -280,7 +280,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('cogs-total').textContent = totals.cogs.toFixed(2) + ' EGP';
     setProfitValue('cogs-profit', totals.profit, ' EGP');
-    document.getElementById('cogs-margin').textContent = totals.marginPercent.toFixed(1) + '%';
+    // Gross margin belongs next to Gross Profit; totals.marginPercent is the net
+    // margin (after expenses) and would read as a loss on this tab.
+    document.getElementById('cogs-margin').textContent = totals.grossMarginPercent.toFixed(1) + '%';
 
     const avg = receipts.length > 0 ? totals.cogs / receipts.length : 0;
     document.getElementById('cogs-avg-cost').textContent = avg.toFixed(2) + ' EGP';
