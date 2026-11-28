@@ -299,7 +299,7 @@ function renderProducts(products = state.menu.products.filter(p => !p.isService)
                 <p class="text-slate-500 text-sm line-clamp-2 leading-relaxed">${p.description || 'وجبة لذيذة تُحضر طازجة.'}</p>
                 
                 <button class="mt-4 w-full py-2 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-bold rounded-lg text-sm transition-colors border border-slate-100 hover:border-blue-100">
-                    Add to Cart
+                    أضف للسلة
                 </button>
             </div>
         `;

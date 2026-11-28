@@ -4,6 +4,9 @@
  * Phase 7: Separation of Concerns
  */
 
+const _rcAr = () => localStorage.getItem('pos_language') === 'ar' || document.documentElement.hasAttribute('data-force-ar');
+const _rcL = (en, ar) => (_rcAr() ? ar : en);
+
 window.ReportCharts = {
     // --- LIVE MONITOR / SALES ---
     renderSalesPerHour(receipts) {
@@ -23,7 +26,7 @@ window.ReportCharts = {
             data: {
                 labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
                 datasets: [{
-                    label: 'Sales (EGP)',
+                    label: _rcL('Sales (EGP)', 'المبيعات (ج.م)'),
                     data: hours,
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -86,7 +89,7 @@ window.ReportCharts = {
             data: {
                 labels: sorted.map(s => s[0]),
                 datasets: [{
-                    label: 'Net Sales',
+                    label: _rcL('Net Sales', 'صافي المبيعات'),
                     data: sorted.map(s => s[1].net),
                     backgroundColor: '#f59e0b',
                     borderRadius: 4
@@ -109,11 +112,11 @@ window.ReportCharts = {
         window.cogsBreakdownChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Financial Overview'],
+                labels: [_rcL('Financial Overview', 'نظرة مالية عامة')],
                 datasets: [
-                    { label: 'COGS', data: [totals.cogs], backgroundColor: '#f59e0b' },
-                    { label: 'Net Sales', data: [totals.netSales], backgroundColor: '#3b82f6' },
-                    { label: 'Gross Profit', data: [totals.profit], backgroundColor: '#10b981' }
+                    { label: _rcL('COGS', 'تكلفة البضاعة'), data: [totals.cogs], backgroundColor: '#f59e0b' },
+                    { label: _rcL('Net Sales', 'صافي المبيعات'), data: [totals.netSales], backgroundColor: '#3b82f6' },
+                    { label: _rcL('Gross Profit', 'إجمالي الربح'), data: [totals.profit], backgroundColor: '#10b981' }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: false }

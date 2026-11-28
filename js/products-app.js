@@ -874,7 +874,7 @@ window.renderSingleRecipeTable = function () {
     row.innerHTML = `
             <td>${item.name}</td>
             <td>${netQty}</td>
-            <td>${item.unit}</td>
+            <td>${unitLabel(item.unit)}</td>
             <td>${wasteType === 'fixed' ? wasteVal : wasteVal + '%'}</td>
             <td>${Number.isFinite(lineCost)?lineCost.toFixed(2):"Needs review"}</td>
             <td><button type="button" class="btn btn-sm btn-danger" onclick="removeSingleRecipeItem(${index})">x</button></td>
@@ -1050,6 +1050,11 @@ function closeProductModal() {
 window.closeProductModal = closeProductModal;
 
 // --- Recipe Tab Logic Enhancements ---
+
+function unitLabel(u) {
+  if (localStorage.getItem('pos_language') !== 'ar') return u;
+  return { pcs: 'قطعة', kg: 'كجم', g: 'جم', l: 'لتر', ml: 'مل' }[u] || u;
+}
 
 function renderRecipeSizeButtons() {
   const container = document.getElementById('recipe-size-selector-container');
@@ -1236,7 +1241,7 @@ function renderSingleRecipeTable() {
     row.innerHTML = `
       <td>${item.name}</td>
       <td>${netQty}</td>
-      <td>${item.unit || ''}</td>
+      <td>${unitLabel(item.unit || '')}</td>
       <td>${wasteDisplay}</td>
       <td>${grossQty.toFixed(3)}</td>
       <td>${Number.isFinite(lineCost)?lineCost.toFixed(2):"Needs review"}</td>

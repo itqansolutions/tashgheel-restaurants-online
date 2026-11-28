@@ -285,6 +285,14 @@
         'Current GPS': 'الموقع الحالي', 'Save Region': 'حفظ النطاق',
         'Delete this area?': 'حذف هذه المنطقة؟', 'Enter valid Name and Fee': 'أدخل اسمًا ورسومًا صحيحة',
         'Geolocation not supported': 'تحديد الموقع غير مدعوم',
+        // Reports: profitability rows; products: recipe banner + type hints
+        'Uncategorized': 'غير مصنّف',
+        'Invoice / return adjustments (not allocated to products)': 'تعديلات الفواتير / المرتجعات (غير موزعة على الأصناف)',
+        'Editing Recipe for Main Product': 'تعديل وصفة المنتج الرئيسي',
+        'Please select a size above': 'اختر حجمًا من الأعلى',
+        'For services (e.g. delivery, setup). No recipe, no stock tracking.': 'للخدمات (مثل التوصيل والتجهيز). بدون وصفة وبدون تتبع مخزون.',
+        'For pre-packaged items (e.g. bottled water). Direct stock tracking, manual cost.': 'للأصناف الجاهزة المعبأة (مثل المياه المعبأة). تتبع مخزون مباشر وتكلفة يدوية.',
+        'For cooked/prepared items (e.g. burgers, coffee). Cost is calculated from recipe ingredients, stock is deduced from raw materials.': 'للأصناف المطهية/المحضّرة (مثل البرجر والقهوة). تُحسب التكلفة من مكونات الوصفة ويُخصم المخزون من الخامات.',
         'Total': 'الإجمالي',
         'Yes, Confirm': 'نعم، تأكيد', 'e.g. HQ': 'مثال: MAIN', 'e.g. Hot Kitchen, Bar': 'مثال: مطبخ ساخن، بار',
         'e.g. VAT, Service Charge': 'مثال: ضريبة القيمة المضافة، رسوم الخدمة', 'e.g. 14': 'مثال: 14',
@@ -324,6 +332,8 @@
         const lasto = s.match(/^Last order: (.*)\.$/); if (lasto) return 'آخر طلب: ' + lasto[1] + '.';
         const synci = s.match(/^⚠️ Sync issue: (.*)$/); if (synci) return '⚠️ مشكلة في المزامنة: ' + synci[1];
         const failc = s.match(/^❌ (Check failed|Failed to save|Sync failed): (.*)$/); if (failc) return '❌ ' + ({'Check failed':'فشل التحقق','Failed to save':'فشل الحفظ','Sync failed':'فشلت المزامنة'}[failc[1]]) + ': ' + failc[2];
+        const payl = s.match(/^(.+?) · (\d+) item line\(s\)$/); if (payl) { const tb2 = payl[1].match(/^Table (\d+)$/i); return (tb2 ? 'طاولة ' + tb2[1] : payl[1]) + ' · ' + payl[2] + ' سطر'; }
+        const edsz = s.match(/^Editing Recipe for Size: (.+)$/); if (edsz) return 'تعديل وصفة الحجم: ' + edsz[1];
         const remzone = s.match(/^Remove geographic region from (.+)\?$/); if (remzone) return 'إزالة النطاق الجغرافي من ' + remzone[1] + '؟';
         const errx = s.match(/^Error: (.+)$/); if (errx && L[errx[1].toLowerCase()]) return 'خطأ: ' + L[errx[1].toLowerCase()];
         const enterl = s.match(/^Enter (.+)$/); if (enterl && L[enterl[1].toLowerCase()]) return 'أدخل ' + L[enterl[1].toLowerCase()];
