@@ -211,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="inline-block px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide ${badgeClass}">${user.role}</span>
         </td>
         <td class="px-4 py-3 text-right">
+             <button onclick="handleEditUser('${user.id}')" class="w-8 h-8 inline-flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100 mr-1" title="Edit"><span class="material-symbols-outlined text-[16px]">edit</span></button>
              ${user.username !== 'admin' ?
           `<button onclick="handleDeleteUser('${user.id}')" class="w-8 h-8 inline-flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete"><span class="material-symbols-outlined text-[16px]">delete</span></button>` :
           `<span class="text-xs text-slate-300 italic">Protected</span>`
@@ -220,6 +221,69 @@ document.addEventListener('DOMContentLoaded', () => {
       userTableBody.appendChild(row);
     });
   }
+
+  // === Edit user ===
+  let editingUserId = null;
+
+  window.handleEditUser = function (id) {
+    const users = typeof getActiveUsers === 'function' ? getActiveUsers() : [];
+    const u = users.find(x => String(x.id) === String(id));
+    if (!u) return alert('User not found');
+
+    editingUserId = id;
+    usernameInput.value = u.username || '';
+    fullnameInput.value = u.fullName || '';
+    passwordInput.value = '';
+    passwordInput.removeAttribute('required');
+    passwordInput.placeholder = 'Leave blank to keep current password';
+
+    const roleSelect = document.getElementById('user-role-select');
+    const roleOther = document.getElementById('user-role-other');
+    const knownRoles = Array.from(roleSelect.options).map(o => o.value);
+    if (knownRoles.includes(u.role)) {
+      roleSelect.value = u.role;
+      roleOther.style.display = 'none';
+      roleOther.value = '';
+    } else {
+      roleSelect.value = 'Other';
+      roleOther.style.display = 'block';
+      roleOther.value = u.role || '';
+    }
+
+    document.querySelectorAll('input[name="access"]').forEach(cb => {
+      cb.checked = Array.isArray(u.allowedPages) && u.allowedPages.includes(cb.value);
+    });
+
+    const branchSelect = document.getElementById('user-branch-select');
+    if (branchSelect) branchSelect.value = u.defaultBranchId || (Array.isArray(u.branchIds) && u.branchIds[0]) || '';
+
+    const submitBtn = userForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span> Save Changes';
+    let cancelBtn = document.getElementById('cancel-edit-user-btn');
+    if (!cancelBtn) {
+      cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.id = 'cancel-edit-user-btn';
+      cancelBtn.className = 'px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all flex items-center gap-2';
+      cancelBtn.textContent = 'Cancel Edit';
+      cancelBtn.onclick = () => window.cancelEditUser();
+      if (submitBtn && submitBtn.parentElement) submitBtn.parentElement.appendChild(cancelBtn);
+    }
+    cancelBtn.style.display = '';
+    userForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  window.cancelEditUser = function () {
+    editingUserId = null;
+    userForm.reset();
+    passwordInput.setAttribute('required', '');
+    passwordInput.placeholder = '';
+    document.querySelectorAll('input[name="access"]').forEach(cb => cb.checked = false);
+    const submitBtn = userForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">person_add</span> Create User';
+    const cancelBtn = document.getElementById('cancel-edit-user-btn');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+  };
 
   window.handleDeleteUser = async function (id) {
     try {
@@ -265,9 +329,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const branchSelect = document.getElementById('user-branch-select');
     const assignedBranchId = branchSelect ? branchSelect.value : '';
 
-    if (!username || !password || !fullName || !role) return alert('Fill all fields');
+    if (!username || !fullName || !role || (!editingUserId && !password)) return alert('Fill all fields');
 
     try {
+      if (editingUserId) {
+        const updateData = { username, role, fullName, allowedPages };
+        if (password) updateData.password = password;
+        updateData.branchIds = assignedBranchId ? [assignedBranchId] : [];
+        updateData.defaultBranchId = assignedBranchId || null;
+        
+        await editUser(editingUserId, updateData);
+        showToast('✅ User updated successfully');
+        window.cancelEditUser();
+        await loadUsers();
+        return;
+      }
       await addUser({
         username,
         password,

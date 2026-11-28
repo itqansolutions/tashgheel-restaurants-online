@@ -1358,6 +1358,9 @@ function getActiveUsers() {
                 username: users[i].username,
                 role: users[i].role,
                 fullName: users[i].fullName,
+                allowedPages: users[i].allowedPages || [],
+                branchIds: users[i].branchIds || [],
+                defaultBranchId: users[i].defaultBranchId || null,
                 createdAt: users[i].createdAt,
                 updatedAt: users[i].updatedAt
             };

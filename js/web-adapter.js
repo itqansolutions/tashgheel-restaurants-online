@@ -548,6 +548,11 @@
             return { success: true, sales, totalSales: total, transactionCount: sales.length };
         }
 
+        // GET /branches
+        if (method === 'GET' && cleanPath.startsWith('/branches')) {
+            try { return JSON.parse(localStorage.getItem('branches') || '[]'); } catch (e) { return []; }
+        }
+
         // Fallback: return null for unhandled GET requests (non-critical)
         if (method === 'GET') {
             console.warn(`[OFFLINE_SIMULATOR] Unhandled GET ${cleanPath} — returning null`);
@@ -651,7 +656,17 @@
 
     async function apiFetch(path, options = {}) {
         const branchId = localStorage.getItem("activeBranchId");
-        const isOffline = localStorage.getItem('pos_is_offline') === 'true';
+        let isOffline = localStorage.getItem('pos_is_offline') === 'true';
+
+        if (isOffline) {
+            // A stale offline flag must not poison a healthy connection: re-check the server once.
+            const online = await pingServer();
+            if (online) {
+                localStorage.setItem('pos_is_offline', 'false');
+                isOffline = false;
+                updateOfflineUI();
+            }
+        }
 
         if (isOffline) {
             try {
@@ -739,8 +754,11 @@
         } catch (err) {
             console.error("❌ apiFetch Network Error:", err);
             
-            // Connection failure: enter offline mode immediately
-            if (err instanceof TypeError || err.message.includes('fetch') || err.message.includes('Network') || err.message.includes('Failed')) {
+            // Connection failure: enter offline mode immediately.
+            // Only a TypeError from fetch() itself is a real network failure; server error
+            // bodies (thrown above as Error(text)) may contain words like "Failed" and must
+            // not switch the app into offline mode.
+            if (err instanceof TypeError) {
                 console.log("⚠️ Server unreachable. Switching to Offline Mode.");
                 localStorage.setItem('pos_is_offline', 'true');
                 updateOfflineUI();

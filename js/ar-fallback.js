@@ -219,7 +219,13 @@
         'On the Way': 'في الطريق', 'Waiting to Confirm': 'في انتظار التأكيد',
         'Changing branch will clear your cart. Continue?': 'تغيير الفرع سيفرغ السلة. متابعة؟',
         'Please enter mobile number': 'من فضلك أدخل رقم الموبايل', 'Network Error. Please try again.': 'خطأ في الاتصال. حاول مرة أخرى.',
-        '⚠️ Pin placed outside predefined zones. Please pick an area below or adjust location.': '⚠️ الدبوس خارج مناطق التوصيل. اختر منطقة من القائمة أو عدّل الموقع.'
+        '⚠️ Pin placed outside predefined zones. Please pick an area below or adjust location.': '⚠️ الدبوس خارج مناطق التوصيل. اختر منطقة من القائمة أو عدّل الموقع.',
+        // ── Dine-in table cards & order panel ──
+        '🔔 Bill': '🔔 الحساب', '🔒 Bill requested — order locked': '🔒 تم طلب الحساب — الطلب مقفل',
+        // ── Admin page extras ──
+        'apply discount': 'تطبيق خصم', 'remove item from cart': 'حذف صنف من السلة', 'cancel an invoice': 'إلغاء فاتورة',
+        'Product Category': 'قسم الصنف', '-- Select Category --': '-- اختر القسم --', 'Printer Designation': 'تعريف الطابعة',
+        '⬜ No PIN set — hard actions (discount, remove item, cancel) require no confirmation.': '⬜ لا يوجد رقم سري — الإجراءات الحساسة (خصم، حذف صنف، إلغاء) لا تتطلب تأكيدًا.'
     };
     // Case-insensitive lookup (headers are often uppercased in source)
     const L = {};
@@ -238,6 +244,9 @@
         const its = s.match(/^([^\w]*\d+) item\(s\)(.*)$/);
         if (its) return its[1] + ' صنف' + its[2].replace('ready!', 'جاهز!').replace('in kitchen', 'في المطبخ');
         const itc = s.match(/^(\d+) items$/); if (itc) return itc[1] + ' صنف';
+        const sentb = s.match(/^(\d+) sent$/); if (sentb) return sentb[1] + ' مُرسل';
+        const moreb = s.match(/^\+(\d+) more$/); if (moreb) return '+' + moreb[1] + ' أصناف';
+        const openb = s.match(/^Order open · (\d+) items$/); if (openb) return 'طلب مفتوح · ' + openb[1] + ' صنف';
         const m = s.match(/^([^A-Za-z0-9\u0600-\u06FF]*(?:\d+\.\s+)?)(.*?)([\s:*]*)$/);
         if (!m) return null;
         if (/^[a-z_0-9]+$/.test(m[2])) return null;
