@@ -369,8 +369,8 @@ window.printVendorReport = function printVendorReport(vendorId) {
 
                 <div class="vendor-info" style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
                     <h3 style="margin-top:0;">${t('Vendor', 'المورد')}: ${vendor.name}</h3>
-                    <p><strong>${t('Contact', 'جهة الاتصال')}:</strong> ${vendor.contact || 'N/A'}</p>
-                    <p><strong>${t('Phone', 'الهاتف')}:</strong> ${vendor.mobile || 'N/A'}</p>
+                    ${vendor.contact ? `<p><strong>${t('Contact', 'جهة الاتصال')}:</strong> ${vendor.contact}</p>` : ''}
+                    <p><strong>${t('Phone', 'الهاتف')}:</strong> ${vendor.mobile || '-'}</p>
                     <p><strong>${t('Report Date', 'تاريخ التقرير')}:</strong> ${new Date().toLocaleDateString()}</p>
                 </div>
 
@@ -407,7 +407,7 @@ window.printVendorReport = function printVendorReport(vendorId) {
                 </table>
 
                 <div class="footer" style="margin-top: 30px; padding: 15px; background: #2c3e50; color: white; text-align: center; border-radius: 6px;">
-                    <p style="margin:5px 0;"><strong>Tashgheel F&B</strong> - Powered by itqan solutions</p>
+                    <p style="margin:5px 0;"><strong>Tashgheel F&B</strong> - ${t('Powered by <strong>Itqan Solutions</strong>', 'مدعوم من <strong>إتقان سولوشنز</strong>')}</p>
                     <p style="margin:5px 0;">📧 info@itqansolutions.org | 📱 +201126522373 / +201155253886</p>
                 </div>
 

@@ -26,13 +26,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize Tabs
   setupTabs();
 
-  // 2. Load Data
-  loadAllData();
-
-  // 3. Setup Pickers
+  // 2. Setup Pickers BEFORE loading data: the targets table reads the month/year
+  //    selects, and an empty picker renders every stored target as 0.
   setupDatePickers();
 
-  // 4. Re-render JS-built content when the language switches
+  // 3. Load Data
+  loadAllData();
+
+  // 4. Server data can land after first paint; re-read the store and re-render
+  //    then, so a table of zeros is never left on screen (or saved over the
+  //    real targets).
+  if (window.SystemReady) {
+    refreshTargetsFromStore(true);
+  } else {
+    window.addEventListener('SystemDataReady', () => refreshTargetsFromStore(true));
+  }
+
+  // 5. Re-render JS-built content when the language switches
   window.addEventListener('languageChanged', () => {
     setupDatePickers();
     renderEmployeesTable();
@@ -54,6 +64,13 @@ function setupTabs() {
       // Add active
       tab.classList.add('active');
       document.getElementById(tab.dataset.tab).classList.add('active');
+
+      // Targets are stored data: if the table was never rendered (data or
+      // pickers were not ready at load), render it now. Never re-render a
+      // table the user may already be editing.
+      if (tab.dataset.tab === 'tab-targets' && !document.querySelector('.target-input')) {
+        refreshTargetsFromStore(true);
+      }
     });
   });
 }
@@ -402,9 +419,28 @@ function saveAttendance() {
 
 // ================= TAB 2a: TARGETS =================
 function targetsPickerValue() {
-  const m = parseInt(document.getElementById('targets-month').value);
-  const y = parseInt(document.getElementById('targets-year').value);
+  const monthEl = document.getElementById('targets-month');
+  const yearEl = document.getElementById('targets-year');
+  if (!monthEl || !yearEl) return null;
+  const m = parseInt(monthEl.value, 10);
+  const y = parseInt(yearEl.value, 10);
+  // An unpopulated picker must not turn into the key "NaN-NaN", which would
+  // render every target as 0 and let حفظ overwrite the stored values.
+  if (!m || !y) return null;
   return `${y}-${String(m).padStart(2, '0')}`; // YYYY-MM
+}
+
+// Re-read the target store (boot hydration can finish after the first render)
+// and redraw the table, unless the user is already typing in it.
+function refreshTargetsFromStore(reloadEmployees) {
+  employeeTargets = window.EnhancedSecurity.getSecureData('emp_targets') || {};
+  if (reloadEmployees) {
+    allEmployees = window.DB.getSalesmen() || [];
+    renderEmployeesTable();
+    populateEmployeeSelects();
+  }
+  if (document.querySelector('.target-input[data-dirty="1"]')) return;
+  loadTargetsTable();
 }
 
 function loadTargetsTable() {
@@ -412,6 +448,7 @@ function loadTargetsTable() {
   if (!month) return;
 
   const tbody = document.getElementById('targets-table-body');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   const monthTargets = employeeTargets[month] || {};
@@ -430,20 +467,32 @@ function loadTargetsTable() {
                 </div>
             </td>
         `;
+    const input = tr.querySelector('.target-input');
+    if (input) input.addEventListener('input', () => { input.dataset.dirty = '1'; });
     tbody.appendChild(tr);
   });
 }
 
-function saveTargets() {
+async function saveTargets() {
   const month = targetsPickerValue();
   if (!month) { alert(T('Select Month', 'اختر الشهر')); return; }
 
+  const inputs = document.querySelectorAll('.target-input');
+  // Nothing rendered means the store was not read yet: saving would write an
+  // empty/zeroed month over the real targets.
+  if (!inputs.length) { alert(T('Targets are still loading. Reload the page and try again.', 'الأهداف لسه بتتحمل. أعد تحميل الصفحة وحاول تاني.')); return; }
+
   if (!employeeTargets[month]) employeeTargets[month] = {};
 
-  const inputs = document.querySelectorAll('.target-input');
   inputs.forEach(input => {
     const empId = input.dataset.empid;
     const val = parseFloat(input.value) || 0;
+    const stored = employeeTargets[month][empId];
+
+    // A field the user never touched that shows 0 while a real target is
+    // stored was not rendered from the store. Keep the stored target instead
+    // of zeroing it.
+    if (input.dataset.dirty !== '1' && stored && (parseFloat(stored.target) || 0) !== 0 && val === 0) return;
 
     employeeTargets[month][empId] = {
       target: val,
@@ -451,7 +500,11 @@ function saveTargets() {
     };
   });
 
-  window.EnhancedSecurity.storeSecureData('emp_targets', employeeTargets);
+  const saved = await window.EnhancedSecurity.storeSecureData('emp_targets', employeeTargets);
+  if (saved === false) {
+    alert(T('Targets were not saved. Check the connection and try again.', 'الأهداف ما اتحفظتش. راجع الاتصال وحاول تاني.'));
+    return;
+  }
   alert(T('Targets Saved!', 'تم حفظ الأهداف!'));
 }
 
