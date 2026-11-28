@@ -598,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!types || types.length === 0) {
             scopeBadges = '<span class="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-bold">None</span>';
           } else if (types.length === 3) {
-            scopeBadges = '<span class="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded font-bold">All Types</span>';
+            scopeBadges = '<span class="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded font-bold">' + (localStorage.getItem('pos_language') === 'ar' ? 'كل الأنواع' : 'All Types') + '</span>';
           } else {
             scopeBadges = types.map(t => {
               const label = t === 'dine_in' ? 'Dine In' : (t === 'take_away' ? 'Take Away' : 'Delivery');

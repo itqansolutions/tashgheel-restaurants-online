@@ -53,7 +53,7 @@ function loadBackupSettings() {
   const display = document.getElementById('backup-folder-display');
   const toggle = document.getElementById('auto-backup-toggle');
 
-  if (display) display.textContent = path || 'No folder selected';
+  if (display) display.textContent = path || ((localStorage.getItem('pos_language') === 'ar') ? 'لم يتم اختيار مجلد' : 'No folder selected');
   if (toggle) toggle.checked = enabled;
 }
 

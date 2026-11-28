@@ -63,8 +63,12 @@ function renderNavigation(activePage) {
         { page: 'vendors', label: t.vendors, icon: 'store', href: 'vendors.html', key: 'nav_vendors' },
         { page: 'expenses', label: t.expenses, icon: 'payments', href: 'expenses.html', key: 'nav_expenses' },
         { page: 'salesmen', label: t.employees, icon: 'badge', href: 'salesmen.html', key: 'nav_employees' },
+        { page: 'backup', label: t.backup, icon: 'backup', href: 'backup.html', key: 'nav_backup', roles: ['admin', 'manager'] },
         { page: 'admin', label: t.admin_panel, icon: 'settings', href: 'admin.html', key: 'nav_admin' }
     ];
+
+    let navRole = '';
+    try { navRole = String((JSON.parse(localStorage.getItem('currentUser') || 'null') || {}).role || '').toLowerCase(); } catch (e) { /* ignore */ }
 
     // Check feature flags from shop settings
     let kitchenEnabled = true;
@@ -80,6 +84,7 @@ function renderNavigation(activePage) {
     let navHTML = '';
     navItems.forEach(item => {
         // Respect feature flags
+        if (item.roles && !item.roles.includes(navRole)) return;
         if (item.page === 'kitchen' && !kitchenEnabled) return;
         if ((item.page === 'dinein' || item.page === 'tables') && !dineInEnabled) return;
 
@@ -108,6 +113,40 @@ function renderNavigation(activePage) {
 }
 
 
+
+// Native file inputs show browser-language text ("Choose File" / "No file chosen") that cannot be localized.
+// Hide the native control and show a styled, translated button + file name instead.
+function localizeFileInputs() {
+    const lang = localStorage.getItem('pos_language') || 'en';
+    const T = lang === 'ar'
+        ? { choose: 'اختيار ملف', none: 'لم يتم اختيار ملف' }
+        : { choose: 'Choose File', none: 'No file chosen' };
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+        if (input.dataset.fileLocalized) return;
+        input.dataset.fileLocalized = '1';
+        input.style.display = 'none';
+        const wrap = document.createElement('div');
+        wrap.className = 'file-input-ui';
+        wrap.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = T.choose;
+        btn.style.cssText = 'padding:8px 16px;border:0;border-radius:9999px;background:#eff6ff;color:#1d4ed8;font-size:14px;font-weight:700;cursor:pointer;';
+        btn.onmouseenter = () => { btn.style.background = '#dbeafe'; };
+        btn.onmouseleave = () => { btn.style.background = '#eff6ff'; };
+        const name = document.createElement('span');
+        name.textContent = T.none;
+        name.style.cssText = 'font-size:14px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;';
+        btn.addEventListener('click', () => input.click());
+        input.addEventListener('change', () => {
+            name.textContent = input.files && input.files[0] ? input.files[0].name : T.none;
+        });
+        wrap.appendChild(btn);
+        wrap.appendChild(name);
+        input.insertAdjacentElement('afterend', wrap);
+    });
+}
+window.localizeFileInputs = localizeFileInputs;
 
 window.confirmLogout = function () {
     const lang = localStorage.getItem('pos_language') || 'en';
@@ -144,6 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupMobileNav();
+    localizeFileInputs();
 
     // 🛡️ Bulletproof Global Autofill Neutralizer:
     // Prevent Chromium/Edge/Safari/password managers from filling search inputs with saved login credentials (e.g. 'admin')

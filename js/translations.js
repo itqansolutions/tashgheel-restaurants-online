@@ -515,6 +515,9 @@ const translations = {
     welcome_user: { en: "Welcome,", ar: "مرحباً،" },
     shift_active_label: { en: "SHIFT ACTIVE", ar: "الوردية نشطة" },
     base_label: { en: "Base", ar: "الأساس" },
+    no_folder_selected: { en: "No folder selected", ar: "لم يتم اختيار مجلد" },
+    select_backup_file: { en: "Select Backup File", ar: "اختر ملف النسخة الاحتياطية" },
+    tax_all_types: { en: "All Types", ar: "كل الأنواع" },
 };
 
 function setLanguage(lang) {
