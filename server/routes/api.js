@@ -1200,6 +1200,7 @@ router.post('/inventory/adjust', async (req, res) => {
         const adjustmentQty = parseFloat(qty);
         const adjustmentUnitCost = parseFloat(unitCost);
         const totalCost = adjustmentQty * adjustmentUnitCost;
+        let updatedItem = null;
 
         await prisma.$transaction(async (tx) => {
             await tx.inventoryAdjustment.create({
@@ -1217,8 +1218,9 @@ router.post('/inventory/adjust', async (req, res) => {
             });
 
             // ✅ Note: We do NOT touch productStock here — ingredients are tracked
-            // in the frontend local DB (window.DB.saveIngredient), not in productStock.
+            // in the ingredients document, not in productStock.
             // productStock is only used for finished POS menu products.
+            updatedItem = await applyIngredientStockChange(tx, req.tenantId, itemId, [{ branchId: req.branchId, delta: adjustmentQty }]);
 
             await tx.auditLog.create({
                 data: {
@@ -1232,12 +1234,53 @@ router.post('/inventory/adjust', async (req, res) => {
             });
         });
 
-        res.json({ success: true });
+        res.json({ success: true, ingredient: updatedItem });
     } catch (err) {
         console.error('Inventory Adjustment Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
+
+
+// Ingredient stock is one document per tenant ('ingredients') holding stockByBranch.
+// Adjustments and transfers must move the active branch's number, not just the total:
+// a waste on Main Branch has to show on Main Branch, and a transfer has to leave the
+// source and arrive at the destination.
+async function applyIngredientStockChange(tx, tenantId, itemId, changes) {
+    const key = 'ingredients';
+    const doc = await tx.data.findUnique({ where: { key_tenantId: { key, tenantId } } });
+    const ingredients = doc ? (typeof doc.value === 'string' ? JSON.parse(doc.value) : doc.value) : [];
+    const list = Array.isArray(ingredients) ? ingredients : [];
+    const index = list.findIndex(i => String(i.id) === String(itemId));
+    if (index < 0) { const err = new Error('Ingredient not found'); err.status = 404; throw err; }
+
+    const item = { ...list[index] };
+    const stockByBranch = { ...(item.stockByBranch || {}) };
+    const total = Number(item.stock ?? Object.values(stockByBranch).reduce((sum, n) => sum + Number(n || 0), 0));
+    const branchKeys = Object.keys(stockByBranch);
+    // Legacy items only have a total: treat it as the stock of the branch being changed.
+    if (branchKeys.length === 0 && changes.length === 1) stockByBranch[changes[0].branchId] = total;
+
+    for (const change of changes) {
+        const current = Number(stockByBranch[change.branchId] ?? 0);
+        const next = current + Number(change.delta);
+        if (next < 0) { const err = new Error('Insufficient stock in this branch'); err.status = 409; throw err; }
+        stockByBranch[change.branchId] = Math.round(next * 1000) / 1000;
+    }
+
+    item.stockByBranch = stockByBranch;
+    item.stock = Math.round(Object.values(stockByBranch).reduce((sum, n) => sum + Number(n || 0), 0) * 1000) / 1000;
+    item.stockRevision = require('crypto').randomUUID();
+    item.updatedAt = new Date().toISOString();
+    list[index] = item;
+
+    await tx.data.upsert({
+        where: { key_tenantId: { key, tenantId } },
+        update: { value: JSON.stringify(list) },
+        create: { key, tenantId, value: JSON.stringify(list) }
+    });
+    return item;
+}
 
 // 3. Transfer Inventory
 router.post('/inventory/transfer', async (req, res) => {
@@ -1257,10 +1300,14 @@ router.post('/inventory/transfer', async (req, res) => {
         const totalCost = transferQty * transferUnitCost;
         const referenceId = `TRF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+        let updatedItem = null;
         await prisma.$transaction(async (tx) => {
-            // ✅ Note: We do NOT check productStock for ingredients.
-            // Ingredient stock is tracked in the frontend local DB (window.DB.saveIngredient).
-            // We only log the transfer via InventoryAdjustment records.
+            // Ingredient stock lives in the ingredients document, per branch: the
+            // source loses the quantity and the destination gains it.
+            updatedItem = await applyIngredientStockChange(tx, req.tenantId, itemId, [
+                { branchId: req.branchId, delta: -transferQty },
+                { branchId: targetBranchId, delta: transferQty }
+            ]);
 
             // Log: Transfer Out from source branch
             await tx.inventoryAdjustment.create({
@@ -1295,7 +1342,7 @@ router.post('/inventory/transfer', async (req, res) => {
             });
         });
 
-        res.json({ success: true, referenceId });
+        res.json({ success: true, referenceId, ingredient: updatedItem });
     } catch (err) {
         console.error('Transfer Error:', err);
         res.status(400).json({ error: err.message });

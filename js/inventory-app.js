@@ -664,8 +664,13 @@ window.confirmAdjustment = async function () {
         });
 
         if (response.success) {
-            // Update Local
-            ing.stock = (safeFloat(ing.stock) + finalQty);
+            // The server returns the item with its per-branch stock already moved;
+            // mirror it locally instead of guessing from the total.
+            const updated = response.ingredient || {};
+            ing.stock = safeFloat(updated.stock ?? (safeFloat(ing.stock) + finalQty));
+            if (updated.stockByBranch) ing.stockByBranch = updated.stockByBranch;
+            if (updated.stockRevision) ing.stockRevision = updated.stockRevision;
+            if (updated.updatedAt) ing.updatedAt = updated.updatedAt;
             window.DB.saveIngredient(ing);
 
             alert('Adjustment Saved!');
@@ -755,8 +760,12 @@ window.confirmTransfer = async function () {
         });
 
         if (response.success) {
-            // Update Local Stock (Decrement)
-            ing.stock = safeFloat(ing.stock) - qty;
+            // Source and destination branch numbers come back from the server.
+            const updated = response.ingredient || {};
+            ing.stock = safeFloat(updated.stock ?? (safeFloat(ing.stock) - qty));
+            if (updated.stockByBranch) ing.stockByBranch = updated.stockByBranch;
+            if (updated.stockRevision) ing.stockRevision = updated.stockRevision;
+            if (updated.updatedAt) ing.updatedAt = updated.updatedAt;
             window.DB.saveIngredient(ing);
 
             alert('Transfer Successful! Ref ID: ' + response.referenceId);
