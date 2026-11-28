@@ -5,7 +5,14 @@
  * It also covers text rendered later by page scripts (modals, kitchen cards, tables).
  */
 (function () {
-    if (localStorage.getItem('pos_language') !== 'ar') return;
+    const FORCE = document.documentElement.hasAttribute('data-force-ar');
+    if (localStorage.getItem('pos_language') !== 'ar' && !FORCE) return;
+    if (FORCE) {
+        document.documentElement.lang = 'ar';
+        document.documentElement.dir = 'rtl';
+        const setBody = () => { if (document.body) { document.body.dir = 'rtl'; document.body.classList.add('rtl'); } };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setBody); else setBody();
+    }
     const D = {
         // Products / Add Product modal
         'Add Product': 'إضافة صنف', 'Edit Product': 'تعديل الصنف', 'Basic Info': 'البيانات الأساسية', 'Inventory': 'المخزون',
@@ -123,7 +130,96 @@
         'Total Value': 'القيمة الإجمالية', 'Last Sold': 'آخر بيع', 'Days Idle': 'أيام الركود', 'Health': 'الحالة',
         'Sales (EGP)': 'المبيعات (ج.م)', 'Cash': 'نقدي', 'Card': 'بطاقة', 'Wallet': 'محفظة',
         'Other / Unclassified': 'أخرى / غير مصنفة', 'Net Sales': 'صافي المبيعات', 'Financial Overview': 'نظرة مالية عامة',
-        'Daily Expenses': 'المصروفات اليومية'
+        'Daily Expenses': 'المصروفات اليومية',
+        // ── Tables page (tables.html) ──
+        'Tables Management': 'إدارة الطاولات', 'Create and manage dining tables for this branch': 'إنشاء وإدارة طاولات هذا الفرع',
+        'Add Table': 'إضافة طاولة', 'Total Tables': 'إجمالي الطاولات', 'Available': 'متاحة', 'Occupied': 'مشغولة',
+        'Total Seats': 'إجمالي المقاعد', 'Loading tables...': 'جار تحميل الطاولات...', 'Table Name': 'اسم الطاولة',
+        'Short Code': 'الكود المختصر', '(used in QR URL)': '(يُستخدم في رابط QR)',
+        'Alphanumeric, max 10 chars. Customers scan a QR that contains this code.': 'حروف وأرقام إنجليزية، 10 أحرف كحد أقصى. العميل يمسح QR يحتوي هذا الكود.',
+        'Number of Seats': 'عدد المقاعد', 'Save Table': 'حفظ الطاولة', 'Edit Table': 'تعديل الطاولة',
+        'Archive Table?': 'أرشفة الطاولة؟', 'The table will be hidden from the floor plan. Historical orders are preserved.': 'ستُخفى الطاولة من مخطط الصالة. الطلبات السابقة تظل محفوظة.',
+        'Archive': 'أرشفة', 'e.g. Table 1 / VIP Room / Bar Seat 3': 'مثال: طاولة 1 / غرفة VIP / بار 3',
+        'e.g. T1, VIP, BAR3': 'مثال: T1 أو VIP أو BAR3', 'Name and code are required.': 'الاسم والكود مطلوبان.',
+        'Code must be alphanumeric, max 10 chars (e.g. T1, VIP).': 'الكود حروف وأرقام إنجليزية فقط، 10 أحرف كحد أقصى (مثال: T1, VIP).',
+        'Saving...': 'جار الحفظ...', 'Cannot edit while table is occupied': 'لا يمكن التعديل والطاولة مشغولة', 'Close bill first': 'أغلق الفاتورة أولًا',
+        // ── Dine-in page nav ──
+        'POS': 'نقطة البيع', 'Menu Items': 'قائمة الطعام', 'Reports': 'التقارير', 'Admin Panel': 'لوحة التحكم', 'Logout': 'تسجيل الخروج',
+        'Management System': 'نظام الإدارة',
+        // ── Admin page (listed sections) ──
+        'Shop Settings': 'إعدادات المحل', 'Shop Name': 'اسم المحل', 'Receipt Footer': 'تذييل الفاتورة',
+        'Dead Stock Threshold (Days)': 'حد المخزون الراكد (بالأيام)', 'Address & Phone': 'العنوان والهاتف',
+        'Shop Logo': 'شعار المحل', 'Recommended: 200x200px PNG or JPG': 'يُفضل PNG أو JPG بمقاس 200×200',
+        'Save Settings': 'حفظ الإعدادات', 'e.g. Tashgheel Restaurant': 'مثال: مطعم تشغيل',
+        'e.g. Thank you for your visit!': 'مثال: شكرًا لزيارتكم!', 'Shop address and contact info...': 'عنوان المحل وبيانات التواصل...',
+        'Online Store Link': 'رابط المتجر الأونلاين', 'Share this link with your customers to accept online orders.': 'شارك هذا الرابط مع عملائك لاستقبال الطلبات الأونلاين.',
+        'Copy': 'نسخ', 'Open': 'فتح',
+        'Feature Toggles': 'التحكم في الميزات',
+        'Enable or disable app features across all devices. Changes take effect immediately on next page load.': 'تشغيل أو إيقاف ميزات التطبيق على كل الأجهزة. يسري التغيير فورًا عند أول تحميل للصفحة.',
+        'Kitchen Display': 'شاشة المطبخ', 'Show the Kitchen screen link in navigation. Disable for takeaway-only setups.': 'إظهار رابط شاشة المطبخ في القائمة. أوقفها لمحلات التيك أواي فقط.',
+        'Dine-In Tables': 'طاولات الصالة', 'Enable table ordering and waiter management features.': 'تفعيل طلبات الطاولات وإدارة الويتر.',
+        'Guest QR Ordering': 'طلبات QR للضيوف', 'Let guests order from the table QR code. Orders wait for a waiter to accept them.': 'السماح للضيوف بالطلب من QR الطاولة. الطلبات تنتظر موافقة الويتر.',
+        '* Feature toggles are saved in shop settings and synced to all logged-in staff sessions.': '* تُحفظ مفاتيح الميزات في إعدادات المحل وتُزامن مع كل جلسات الموظفين المسجلين.',
+        'Manager PIN — Hard Actions': 'رقم المدير السري — الإجراءات الحساسة',
+        'Set a 4–6 digit PIN that staff must enter before performing sensitive actions:': 'حدد رقمًا سريًا من 4–6 أرقام يدخله الموظف قبل تنفيذ الإجراءات الحساسة:',
+        '. Leave blank to disable PIN requirement.': '. اتركه فارغًا لإلغاء طلب الرقم السري.',
+        'New Manager PIN': 'رقم المدير السري الجديد', 'Confirm PIN': 'تأكيد الرقم السري', 'Save PIN': 'حفظ الرقم السري',
+        'Remove PIN (Disable)': 'إزالة الرقم السري (إيقاف)', 'e.g. 1234': 'مثال: 1234', 'Repeat PIN': 'أعد إدخال الرقم السري',
+        'Multiple Kitchen Printers': 'طابعات مطبخ متعددة',
+        'Map product categories to specific printer designations (e.g., Hot Kitchen, Drinks, Bakery). When order items are sent to the kitchen, they will be printed/routed accordingly.': 'ربط أقسام الأصناف بطابعات محددة (مثال: المطبخ الساخن، المشروبات، المخبوزات). عند إرسال أصناف الطلب للمطبخ تُطبع وتُوجه حسب هذا الربط.',
+        'Add Printer Designation': 'إضافة تعريف طابعة', 'Save Mappings': 'حفظ الربط',
+        // ── Admin: user management section ──
+        'User Management': 'إدارة المستخدمين', 'Add New User': 'إضافة مستخدم جديد', 'Username': 'اسم المستخدم',
+        'Password': 'كلمة المرور', 'Full Name': 'الاسم الكامل', 'Role': 'الدور', 'Manager': 'مدير', 'Admin': 'مدير النظام',
+        'Inventory Manager': 'مسؤول المخزون', 'Technician': 'فني', 'Other...': 'أخرى...', 'Assign Branch': 'تعيين الفرع',
+        '-- Select Branch --': '-- اختر الفرع --', 'POS Sales': 'نقطة البيع', 'Menu': 'القائمة', 'Create User': 'إنشاء المستخدم',
+        'Existing Users': 'المستخدمون الحاليون', 'User': 'المستخدم', 'Phone': 'الهاتف',
+        // ── Guest QR table-order page (table-order.html) ──
+        'Welcome': 'أهلًا بك', "Loading your table's menu...": 'جار تحميل قائمة طاولتك...',
+        'Something went wrong': 'حدث خطأ ما', 'Please scan the QR code again.': 'من فضلك امسح رمز QR مرة أخرى.',
+        'Try Again': 'حاول مرة أخرى', 'Bill is being processed': 'جار تجهيز الفاتورة',
+        'Your waiter is processing the bill. Please wait or ask for assistance.': 'الويتر يجهز الفاتورة الآن. من فضلك انتظر أو اطلب المساعدة.',
+        'Table': 'طاولة', 'Scan & Order': 'امسح واطلب', 'My Order': 'طلبي', 'All': 'الكل',
+        'Total estimate': 'الإجمالي التقديري', 'Send to Kitchen': 'إرسال للمطبخ', 'Only pending items will be sent': 'سيتم إرسال الأصناف المعلقة فقط',
+        'Add a note': 'أضف ملاحظة', 'Add Item': 'إضافة الصنف', 'Special request (e.g. no onions)': 'طلب خاص (مثال: بدون بصل)',
+        'Pending': 'لم يُرسل', 'Sent': 'تم الإرسال', 'Ready!': 'جاهز!', 'Cancelled': 'ملغي',
+        'No items yet. Browse the menu to add.': 'لا توجد أصناف بعد. تصفح القائمة للإضافة.',
+        'No items in this category': 'لا توجد أصناف في هذا القسم', 'Your Table': 'طاولتك',
+        'Connecting to your table...': 'جار الاتصال بطاولتك...', 'Setting up your order...': 'جار تجهيز طلبك...',
+        'Loading menu...': 'جار تحميل القائمة...', 'Refreshing your order...': 'جار تحديث طلبك...',
+        'Session expired. Please scan the QR code again.': 'انتهت الجلسة. من فضلك امسح رمز QR مرة أخرى.',
+        'Invalid QR code. Please scan the QR code at your table.': 'رمز QR غير صالح. من فضلك امسح الرمز الموجود على طاولتك.',
+        'Table not found. Please scan the QR code again.': 'الطاولة غير موجودة. من فضلك امسح الرمز مرة أخرى.',
+        'Menu could not be loaded. Please try again.': 'تعذر تحميل القائمة. حاول مرة أخرى.',
+        'Could not connect. Please try again.': 'تعذر الاتصال. حاول مرة أخرى.',
+        'Choose an available size': 'اختر حجمًا متاحًا', 'Could not add item': 'تعذر إضافة الصنف',
+        'Could not remove item': 'تعذر حذف الصنف', 'Could not send order': 'تعذر إرسال الطلب',
+        // ── Online store page (online_ordering.html) ──
+        'Select Branch': 'اختر الفرع', 'Select a Branch': 'اختر الفرع',
+        'Choose a store to see the menu & availability': 'اختر الفرع لعرض القائمة والتوفر',
+        'Select a branch to view the menu': 'اختر فرعًا لعرض القائمة', 'All Items': 'كل الأصناف',
+        'Special Instructions': 'تعليمات خاصة', 'Add to Order': 'أضف للطلب', 'Your Order': 'طلبك',
+        'Your cart is empty': 'السلة فارغة', 'Browse Menu': 'تصفح القائمة', 'Tax': 'الضريبة', 'Checkout': 'إتمام الطلب',
+        'Order Type': 'نوع الطلب', 'Mobile Number': 'رقم الموبايل', 'Delivery Location Method': 'طريقة تحديد موقع التوصيل',
+        'Choose on Map': 'حدد على الخريطة', 'Choose Area': 'اختر المنطقة',
+        'Drag pin to your exact delivery location:': 'اسحب الدبوس إلى موقع التوصيل الدقيق:',
+        'Locate Me': 'حدد موقعي', '📍 Pin placed. Detecting area...': '📍 تم وضع الدبوس. جار تحديد المنطقة...',
+        'Delivery Area': 'منطقة التوصيل', 'Select Area...': 'اختر المنطقة...', 'Building/Apt': 'المبنى/الشقة',
+        'Order Total': 'إجمالي الطلب', 'Delivery Fee': 'رسوم التوصيل', 'Final Total': 'الإجمالي النهائي',
+        'Place Order': 'تأكيد الطلب', 'Track Order': 'تتبع الطلب', 'Enter Mobile Number': 'أدخل رقم الموبايل',
+        'Check': 'بحث', 'Enter number to see history': 'أدخل الرقم لعرض الطلبات السابقة',
+        'Order Confirmed!': 'تم تأكيد الطلب!', 'Your order has been sent to the restaurant.': 'تم إرسال طلبك إلى المطعم.',
+        'Start New Order': 'بدء طلب جديد', 'My Orders': 'طلباتي', 'e.g., No onions, extra sauce...': 'مثال: بدون بصل، صوص زيادة...',
+        'Your Name': 'اسمك', 'Street Name': 'اسم الشارع', 'Apt 4, Floor 2': 'شقة 4، الدور 2',
+        'Choose Size:': 'اختر الحجم:', 'Add-ons / Extras:': 'الإضافات:', 'Free': 'مجانًا', 'Remove': 'إزالة',
+        'No items found in this category.': 'لا توجد أصناف في هذا القسم.', 'Delicious meal prepared fresh.': 'وجبة لذيذة تُحضر طازجة.',
+        'Invalid Store Link': 'رابط المتجر غير صالح', 'Please use the valid link provided by the restaurant.': 'من فضلك استخدم الرابط الصحيح من المطعم.',
+        'Loading History...': 'جار تحميل الطلبات السابقة...', 'No orders found for this number': 'لا توجد طلبات لهذا الرقم',
+        'Failed to load orders': 'تعذر تحميل الطلبات', 'Details': 'التفاصيل', 'Delivered': 'تم التوصيل',
+        'On the Way': 'في الطريق', 'Waiting to Confirm': 'في انتظار التأكيد',
+        'Changing branch will clear your cart. Continue?': 'تغيير الفرع سيفرغ السلة. متابعة؟',
+        'Please enter mobile number': 'من فضلك أدخل رقم الموبايل', 'Network Error. Please try again.': 'خطأ في الاتصال. حاول مرة أخرى.',
+        '⚠️ Pin placed outside predefined zones. Please pick an area below or adjust location.': '⚠️ الدبوس خارج مناطق التوصيل. اختر منطقة من القائمة أو عدّل الموقع.'
     };
     // Case-insensitive lookup (headers are often uppercased in source)
     const L = {};
@@ -135,6 +231,13 @@
         if (!s || /[\u0600-\u06FF]/.test(s)) return null;
         if (L[s.toLowerCase()]) return L[s.toLowerCase()];
         const tb = s.match(/^Table (\d+)$/i); if (tb) return 'طاولة ' + tb[1];
+        const zone = s.match(/^(.+) - ([\d.]+) EGP Delivery$/); if (zone) return zone[1] + ' - ' + zone[2] + ' ج.م توصيل';
+        const egp = s.match(/^([\d.,]+) EGP$/); if (egp) return egp[1] + ' ج.م';
+        const taxx = s.match(/^(.+\d) Tax$/); if (taxx) return taxx[1] + ' ضريبة';
+        const fabv = s.match(/^View Order · (\d+) (?:new )?items?$/); if (fabv) return 'عرض الطلب · ' + fabv[1] + ' صنف';
+        const its = s.match(/^([^\w]*\d+) item\(s\)(.*)$/);
+        if (its) return its[1] + ' صنف' + its[2].replace('ready!', 'جاهز!').replace('in kitchen', 'في المطبخ');
+        const itc = s.match(/^(\d+) items$/); if (itc) return itc[1] + ' صنف';
         const m = s.match(/^([^A-Za-z0-9\u0600-\u06FF]*(?:\d+\.\s+)?)(.*?)([\s:*]*)$/);
         if (!m) return null;
         if (/^[a-z_0-9]+$/.test(m[2])) return null;
