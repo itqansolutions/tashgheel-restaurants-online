@@ -288,7 +288,8 @@
         // Reports: profitability rows; products: recipe banner + type hints
         // Products page save/validation alerts (translated via the alert/confirm override)
         // POS online-orders panel
-        'Online Orders': 'الطلبات الأونلاين', 'Resume': 'استكمال', 'No pending online orders.': 'لا توجد طلبات أونلاين معلقة.',
+'Set Region': 'تحديد النطاق',
+                'Online Orders': 'الطلبات الأونلاين', 'Resume': 'استكمال', 'No pending online orders.': 'لا توجد طلبات أونلاين معلقة.',
         'Checking for new orders...': 'جار البحث عن طلبات جديدة...',
         'Resume online order? Current cart will be cleared.': 'استكمال الطلب الأونلاين؟ سيتم إفراغ السلة الحالية.',
         'Take_Away': 'تيك أواي', 'Dine_In': 'صالة',
