@@ -296,7 +296,7 @@
         'Checking for new orders...': 'جار البحث عن طلبات جديدة...',
         'Resume online order? Current cart will be cleared.': 'استكمال الطلب الأونلاين؟ سيتم إفراغ السلة الحالية.',
         'Take_Away': 'تيك أواي', 'Dine_In': 'صالة',
-        'Menu Item Saved!': 'تم حفظ الصنف!', 'Please enter Price.': 'من فضلك أدخل السعر.',
+        'Menu Item Saved!': 'تم حفظ الصنف!', 'Please enter Price.': 'من فضلك أدخل السعر.', 'You are currently in Viewing Mode. Please open or join a shift to complete a sale.': 'أنت حاليًا في وضع المشاهدة. يرجى فتح وردية أو الانضمام إلى وردية لإتمام البيع.',
         'Category already exists': 'القسم موجود بالفعل', 'Code already exists!': 'الكود موجود بالفعل!',
         'Enter size name, code, and price': 'أدخل اسم الحجم والكود والسعر',
         'Please add at least one Size Variant.': 'أضف حجمًا واحدًا على الأقل.',
