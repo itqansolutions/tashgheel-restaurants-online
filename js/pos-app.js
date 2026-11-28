@@ -1,3 +1,8 @@
+// Locale-independent add-on category detection (see js/addon-category.js).
+function isAddonCategory(name) {
+    if (typeof window.isAddonCategory === 'function') return window.isAddonCategory(name);
+    return /add-?ons?|extras?|اضافات|اضافه/i.test(String(name || ''));
+}
 // POS JS with salesman support and fixed receipt printing (final version)
 // ===================== MOBILE UI LOGIC =====================
 window.toggleCart = function () {
@@ -1645,10 +1650,7 @@ function prodWithAddons(product) {
 
   if (product.allowAllAddons) {
     // Case-insensitive category matching (consistent with products-app.js)
-    allowedItems = allParts.filter(p => {
-      const c = (p.category || '').toLowerCase();
-      return c.includes('add-on') || c.includes('addon') || c.includes('extra');
-    });
+    allowedItems = allParts.filter(p => isAddonCategory(p.category));
   } else {
     // Use loose equality (==) to handle int/string ID mismatches
     const allowedAddons = product.allowedAddons || [];
@@ -3070,7 +3072,7 @@ function renderOnlineOrdersList() {
 async function rejectOnlineOrder(orderId) {
     const order = (window.latestOnlineOrders || []).find(o => String(o.id) === String(orderId));
     if (!order) return;
-    if (!confirm(`رفض طلب الأونلاين #${order.receiptNo}؟ لن يتحول إلى فاتورة.\nReject online order #${order.receiptNo}? It will not become an invoice.`)) return;
+    if (!(await window.confirmAsync(`رفض طلب الأونلاين #${order.receiptNo}؟ لن يتحول إلى فاتورة.\nReject online order #${order.receiptNo}? It will not become an invoice.`))) return;
     try {
         const result = await window.apiFetch(`/kitchen/reject/${encodeURIComponent(orderId)}`, { method: 'POST' });
         if (result && result.success) {

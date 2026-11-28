@@ -1175,7 +1175,15 @@
         });
     };
 
-    window.confirm = window.showConfirm;
+    // window.confirm must stay synchronous. The app's guards are written as
+    // `if (!confirm(msg)) return;`, and a Promise is always truthy, so pointing
+    // confirm at the modal made every guarded action (deletes included) run
+    // before anyone answered. Callers that can wait use `await window.confirmAsync(msg)`
+    // for the styled modal; everything else keeps the browser's own confirm dialog.
+    window.confirmAsync = async function (message) {
+        if (typeof showConfirm === 'function') return await showConfirm(message);
+        return confirm(message);
+    };
 
     // 🚀 Register Service Worker for completely offline PWA loading
     if ('serviceWorker' in navigator) {

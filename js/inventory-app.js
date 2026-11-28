@@ -468,7 +468,7 @@ async function editMaterial(id) {
 }
 
 async function deleteMaterial(id) {
-    if (confirm('Delete this material? Stock history will remain but definition will be removed.')) {
+    if (await window.confirmAsync('Delete this material? Stock history will remain but definition will be removed.')) {
         try { await window.DB.deleteIngredient(id); loadInventory(); } catch(err) { alert('Removal failed: '+err.message); }
     }
 }

@@ -5,6 +5,7 @@ const {customerOrderItems}=require('../utils/customer-order-items');
 const prisma = require('../prisma');
 const storage = require('../utils/storage');
 const { resolveStoreTax, resolveStoreTaxForStore, normalizeOrderType } = require('../utils/store-tax');
+const { isAddonCategory } = require('../utils/addon-category');
 const rateLimit = require('express-rate-limit');
 
 // Rate Limiting
@@ -115,6 +116,9 @@ router.get('/menu/:branchId', async (req, res) => {
 
         // Build a map of all products so we can resolve add-on details
         const productMap = new Map(products.map(p => [String(p.id), p]));
+        // Items a "allow all add-ons" product may be combined with. Detection is
+        // locale-independent, so an Arabic add-ons category works too.
+        const addonPool = products.filter(p => p && p.isActive !== false && p.recipeAvailable !== false && isAddonCategory(p.category));
 
         products = products.filter(p => p.isActive !== false && p.recipeAvailable!==false)
             .map(p => ({
@@ -130,12 +134,14 @@ router.get('/menu/:branchId', async (req, res) => {
                 sizes: Array.isArray(p.sizes) ? p.sizes.filter(size=>size.isActive!==false && !(p.recipeUnavailableSizes||[]).includes(String(size.id))).map(size=>({id:size.id,name:size.name,price:size.price,isActive:size.isActive})) : [],
                 isService: !!p.isService,
                 allowAllAddons: !!p.allowAllAddons,
-                allowedAddons: Array.isArray(p.allowedAddons)
-                    ? p.allowedAddons.map(addonId => {
-                        const addon = productMap.get(String(addonId));
-                        return addon && addon.isActive!==false && addon.recipeAvailable!==false ? { id: String(addonId), name: addon.name, price: addon.price || 0 } : null;
-                    }).filter(Boolean)
-                    : []
+                allowedAddons: p.allowAllAddons
+                    ? addonPool.filter(addon => String(addon.id) !== String(p.id)).map(addon => ({ id: String(addon.id), name: addon.name, price: addon.price || 0 }))
+                    : (Array.isArray(p.allowedAddons)
+                        ? p.allowedAddons.map(addonId => {
+                            const addon = productMap.get(String(addonId));
+                            return addon && addon.isActive!==false && addon.recipeAvailable!==false ? { id: String(addonId), name: addon.name, price: addon.price || 0 } : null;
+                        }).filter(Boolean)
+                        : [])
             }));
 
         // The store lists the categories its products actually carry. The staff app

@@ -1,3 +1,8 @@
+// Locale-independent add-on category detection (see js/addon-category.js).
+function isAddonCategory(name) {
+    if (typeof window.isAddonCategory === 'function') return window.isAddonCategory(name);
+    return /add-?ons?|extras?|اضافات|اضافه/i.test(String(name || ''));
+}
 // Menu Management Logic (formerly Spare Parts)
 // Uses db.js and EnhancedSecurity
 
@@ -127,10 +132,7 @@ window.saveNewCategory = function () {
 function loadAddonsDropdown() {
   const products = window.DB.getParts();
   // Filter products by Category name containing 'Add-on' or 'Extra' (case insensitive)
-  const addonItems = products.filter(p => {
-    const c = (p.category || '').toLowerCase();
-    return c.includes('add-on') || c.includes('addon') || c.includes('extra');
-  });
+  const addonItems = products.filter(p => isAddonCategory(p.category));
 
   const select = document.getElementById('addon-select');
   if (!select) return;
@@ -437,25 +439,6 @@ function toggleAddonsContainer() {
     const isAll = checkbox.checked;
     container.style.display = isAll ? 'none' : 'block';
   }
-}
-
-// Redundant definition removed (consolidated above).
-// But for safety, I should ensure I didn't verify the line numbers for the first replacement incorrectly.
-// Actually, I inserted `loadAddonsDropdown` at line 40+ in the previous step? 
-// No, I replaced `quickAddCategory` block with a block that INCLUDED `loadAddonsDropdown`.
-// So now I have TWO `loadAddonsDropdown` functions. I need to remove the old one.
-
-// This replaces the old function OLD location with a comment or better, points to the new one if needed, or just delete.
-// Let's delete the old logic.
-function loadAddonsDropdown() {
-  // Logic moved to top for better scope visibility, but to avoid duplication errors let's strict replace.
-  // Wait, in JS last definition wins. I should clean up.
-  // I will use this block to actually PUSH the robust logic if the previous step failed to insert it fully or if I want to be cleaner.
-
-  // The previous step Inserted `window.saveNewCategory` etc at Line 40.
-  // It also had `function loadAddonsDropdown` inside it.
-  // So yes, I have duplicates.
-  // I will remove this old block.
 }
 
 function addAllowedAddon() {
@@ -1039,7 +1022,7 @@ function handleAddCategory(e) {
 }
 
 window.deleteProduct = async (id) => {
-  if (confirm('Delete?')) {
+  if (await window.confirmAsync('Delete?')) {
     try { await window.DB.deletePart(id); loadProducts(); } catch(err) { alert('Removal failed: ' + err.message); }
   }
 };

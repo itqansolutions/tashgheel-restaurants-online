@@ -161,8 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('✅ Manager PIN saved. Staff will be prompted for hard actions.');
   };
 
-  window.clearManagerPin = function () {
-    if (!confirm('Remove the Manager PIN? Hard actions will no longer require authorization.')) return;
+  window.clearManagerPin = async function () {
+    if (!(await window.confirmAsync('Remove the Manager PIN? Hard actions will no longer require authorization.'))) return;
     const existing = window.EnhancedSecurity?.getSecureData('shop_settings') || {};
     delete existing.managerPin;
     window.EnhancedSecurity?.storeSecureData('shop_settings', existing);
@@ -495,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.handleDeleteBranch = async function (branchId) {
-    if (!confirm('Delete this branch?')) return;
+    if (!(await window.confirmAsync('Delete this branch?'))) return;
 
     try {
       if (window.apiFetch) {
@@ -706,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.handleDeleteTax = async function (id) {
-    if (!confirm('Delete this tax?')) return;
+    if (!(await window.confirmAsync('Delete this tax?'))) return;
     try {
       await window.apiFetch(`/taxes/${id}`, { method: 'DELETE' });
       showToast('🗑️ Tax deleted');

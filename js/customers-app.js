@@ -359,7 +359,7 @@ async function saveNewArea() {
 }
 
 async function deleteArea(id) {
-    if (confirm('Delete this area?')) {
+    if (await window.confirmAsync('Delete this area?')) {
         try {
             await window.apiFetch(`/delivery-zones/${id}`, { method: 'DELETE' });
             renderAreasList();
@@ -566,7 +566,7 @@ async function handleAddressSubmit(e) {
 }
 
 async function deleteAddress(index) {
-    if (!confirm(t('confirm_delete', 'Are you sure?'))) return;
+    if (!(await window.confirmAsync(t('confirm_delete', 'Are you sure?')))) return;
 
     const customers = await window.electronAPI.getCustomers();
     const customer = customers.find(c => (c._id || c.id) == currentCustomerIdForDetails);
