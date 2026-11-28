@@ -3061,7 +3061,7 @@ function renderOnlineOrdersList() {
                 </button>
                 <button onclick="rejectOnlineOrder('${order.id}')"
                     class="px-3 py-1.5 bg-white border border-red-200 text-red-600 text-xs font-bold rounded-lg hover:bg-red-50">
-                    رفض / Reject
+                    ${localStorage.getItem('pos_language') === 'ar' ? 'رفض' : 'Reject'}
                 </button>
             </div>
         </div>
