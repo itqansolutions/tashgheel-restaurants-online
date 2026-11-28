@@ -17,6 +17,14 @@ const t = (key) => {
 // products-app.js (Menu Management)
 window.currentPage = 'menu';
 
+function showToast(msg) {
+  const div = document.createElement('div');
+  div.innerText = msg;
+  div.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#333;color:#fff;padding:12px 24px;border-radius:8px;z-index:9999;box-shadow:0 4px 10px rgba(0,0,0,0.2);font-weight:bold;';
+  document.body.appendChild(div);
+  setTimeout(() => { div.style.transition = 'opacity 0.5s'; div.style.opacity = '0'; setTimeout(() => div.remove(), 500); }, 3000);
+}
+
 window.switchTab = function (tabName) {
   // Update button active state
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -606,7 +614,7 @@ async function handleAddProduct(e) {
 
   closeProductModal();
   loadProducts();
-  alert('Menu Item Saved!');
+  showToast(localStorage.getItem('pos_language') === 'ar' ? '✅ تم حفظ الصنف!' : '✅ Menu Item Saved!');
 }
 
 window.editProduct = (id) => {

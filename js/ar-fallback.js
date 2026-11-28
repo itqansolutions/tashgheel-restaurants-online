@@ -332,6 +332,7 @@
         if (/[\u0600-\u06FF]/.test(s)) return null;
         if (L[s.toLowerCase()]) return L[s.toLowerCase()];
         const tb = s.match(/^Table (\d+)$/i); if (tb) return 'طاولة ' + tb[1];
+        const edr = s.match(/^Edit Recipe( \((\d+)\))?$/); if (edr) return 'تعديل الوصفة' + (edr[2] ? ' (' + edr[2] + ')' : '');
         const zone = s.match(/^(.+) - ([\d.]+) EGP Delivery$/); if (zone) return zone[1] + ' - ' + zone[2] + ' ج.م توصيل';
         const egp = s.match(/^([\d.,]+) EGP$/); if (egp) return egp[1] + ' ج.م';
         const taxx = s.match(/^(.+\d) Tax$/); if (taxx) return taxx[1] + ' ضريبة';
