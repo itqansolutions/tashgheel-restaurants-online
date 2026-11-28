@@ -4,6 +4,16 @@
  * Tracks Achieved Sales instead of Service Visits.
  */
 
+// Hybrid Translation Helper (T: 't' and 'tr' are used as local variable names below)
+const T = (keyOrEn, ar) => {
+  const lang = localStorage.getItem('pos_language') || 'en';
+  if (ar !== undefined) return lang === 'ar' ? ar : keyOrEn;
+  if (window.translations && window.translations[keyOrEn]) {
+    return window.translations[keyOrEn][lang];
+  }
+  return keyOrEn;
+};
+
 // Global State
 let allEmployees = [];
 let attendanceData = {}; // Key: "YYYY-MM-DD", Value: { empId: { actualHours: 8, status: 'present' } }
@@ -21,6 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 3. Setup Pickers
   setupDatePickers();
+
+  // 4. Re-render JS-built content when the language switches
+  window.addEventListener('languageChanged', () => {
+    setupDatePickers();
+    renderEmployeesTable();
+    loadTargetsTable();
+    loadFinancialHistory();
+  });
 });
 
 function setupTabs() {
@@ -51,8 +69,8 @@ function setupDatePickers() {
   populateMonthYearSelects('payroll-month', 'payroll-year');
   populateMonthYearSelects('hist-month', 'hist-year');
 
-  // Default Targets Month
-  document.getElementById('targets-month-picker').value = new Date().toISOString().slice(0, 7);
+  // Targets Month (month/year selects so month names follow the UI language)
+  populateMonthYearSelects('targets-month', 'targets-year');
 }
 
 function populateMonthYearSelects(monthId, yearId) {
@@ -61,7 +79,9 @@ function populateMonthYearSelects(monthId, yearId) {
 
   if (!monthSelect || !yearSelect) return;
 
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const months = (localStorage.getItem('pos_language') || 'en') === 'ar'
+    ? ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+    : ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   monthSelect.innerHTML = months.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
 
   // Set current month
@@ -105,6 +125,15 @@ async function loadAllData() {
 }
 
 // ================= TAB 1: STAFF MANAGEMENT =================
+// Display-only label for the built-in roles; custom roles pass through unchanged.
+function roleDisplayName(role) {
+  const map = {
+    'Manager': T('role_manager'), 'Cashier': T('role_cashier'), 'Waiter': T('role_waiter'),
+    'Delivery Man': T('role_delivery'), 'Chef': T('role_chef')
+  };
+  return map[role] || role || T('staff_fallback');
+}
+
 function renderEmployeesTable() {
   const tbody = document.getElementById('employees-table-body');
   tbody.innerHTML = '';
@@ -116,10 +145,10 @@ function renderEmployeesTable() {
     tr.innerHTML = `
             <td class="px-6 py-4 font-medium text-slate-900">${emp.name}</td>
             <td class="px-6 py-4">
-                <span class="px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">${emp.role || 'Staff'}</span>
+                <span class="px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">${roleDisplayName(emp.role)}</span>
             </td>
             <td class="px-6 py-4 font-mono text-slate-600">${parseFloat(emp.baseSalary || 0).toFixed(2)}</td>
-            <td class="px-6 py-4 text-slate-500">${emp.shiftHours || 9}h</td>
+            <td class="px-6 py-4 text-slate-500">${emp.shiftHours || 9} ${T('h', 'س')}</td>
             <td class="px-6 py-4 text-slate-500">${emp.mobile || '-'}</td>
             <td class="px-6 py-4 flex gap-2">
                 <button class="w-8 h-8 flex items-center justify-center bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors border border-amber-100" onclick="editEmployee(${emp.id})">
@@ -165,7 +194,7 @@ function openEmployeeModal() {
   // Populate Linked User Dropdown
   const userSelect = document.getElementById('emp-user-link');
   if (userSelect) {
-    userSelect.innerHTML = '<option value="">-- None --</option>';
+    userSelect.innerHTML = '<option value="">' + T('none_option') + '</option>';
 
     let users = [];
     // 1. Try Shared DB Access
@@ -202,7 +231,7 @@ function openEmployeeModal() {
     } else {
       const opt = document.createElement('option');
       opt.value = "";
-      opt.textContent = "(No Users Found)";
+      opt.textContent = T('no_users_found');
       opt.disabled = true;
       userSelect.appendChild(opt);
     }
@@ -256,7 +285,7 @@ function editEmployee(id) {
 }
 
 function deleteEmployee(id) {
-  if (confirm('Are you sure you want to delete this employee?')) {
+  if (confirm(T('Are you sure you want to delete this employee?', 'هل أنت متأكد من حذف هذا الموظف؟'))) {
     window.DB.deleteSalesman(id);
     loadAllData();
   }
@@ -315,20 +344,20 @@ function loadAttendanceForDate() {
 
     tr.innerHTML = `
             <td class="px-4 py-3 font-medium text-slate-900">${emp.name}</td>
-            <td class="px-4 py-3 text-slate-500">${expected} H</td>
+            <td class="px-4 py-3 text-slate-500">${expected} ${T('H', 'س')}</td>
             <td class="px-4 py-3">
                 <input type="number" class="w-24 p-1 border border-slate-300 rounded text-center focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold bg-white" 
                        value="${record.actualHours}" 
                        min="0" max="24" step="0.5"
                        onchange="updateAttendanceRow(this, ${expected}, ${emp.id})">
             </td>
-            <td class="px-4 py-3 font-bold ${statusColorClass} font-mono">${diffText} H</td>
+            <td class="px-4 py-3 font-bold ${statusColorClass} font-mono">${diffText} ${T('H', 'س')}</td>
             <td class="px-4 py-3">
                 <select class="p-1 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" onchange="updateAttendanceStatus(this, ${emp.id})">
-                    <option value="present" ${record.status === 'present' ? 'selected' : ''}>Present</option>
-                    <option value="absent" ${record.status === 'absent' ? 'selected' : 'class="text-red-500"'}>Absent</option>
-                    <option value="leave" ${record.status === 'leave' ? 'selected' : ''}>Sick Leave</option>
-                    <option value="off" ${record.status === 'off' ? 'selected' : ''}>Day Off</option>
+                    <option value="present" ${record.status === 'present' ? 'selected' : ''}>${T('status_present')}</option>
+                    <option value="absent" ${record.status === 'absent' ? 'selected' : 'class="text-red-500"'}>${T('status_absent')}</option>
+                    <option value="leave" ${record.status === 'leave' ? 'selected' : ''}>${T('status_leave')}</option>
+                    <option value="off" ${record.status === 'off' ? 'selected' : ''}>${T('status_off')}</option>
                 </select>
             </td>
         `;
@@ -343,7 +372,7 @@ function updateAttendanceRow(input, expected, empId) {
   const diff = actual - expected;
   const tdDiff = input.parentElement.nextElementSibling;
 
-  tdDiff.textContent = (diff > 0 ? '+' : '') + diff + ' H';
+  tdDiff.textContent = (diff > 0 ? '+' : '') + diff + ' ' + T('H', 'س');
   tdDiff.style.color = diff < 0 ? 'red' : (diff > 0 ? 'green' : 'black');
 }
 
@@ -368,12 +397,18 @@ function saveAttendance() {
   });
 
   window.EnhancedSecurity.storeSecureData('attendance', attendanceData);
-  alert('Attendance Saved Successfully for ' + date);
+  alert(T('Attendance Saved Successfully for ', 'تم حفظ الحضور بنجاح ليوم ') + date);
 }
 
 // ================= TAB 2a: TARGETS =================
+function targetsPickerValue() {
+  const m = parseInt(document.getElementById('targets-month').value);
+  const y = parseInt(document.getElementById('targets-year').value);
+  return `${y}-${String(m).padStart(2, '0')}`; // YYYY-MM
+}
+
 function loadTargetsTable() {
-  const month = document.getElementById('targets-month-picker').value; // YYYY-MM
+  const month = targetsPickerValue();
   if (!month) return;
 
   const tbody = document.getElementById('targets-table-body');
@@ -390,7 +425,7 @@ function loadTargetsTable() {
             <td class="px-6 py-3 font-medium text-slate-900">${emp.name}</td>
             <td class="px-6 py-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-slate-400 font-bold">EGP</span>
+                    <span class="text-slate-400 font-bold">${T('EGP', 'ج.م')}</span>
                     <input type="number" class="target-input w-32 p-2 border border-slate-300 rounded-lg text-right font-mono font-bold focus:ring-2 focus:ring-green-500 outline-none" data-empid="${emp.id}" value="${tVal}">
                 </div>
             </td>
@@ -400,8 +435,8 @@ function loadTargetsTable() {
 }
 
 function saveTargets() {
-  const month = document.getElementById('targets-month-picker').value;
-  if (!month) { alert('Select Month'); return; }
+  const month = targetsPickerValue();
+  if (!month) { alert(T('Select Month', 'اختر الشهر')); return; }
 
   if (!employeeTargets[month]) employeeTargets[month] = {};
 
@@ -417,7 +452,7 @@ function saveTargets() {
   });
 
   window.EnhancedSecurity.storeSecureData('emp_targets', employeeTargets);
-  alert('Targets Saved!');
+  alert(T('Targets Saved!', 'تم حفظ الأهداف!'));
 }
 
 
@@ -455,7 +490,7 @@ document.getElementById('financial-form').addEventListener('submit', (e) => {
   financialData.push(trans);
   window.EnhancedSecurity.storeSecureData('emp_financials', financialData);
 
-  alert('Transaction Added');
+  alert(T('Transaction Added', 'تمت إضافة الحركة'));
   e.target.reset();
   document.getElementById('fin-date').valueAsDate = new Date();
   loadFinancialHistory();
@@ -489,7 +524,7 @@ function loadFinancialHistory() {
             <td class="px-4 py-3">
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold border ${badgeClass}">
                     <span class="material-symbols-outlined text-[14px]">${icon}</span>
-                    ${t.type.toUpperCase()}
+                    ${t.type === 'bonus' ? T('BONUS', 'مكافأة') : T('DEDUCTION', 'خصم')}
                 </span>
             </td>
             <td class="px-4 py-3 font-mono font-bold text-slate-800">${parseFloat(t.amount).toFixed(2)}</td>
@@ -505,7 +540,7 @@ function loadFinancialHistory() {
 }
 
 function deleteTransaction(id) {
-  if (confirm('Delete this transaction?')) {
+  if (confirm(T('Delete this transaction?', 'حذف هذه الحركة؟'))) {
     financialData = financialData.filter(t => t.id !== id);
     window.EnhancedSecurity.storeSecureData('emp_financials', financialData);
     loadFinancialHistory();
@@ -531,10 +566,10 @@ async function calculatePayrollPreview() {
   // Prepare Calculation
   const reportDate = new Date().toLocaleDateString();
   const printDateEl = document.getElementById('print-date');
-  if (printDateEl) printDateEl.textContent = `Period: ${m}/${y} - Generated: ${reportDate}`;
+  if (printDateEl) printDateEl.textContent = T(`Period: ${m}/${y} - Generated: ${reportDate}`, `الفترة: ${m}/${y} - أُصدر: ${reportDate}`);
 
   const tbody = document.getElementById('payroll-preview-body');
-  tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div> Calculating...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div> ' + T('Calculating...', 'جار الحساب...') + '</td></tr>';
 
   try {
     // Fetch necessary data
@@ -548,7 +583,7 @@ async function calculatePayrollPreview() {
       monthSales = salesData.sales || [];
     } catch (err) {
       console.error("Failed to fetch sales for payroll:", err);
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-500">Error fetching sales data. Please check connection.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-500">${T('Error fetching sales data. Please check connection.', 'خطأ في جلب بيانات المبيعات. تحقق من الاتصال.')}</td></tr>`;
       return;
     }
 
@@ -657,7 +692,7 @@ async function calculatePayrollPreview() {
 
   } catch (err) {
     console.error("Payroll Calculation Error:", err);
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-500">Error calculating payroll: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-500">${T('Error calculating payroll: ', 'خطأ في حساب الرواتب: ')}${err.message}</td></tr>`;
   }
 }
 
@@ -672,7 +707,7 @@ function renderPayrollTable(data, isClosed) {
 
   if (isClosed) {
     banner.className = 'alert alert-success';
-    banner.textContent = '🔒 This Payroll Period is CLOSED.';
+    banner.textContent = T('🔒 This Payroll Period is CLOSED.', '🔒 فترة الرواتب هذه مغلقة.');
     banner.style.display = 'block';
     closeBtn.style.display = 'none';
 
@@ -703,7 +738,7 @@ function renderPayrollTable(data, isClosed) {
             <td class="px-4 py-3 text-green-600 font-mono">+ ${row.bonuses}</td>
             <td class="px-4 py-3 text-xs">
                 <div class="font-bold text-slate-700">${row.achievedSales}</div>
-                <div class="text-green-600 font-bold">(Comm: ${row.commission})</div>
+                <div class="text-green-600 font-bold">(${T('Comm', 'عمولة')}: ${row.commission})</div>
             </td>
             <td class="px-4 py-3 font-mono text-lg font-bold text-blue-700 bg-blue-50/50">
                 ${row.finalSalary}
@@ -716,25 +751,25 @@ function renderPayrollTable(data, isClosed) {
   const ftr = document.createElement('tr');
   ftr.className = "bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300";
   ftr.innerHTML = `
-        <td colspan="7" class="px-4 py-3 text-right uppercase tracking-wider text-xs text-slate-500">Total Payout:</td>
+        <td colspan="7" class="px-4 py-3 text-right uppercase tracking-wider text-xs text-slate-500">${T('total_payout')}</td>
         <td class="px-4 py-3 font-mono text-xl text-blue-800">${grandTotal.toFixed(2)}</td>
     `;
   tbody.appendChild(ftr);
 }
 
 function renderClosedPayroll(record) {
-  document.getElementById('payroll-status-banner').textContent = `Closed on ${new Date(record.closedAt).toLocaleDateString()}`;
+  document.getElementById('payroll-status-banner').textContent = T(`Closed on ${new Date(record.closedAt).toLocaleDateString()}`, `أُغلقت في ${new Date(record.closedAt).toLocaleDateString('ar-EG')}`);
   currentPayrollCalculation = record.data;
   renderPayrollTable(record.data, true);
 }
 
 function closePayrollPeriod() {
   if (!currentPayrollCalculation || currentPayrollCalculation.length === 0) {
-    alert('Please Calculate Preview first.');
+    alert(T('Please Calculate Preview first.', 'احسب المعاينة أولًا.'));
     return;
   }
 
-  if (!confirm('Are you sure you want to CLOSE this payroll period? This action is irreversible.')) return;
+  if (!confirm(T('Are you sure you want to CLOSE this payroll period? This action is irreversible.', 'هل أنت متأكد من إغلاق فترة الرواتب هذه؟ لا يمكن التراجع عن هذا الإجراء.'))) return;
 
   const m = parseInt(document.getElementById('payroll-month').value);
   const y = parseInt(document.getElementById('payroll-year').value);
@@ -752,7 +787,7 @@ function closePayrollPeriod() {
   // Optionally: Automatically archive transactions as 'paid'?
   // For now, we leave them in history.
 
-  alert('Payroll Period Closed Successfully.');
+  alert(T('Payroll Period Closed Successfully.', 'تم إغلاق فترة الرواتب بنجاح.'));
   renderPayrollTable(currentPayrollCalculation, true);
 }
 

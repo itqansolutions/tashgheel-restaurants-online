@@ -309,8 +309,10 @@
             <div class="flex justify-between items-center mb-4">
               <h3 class="font-bold text-slate-800" data-i18n-key="monthly_targets">Monthly Sales Targets</h3>
               <div class="flex gap-2">
-                <input type="month" id="targets-month-picker" onchange="loadTargetsTable()"
-                  class="p-2 border border-slate-200 rounded-lg text-sm bg-slate-50">
+                <select id="targets-month" onchange="loadTargetsTable()"
+                  class="p-2 border border-slate-200 rounded-lg text-sm bg-slate-50"></select>
+                <select id="targets-year" onchange="loadTargetsTable()"
+                  class="p-2 border border-slate-200 rounded-lg text-sm bg-slate-50"></select>
                 <button class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg"
                   onclick="saveTargets()" data-i18n-key="save">Save</button>
               </div>
@@ -411,7 +413,7 @@
               <div>
                 <h3 class="text-lg font-bold text-slate-800" data-i18n-key="monthly_payroll">Monthly Payroll Processing
                 </h3>
-                <p class="text-sm text-slate-500">Calculate salaries based on attendance, deductions, and commissions.
+                <p class="text-sm text-slate-500" data-i18n-key="payroll_subtitle">Calculate salaries based on attendance, deductions, and commissions.
                 </p>
               </div>
               <div class="flex flex-wrap items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
@@ -495,26 +497,26 @@
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="role">Role *</label>
             <select id="emp-role-select" onchange="toggleRoleOther()"
               class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-              <option value="Manager">Manager</option>
-              <option value="Cashier">Cashier</option>
-              <option value="Waiter">Waiter</option>
-              <option value="Delivery Man">Delivery Man</option>
-              <option value="Chef">Chef</option>
-              <option value="Other">Other...</option>
+              <option value="Manager" data-i18n-key="role_manager">Manager</option>
+              <option value="Cashier" data-i18n-key="role_cashier">Cashier</option>
+              <option value="Waiter" data-i18n-key="role_waiter">Waiter</option>
+              <option value="Delivery Man" data-i18n-key="role_delivery">Delivery Man</option>
+              <option value="Chef" data-i18n-key="role_chef">Chef</option>
+              <option value="Other" data-i18n-key="role_other">Other...</option>
             </select>
-            <input type="text" id="emp-role-other" placeholder="Enter Role"
+            <input type="text" id="emp-role-other" placeholder="Enter Role" data-i18n-placeholder="enter_role"
               class="w-full mt-2 p-2 border border-slate-200 rounded-lg text-sm hidden">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Linked System User</label>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1" data-i18n-key="linked_system_user">Linked System User</label>
           <select id="emp-user-link"
             class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-mono text-sm">
-            <option value="">-- None --</option>
+            <option value="" data-i18n-key="none_option">-- None --</option>
             <!-- Populated by JS -->
           </select>
-          <p class="text-[10px] text-slate-400 mt-1">Links this employee to a a login account.</p>
+          <p class="text-[10px] text-slate-400 mt-1" data-i18n-key="links_employee_login">Links this employee to a login account.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -532,7 +534,7 @@
         </div>
 
         <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
-          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3">Contract Terms</h4>
+          <h4 class="text-xs font-bold text-slate-600 uppercase mb-3" data-i18n-key="contract_terms">Contract Terms</h4>
           <div class="grid grid-cols-3 gap-3">
             <div>
               <label class="block text-[10px] text-slate-500 mb-1" data-i18n-key="base_salary_monthly">Monthly
