@@ -270,6 +270,7 @@
         'Taxes & VAT': 'الضرائب وضريبة القيمة المضافة', 'Add New Tax': 'إضافة ضريبة جديدة', 'Enabled': 'مفعّلة', 'Notes': 'ملاحظات', 'Customers': 'العملاء', 'Protected': 'محمي',
         'Please choose a location to continue': 'من فضلك اختر الفرع للمتابعة',
         'View history logs for all cash drawer shifts, Cashier audit figures, expected calculations, physical drawer values, and notes.': 'سجل ورديات الدرج النقدي: أرقام جرد الكاشير، الحسابات المتوقعة، قيم الدرج الفعلية، والملاحظات.',
+        'e.g. 30': 'مثال: ٣٠',
         // Admin: branch card leftovers (empty state, toasts, confirm/alert, placeholders)
         'No branches yet. Add one above!': 'لا توجد فروع بعد. أضف فرعًا من الأعلى!',
         'Unnamed': 'بدون اسم', 'Branch deleted': 'تم حذف الفرع', 'Branch created!': 'تم إنشاء الفرع!',

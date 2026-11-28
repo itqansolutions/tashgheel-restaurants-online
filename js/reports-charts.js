@@ -58,7 +58,7 @@ window.ReportCharts = {
         window[chartKey] = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Cash', 'Card', 'Wallet', 'Other / Unclassified'],
+                labels: [_rcL('Cash', 'نقدي'), _rcL('Card', 'بطاقة'), _rcL('Wallet', 'محفظة'), _rcL('Other / Unclassified', 'أخرى / غير مصنّف')],
                 datasets: [{
                     data: [cash, card, wallet, other],
                     backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#94a3b8'],
