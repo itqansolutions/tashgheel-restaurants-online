@@ -6,7 +6,10 @@
  */
 (function () {
     const FORCE = document.documentElement.hasAttribute('data-force-ar');
-    if (localStorage.getItem('pos_language') !== 'ar' && !FORCE) return;
+    // pos_language is the app-wide key (set from tenant settings after login);
+    // 'lang' is the login page's own switcher, which applies before login.
+    const storedLang = localStorage.getItem('pos_language') || localStorage.getItem('lang');
+    if (storedLang !== 'ar' && !FORCE) return;
     if (FORCE) {
         document.documentElement.lang = 'ar';
         document.documentElement.dir = 'rtl';
@@ -199,7 +202,7 @@
         'Current Draft (Not Sent)': 'مسودة حالية (لم تُرسل)', 'Not sent yet': 'لم يُرسل بعد', 'In kitchen': 'في المطبخ',
         'Search menu items to add...': 'ابحث في أصناف القائمة للإضافة...', 'Taxes': 'الضرائب', 'Bill': 'الحساب',
         // ── Online store page (online_ordering.html) ──
-        'Select Branch': 'اختر الفرع', 'Select a Branch': 'اختر الفرع',
+        'Select Branch': 'اختر الفرع', 'Select a Branch': 'اختر الفرع', 'Please choose a branch to continue.': 'يرجى اختيار فرعًا للمتابعة.',
         'Choose a store to see the menu & availability': 'اختر الفرع لعرض القائمة والتوفر',
         'Select a branch to view the menu': 'اختر فرعًا لعرض القائمة', 'All Items': 'كل الأصناف',
         'Special Instructions': 'تعليمات خاصة', 'Add to Order': 'أضف للطلب', 'Your Order': 'طلبك',
