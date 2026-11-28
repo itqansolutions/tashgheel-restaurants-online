@@ -537,93 +537,86 @@ window.printStoredReceipt = async function (receiptId) {
         hour12: true
     });
 
-    const html = `
-    <html>
-<head>
-  <title>${t('receipt', 'إيصال') || 'Receipt'}</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    font-size: 11.5px;
-    font-weight: bold;
-    line-height: 1.5;
-    direction: ${lang === 'ar' ? 'rtl' : 'ltr'};
-    margin: 0;
-    padding: 0;
-  }
+    // On-page print preview: render the receipt into a modal on this page and only
+    // call window.print() from a real user click. The old flow auto-called print()
+    // inside a hidden iframe; when the print dialog cannot open (kiosk/headless
+    // browsers) that call blocks the renderer and freezes the whole tab.
+    const oldModal = document.getElementById('receiptPrintModal');
+    if (oldModal) oldModal.remove();
+    const oldStyles = document.getElementById('receiptPrintStyles');
+    if (oldStyles) oldStyles.remove();
 
-  .receipt-container {
-    width: 72mm;
-    margin: 0;
-    padding: 5px 0;
-    background: #fff;
-    box-sizing: border-box;
-  }
+    const dir = lang === 'ar' ? 'rtl' : 'ltr';
 
-  .center {
-    text-align: center;
+    const styles = document.createElement('style');
+    styles.id = 'receiptPrintStyles';
+    styles.textContent = `
+#receiptPrintModal {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex; flex-direction: column; align-items: center;
+  overflow-y: auto; padding: 24px 12px;
+}
+#receiptPrintModal .receipt-sheet {
+  width: 72mm; max-width: 100%;
+  margin: 0; padding: 12px 8px;
+  background: #fff; color: #000;
+  font-family: Arial, sans-serif;
+  font-size: 11.5px; font-weight: bold; line-height: 1.5;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  box-sizing: border-box; height: fit-content;
+}
+#receiptPrintModal .center { text-align: center; }
+#receiptPrintModal img.logo { max-height: 70px; display: block; margin: 0 auto 5px; }
+#receiptPrintModal h2 { margin: 3px 0; font-size: 15px; font-weight: bold; }
+#receiptPrintModal p { margin: 2px 8px; font-weight: bold; }
+#receiptPrintModal table {
+  width: 98%; border-collapse: collapse; margin: 8px auto 4px; table-layout: fixed;
+}
+#receiptPrintModal th, #receiptPrintModal td {
+  border: 1px dashed #444; padding: 4px 5px; text-align: center;
+  font-size: 11px; white-space: normal; word-break: break-word; font-weight: bold;
+}
+#receiptPrintModal th:nth-child(1), #receiptPrintModal td:nth-child(1) { width: 35%; text-align: left; }
+#receiptPrintModal th:nth-child(2), #receiptPrintModal td:nth-child(2) { width: 12%; }
+#receiptPrintModal th:nth-child(3), #receiptPrintModal td:nth-child(3) { width: 18%; }
+#receiptPrintModal th:nth-child(4), #receiptPrintModal td:nth-child(4) { width: 18%; }
+#receiptPrintModal th:nth-child(5), #receiptPrintModal td:nth-child(5) { width: 17%; }
+#receiptPrintModal .summary {
+  margin: 10px 8px 0; font-size: 12px; font-weight: bold;
+  border-top: 1px solid #000; padding-top: 5px;
+}
+#receiptPrintModal .footer {
+  text-align: center; margin: 12px 0 0; font-size: 10.5px;
+  border-top: 1px dashed #ccc; padding-top: 6px; font-weight: bold;
+}
+#receiptPrintModal .receipt-actions {
+  display: flex; gap: 10px; justify-content: center;
+  margin: 14px 0 4px; position: sticky; bottom: 8px;
+}
+#receiptPrintModal .receipt-actions button {
+  padding: 10px 22px; border: 0; border-radius: 8px; cursor: pointer;
+  font-size: 14px; font-weight: 700;
+}
+#receiptPrintModal .receipt-actions .do-print { background: #2563eb; color: #fff; }
+#receiptPrintModal .receipt-actions .do-close { background: #e2e8f0; color: #0f172a; }
+@media print {
+  body * { visibility: hidden; }
+  #receiptPrintModal, #receiptPrintModal * { visibility: visible; }
+  #receiptPrintModal {
+    position: absolute; inset: 0; padding: 0;
+    background: #fff; overflow: visible; display: block;
   }
+  #receiptPrintModal .receipt-sheet { box-shadow: none; width: 72mm; margin: 0; padding: 5px 0; }
+  #receiptPrintModal .receipt-actions { display: none !important; }
+}`;
+    document.head.appendChild(styles);
 
-  img.logo {
-    max-height: 70px;
-    display: block;
-    margin: 0 auto 5px;
-  }
-
-  h2 {
-    margin: 3px 0;
-    font-size: 15px;
-    font-weight: bold;
-  }
-
-  p {
-    margin: 2px 8px;
-    font-weight: bold;
-  }
-
-  table {
-    width: 98%;
-    border-collapse: collapse;
-    margin: 8px auto 4px;
-    table-layout: fixed;
-  }
-
-  th, td {
-    border: 1px dashed #444;
-    padding: 4px 5px;
-    text-align: center;
-    font-size: 11px;
-    white-space: normal;
-    word-break: break-word;
-    font-weight: bold;
-  }
-
-  th:nth-child(1), td:nth-child(1) { width: 35%; text-align:left; } /* Name */
-  th:nth-child(2), td:nth-child(2) { width: 12%; } /* Qty */
-  th:nth-child(3), td:nth-child(3) { width: 18%; } /* Price */
-  th:nth-child(4), td:nth-child(4) { width: 18%; } /* Total */
-  th:nth-child(5), td:nth-child(5) { width: 17%; } /* Discount */
-
-  .summary {
-    margin: 10px 8px 0;
-    font-size: 12px;
-    font-weight: bold;
-    border-top: 1px solid #000;
-    padding-top: 5px;
-  }
-
-  .footer {
-    text-align: center;
-    margin: 12px 0 0;
-    font-size: 10.5px;
-    border-top: 1px dashed #ccc;
-    padding-top: 6px;
-    font-weight: bold;
-  }
-</style>
-</head>
-<body>
-  <div class="receipt-container">
+    const modal = document.createElement('div');
+    modal.id = 'receiptPrintModal';
+    modal.dir = dir;
+    modal.innerHTML = `
+  <div class="receipt-sheet">
     ${shopLogo ? `<img src="${shopLogo}" class="logo">` : ''}
     <h2 class="center">${shopName}</h2>
     <p class="center">${shopAddress}</p>
@@ -631,10 +624,10 @@ window.printStoredReceipt = async function (receiptId) {
     <p>${t('receipt_no', 'رقم الإيصال') || 'Receipt No'}: #${receipt.receiptNo || receipt.invoiceNumber || (receipt._id || receipt.id || '').toString().slice(-6).toUpperCase()}</p>
     <p>${t('cashier', 'الكاشير') || 'Cashier'}: ${receipt.cashier || '-'}</p>
     <p>${t('waiter', 'النادل') || 'Waiter'}: ${receipt.salesman || '-'}</p>
-    
+
     ${receipt.tableId ? `<p><strong>${t('table', 'الطاولة') || 'Table'}: ${receipt.tableName || receipt.tableId}</strong></p>` : ''}
     ${receipt.customer ? `<p><strong>${t('customer', 'العميل') || 'Customer'}: ${receipt.customer.name || ''}</strong></p>` : ''}
-    
+
     <p>${t('date', 'التاريخ') || 'Date'}: ${dateFormatted}</p>
     <p>${t('method', 'طريقة الدفع') || 'Payment Method'}: ${paymentMap[receipt.method] || receipt.method || '-'}</p>
 
@@ -656,29 +649,36 @@ window.printStoredReceipt = async function (receiptId) {
     <div class="summary">
       <p style="display:flex; justify-content:space-between;"><span>${t('subtotal', 'المجموع')}:</span> <span>${subtotal.toFixed(2)}</span></p>
       ${totalDiscount > 0 ? `<p style="display:flex; justify-content:space-between;"><span>${t('total_discounts', 'إجمالي الخصومات')}:</span> <span>-${totalDiscount.toFixed(2)}</span></p>` : ''}
-      
+
       <!-- Taxes -->
       ${taxesHtml ? `<div style="border-top:1px dashed #ccc; margin:5px 0; padding:2px 0;">${taxesHtml}</div>` : ''}
-      
+
       <!-- Delivery Fee -->
       ${deliveryHtml ? `<div style="border-top:1px dashed #ccc; margin:5px 0; padding:2px 0;">${deliveryHtml}</div>` : ''}
-      
+
       <p style="display:flex; justify-content:space-between; font-size:16px; margin-top:5px; border-top:2px solid #000; padding-top:2px;">
-         <span>${t('total', 'الإجمالي')}:</span> 
+         <span>${t('total', 'الإجمالي')}:</span>
          <span>${(receipt.total || 0).toFixed(2)}</span>
       </p>
     </div>
-    
+
     <hr/>
     ${receiptFooterMessage ? `<p class="footer" style="font-size:13px; font-weight: bold;">${receiptFooterMessage}</p>` : ''}
     <p class="footer">
       <strong>Tashgheel POS &copy; 2025</strong><br>
+      ${t('Powered by <strong>Itqan Solutions</strong>', 'مدعوم من <strong>إتقان سولوشنز</strong>')}
     </p>
   </div>
-  <script>window.onload = () => window.print();</script>
-</body>
-    </html>
-  `;
-
-    window.printHtml(html);
+  <div class="receipt-actions">
+    <button type="button" class="do-print">🖨️ ${t('Print', 'طباعة')}</button>
+    <button type="button" class="do-close">${t('Close', 'إغلاق')}</button>
+  </div>
+`;
+    document.body.appendChild(modal);
+    modal.querySelector('.do-print').addEventListener('click', () => window.print());
+    modal.querySelector('.do-close').addEventListener('click', () => {
+        modal.remove();
+        const s = document.getElementById('receiptPrintStyles');
+        if (s) s.remove();
+    });
 };
