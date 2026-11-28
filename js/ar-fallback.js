@@ -286,6 +286,15 @@
         'Delete this area?': 'حذف هذه المنطقة؟', 'Enter valid Name and Fee': 'أدخل اسمًا ورسومًا صحيحة',
         'Geolocation not supported': 'تحديد الموقع غير مدعوم',
         // Reports: profitability rows; products: recipe banner + type hints
+        // Products page save/validation alerts (translated via the alert/confirm override)
+        'Menu Item Saved!': 'تم حفظ الصنف!', 'Please enter Price.': 'من فضلك أدخل السعر.',
+        'Category already exists': 'القسم موجود بالفعل', 'Code already exists!': 'الكود موجود بالفعل!',
+        'Enter size name, code, and price': 'أدخل اسم الحجم والكود والسعر',
+        'Please add at least one Size Variant.': 'أضف حجمًا واحدًا على الأقل.',
+        'Recipe saved and Cost updated!': 'تم حفظ الوصفة وتحديث التكلفة!',
+        'Please select ingredient and valid quantity': 'اختر المكون وكمية صحيحة',
+        'Select ingredient, unit, and valid quantity': 'اختر المكون والوحدة وكمية صحيحة',
+        'PDF Library not loaded': 'مكتبة PDF غير محمّلة',
         'Uncategorized': 'غير مصنّف',
         'Invoice / return adjustments (not allocated to products)': 'تعديلات الفواتير / المرتجعات (غير موزعة على الأصناف)',
         'Editing Recipe for Main Product': 'تعديل وصفة المنتج الرئيسي',
@@ -334,6 +343,7 @@
         const failc = s.match(/^❌ (Check failed|Failed to save|Sync failed): (.*)$/); if (failc) return '❌ ' + ({'Check failed':'فشل التحقق','Failed to save':'فشل الحفظ','Sync failed':'فشلت المزامنة'}[failc[1]]) + ': ' + failc[2];
         const payl = s.match(/^(.+?) · (\d+) item line\(s\)$/); if (payl) { const tb2 = payl[1].match(/^Table (\d+)$/i); return (tb2 ? 'طاولة ' + tb2[1] : payl[1]) + ' · ' + payl[2] + ' سطر'; }
         const edsz = s.match(/^Editing Recipe for Size: (.+)$/); if (edsz) return 'تعديل وصفة الحجم: ' + edsz[1];
+        const svf = s.match(/^(Save failed|Removal failed|Recipe needs review): (.*)$/); if (svf) return ({'Save failed':'فشل الحفظ','Removal failed':'فشل الحذف','Recipe needs review':'الوصفة تحتاج مراجعة'}[svf[1]]) + ': ' + svf[2];
         const remzone = s.match(/^Remove geographic region from (.+)\?$/); if (remzone) return 'إزالة النطاق الجغرافي من ' + remzone[1] + '؟';
         const errx = s.match(/^Error: (.+)$/); if (errx && L[errx[1].toLowerCase()]) return 'خطأ: ' + L[errx[1].toLowerCase()];
         const enterl = s.match(/^Enter (.+)$/); if (enterl && L[enterl[1].toLowerCase()]) return 'أدخل ' + L[enterl[1].toLowerCase()];

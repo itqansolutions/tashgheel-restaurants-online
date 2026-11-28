@@ -285,11 +285,13 @@ function renderProducts(products = state.menu.products.filter(p => !p.isService)
         card.className = 'bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer';
         card.onclick = () => openProductModal(p);
 
-        const imgUrl = p.image || 'https://placehold.co/400x300/f1f5f9/94a3b8?text=%D9%84%D8%A7%20%D8%AA%D9%88%D8%AC%D8%AF%20%D8%B5%D9%88%D8%B1%D8%A9';
+        const imgBlock = p.image
+            ? `<img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">`
+            : `<div class="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 gap-1"><span class="material-symbols-rounded text-4xl">restaurant</span><span class="text-xs font-medium">لا توجد صورة</span></div>`;
 
         card.innerHTML = `
             <div class="h-48 overflow-hidden relative">
-                <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
+                ${imgBlock}
                 <div class="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg text-sm font-bold text-slate-900 shadow-sm">
                     ${p.price} EGP
                 </div>
@@ -318,7 +320,12 @@ function openProductModal(product) {
 
     document.getElementById('modalTitle').textContent = product.name;
     document.getElementById('modalDesc').textContent = product.description || '';
-    document.getElementById('modalImg').src = product.image && product.image.trim() ? product.image : 'https://placehold.co/400x300/f1f5f9/94a3b8?text=%D9%84%D8%A7%20%D8%AA%D9%88%D8%AC%D8%AF%20%D8%B5%D9%88%D8%B1%D8%A9';
+    const hasImg = product.image && product.image.trim();
+    const modalImg = document.getElementById('modalImg');
+    const modalNoImg = document.getElementById('modalNoImg');
+    modalImg.style.display = hasImg ? '' : 'none';
+    if (hasImg) modalImg.src = product.image;
+    if (modalNoImg) modalNoImg.style.display = hasImg ? 'none' : 'flex';
     document.getElementById('modalNote').value = '';
 
     // --- SIZE SELECTOR ---
