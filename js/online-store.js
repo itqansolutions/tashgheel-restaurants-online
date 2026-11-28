@@ -15,14 +15,46 @@ let state = {
 // Config
 const API_BASE = '/api/public';
 
+// Storage helpers — some mobile in-app browsers block storage access entirely,
+// so every read/write falls back to memory instead of throwing and killing init.
+const memoryStore = {};
+const safeSession = {
+    get(key) {
+        try { const v = sessionStorage.getItem(key); if (v !== null) return v; } catch (e) { }
+        return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null;
+    },
+    set(key, value) {
+        memoryStore[key] = value;
+        try { sessionStorage.setItem(key, value); } catch (e) { }
+    },
+    remove(key) {
+        delete memoryStore[key];
+        try { sessionStorage.removeItem(key); } catch (e) { }
+    }
+};
+const safeLocal = {
+    get(key) {
+        try { const v = localStorage.getItem(key); if (v !== null) return v; } catch (e) { }
+        return null;
+    },
+    set(key, value) {
+        try { localStorage.setItem(key, value); } catch (e) { }
+    },
+    remove(key) {
+        try { localStorage.removeItem(key); } catch (e) { }
+    }
+};
+
 // Init
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Capture Tenant ID from URL (oid = Obfuscated ID / Organization ID)
+    // 1. Capture Tenant ID from the store link (oid = Obfuscated ID / Organization ID)
     const urlParams = new URLSearchParams(window.location.search);
-    const tenantId = urlParams.get('oid');
+    const tenantId = (urlParams.get('oid') || urlParams.get('tenantId') || '').trim();
 
     if (tenantId) {
-        sessionStorage.setItem('online_tenant_id', tenantId);
+        // Keep the tenant for this tab and for a customer who reopens the page later
+        safeSession.set('online_tenant_id', tenantId);
+        safeLocal.set('online_tenant_id', tenantId);
         // clean URL - REMOVED to keep the link valid for sharing/bookmarking
         // window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -34,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Helper to get current Tenant ID
 function getTenantId() {
-    return sessionStorage.getItem('online_tenant_id');
+    return safeSession.get('online_tenant_id') || safeLocal.get('online_tenant_id');
 }
 
 // --- BRANCH MANAGEMENT ---
@@ -46,38 +78,49 @@ async function checkBranchSelection() {
             <div class="fixed inset-0 flex items-center justify-center bg-slate-50 p-4 text-center">
                 <div class="max-w-md">
                     <span class="material-symbols-rounded text-6xl text-slate-300 mb-4">link_off</span>
-                    <h1 class="text-xl font-bold text-slate-800 mb-2">Invalid Store Link</h1>
-                    <p class="text-slate-500">Please use the valid link provided by the restaurant.</p>
+                    <h1 class="text-xl font-bold text-slate-800 mb-2">رابط المتجر غير صالح</h1>
+                    <p class="text-slate-500">من فضلك استخدم الرابط الصحيح المرسل من المطعم.</p>
                 </div>
             </div>
         `;
         return;
     }
 
-    const savedBranch = sessionStorage.getItem('online_branch');
+    const savedBranch = safeSession.get('online_branch');
     if (savedBranch) {
-        state.branch = JSON.parse(savedBranch);
+        try { state.branch = JSON.parse(savedBranch); } catch (e) { state.branch = null; }
         // Verify branch belongs to current tenant (basic check)
-        if (state.branch.tenantId && state.branch.tenantId !== tenantId) {
-            sessionStorage.removeItem('online_branch');
-            window.location.reload();
+        if (state.branch && state.branch.tenantId && state.branch.tenantId !== tenantId) {
+            safeSession.remove('online_branch');
+            state.branch = null;
+            openBranchModal();
             return;
         }
-        updateUIForBranch();
-        loadMenu(state.branch.id || state.branch._id);
-    } else {
-        openBranchModal();
-        fetchBranches();
+        if (state.branch) {
+            updateUIForBranch();
+            loadMenu(state.branch.id || state.branch._id);
+            loadDeliveryZones(state.branch.id || state.branch._id);
+            return;
+        }
     }
+    openBranchModal();
 }
 
 async function fetchBranches() {
     const container = document.getElementById('branchList');
-    container.innerHTML = '<div class="p-4 text-center text-slate-400">Loading branches...</div>';
+    if (!container) return;
+    container.innerHTML = '<div class="p-4 text-center text-slate-400">جار تحميل الفروع...</div>';
+
+    const tenantId = getTenantId();
+    if (!tenantId) {
+        container.innerHTML = '<div class="text-red-500 text-center p-4">رابط المتجر غير صالح.</div>';
+        return;
+    }
 
     try {
-        const tenantId = getTenantId();
-        const res = await fetch(`${API_BASE}/branches`, {
+        // Send the tenant both as a header and in the query string, so the request
+        // still resolves the store even if a proxy drops custom headers.
+        const res = await fetch(`${API_BASE}/branches?oid=${encodeURIComponent(tenantId)}`, {
             headers: { 'x-tenant-id': tenantId }
         });
 
@@ -86,8 +129,8 @@ async function fetchBranches() {
         const branches = await res.json();
 
         container.innerHTML = '';
-        if (branches.length === 0) {
-            container.innerHTML = '<div class="p-4 text-center text-slate-500">No active branches found.</div>';
+        if (!Array.isArray(branches) || branches.length === 0) {
+            container.innerHTML = '<div class="p-4 text-center text-slate-500">لا توجد فروع متاحة حالياً.</div>';
             return;
         }
 
@@ -101,7 +144,7 @@ async function fetchBranches() {
                     <div class="font-bold text-slate-800 group-hover:text-blue-700">${b.name}</div>
                     <div class="text-xs text-slate-500 mt-1 flex items-center gap-1">
                         <span class="material-symbols-rounded text-[14px]">location_on</span>
-                        ${b.address || 'Address not available'}
+                        ${b.address || 'العنوان غير متاح'}
                     </div>
                 </div>
                 <span class="material-symbols-rounded text-slate-300 group-hover:text-blue-500">arrow_forward_ios</span>
@@ -110,13 +153,13 @@ async function fetchBranches() {
         });
 
     } catch (e) {
-        container.innerHTML = '<div class="text-red-500 text-center p-4">Failed to load branches.</div>';
+        container.innerHTML = '<div class="text-red-500 text-center p-4">تعذر تحميل الفروع. أعد المحاولة.</div>';
     }
 }
 
 function selectBranch(branch) {
     state.branch = branch;
-    sessionStorage.setItem('online_branch', JSON.stringify(branch));
+    safeSession.set('online_branch', JSON.stringify(branch));
     toggleBranchModal(false);
     updateUIForBranch();
     loadMenu(branch.id || branch._id);
@@ -124,7 +167,7 @@ function selectBranch(branch) {
 
     // Clear cart if branch changes? Optional. For now, we clear to avoid price mismatch.
     if (state.cart.length > 0) {
-        if (confirm('Changing branch will clear your cart. Continue?')) {
+        if (confirm('تغيير الفرع سيفرغ السلة. هل تريد المتابعة؟')) {
             clearCart();
         } else {
             // Revert?
@@ -135,10 +178,12 @@ function selectBranch(branch) {
 
 function updateUIForBranch() {
     document.getElementById('currentBranchName').textContent = state.branch.name;
-    document.getElementById('productsGrid').innerHTML = '<div class="col-span-full py-20 text-center"><div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-slate-400">Loading Menu...</p></div>';
+    document.getElementById('productsGrid').innerHTML = '<div class="col-span-full py-20 text-center"><div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-slate-400">جار تحميل القائمة...</p></div>';
 }
 
 function openBranchModal() { toggleBranchModal(true); fetchBranches(); }
+window.openBranchModal = openBranchModal;
+window.toggleBranchModal = toggleBranchModal;
 function toggleBranchModal(show) {
     const modal = document.getElementById('branchModal');
     if (show === undefined) modal.classList.toggle('hidden');
@@ -251,7 +296,7 @@ function renderProducts(products = state.menu.products.filter(p => !p.isService)
             </div>
             <div class="p-5">
                 <h3 class="font-bold text-slate-900 text-lg mb-1 group-hover:text-blue-600 transition-colors">${p.name}</h3>
-                <p class="text-slate-500 text-sm line-clamp-2 leading-relaxed">${p.description || 'Delicious meal prepared fresh.'}</p>
+                <p class="text-slate-500 text-sm line-clamp-2 leading-relaxed">${p.description || 'وجبة لذيذة تُحضر طازجة.'}</p>
                 
                 <button class="mt-4 w-full py-2 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-bold rounded-lg text-sm transition-colors border border-slate-100 hover:border-blue-100">
                     Add to Cart
@@ -520,10 +565,18 @@ function closeCart() {
 
 async function loadDeliveryZones(branchId) {
     try {
-        // We pass branchId in case zones are branch-specific, though our model supports global too
-        const res = await fetch(`${API_BASE}/delivery-zones?branchId=${branchId}`);
-        state.zones = await res.json();
-    } catch (e) { }
+        const tenantId = getTenantId();
+        if (!tenantId) { state.zones = []; return; }
+        // We pass branchId in case zones are branch-specific, though our model supports global too.
+        // The tenant must be sent too: the endpoint is tenant-scoped and returns global + branch zones.
+        const params = new URLSearchParams({ oid: tenantId });
+        if (branchId) params.set('branchId', branchId);
+        const res = await fetch(`${API_BASE}/delivery-zones?${params.toString()}`, {
+            headers: { 'x-tenant-id': tenantId }
+        });
+        const zones = await res.json();
+        state.zones = Array.isArray(zones) ? zones : [];
+    } catch (e) { state.zones = []; }
 }
 
 // --- CHECKOUT ---
@@ -533,11 +586,11 @@ function openCheckout() {
 
     // Populate Zones
     const select = document.getElementById('deliveryZone');
-    select.innerHTML = '<option value="">Select Area...</option>';
+    select.innerHTML = '<option value="">اختر المنطقة...</option>';
     state.zones.forEach(z => {
         const opt = document.createElement('option');
         opt.value = z.id || z._id;
-        opt.textContent = `${z.name} - ${z.fee} EGP Delivery`;
+        opt.textContent = `${z.name} — توصيل ${z.fee} ج.م`;
         select.appendChild(opt);
     });
 
@@ -700,13 +753,13 @@ function detectZoneForLocation(lat, lng) {
         if (select) select.value = matchedZone.id || matchedZone._id;
         if (alertEl) {
             alertEl.className = 'text-xs p-2.5 rounded-lg font-medium bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between';
-            alertEl.innerHTML = `<span>📍 <strong>${matchedZone.name}</strong></span> <span class="font-bold bg-white px-2 py-0.5 rounded border border-emerald-200 text-emerald-700">${matchedZone.fee} EGP Delivery</span>`;
+            alertEl.innerHTML = `<span>📍 <strong>${matchedZone.name}</strong></span> <span class="font-bold bg-white px-2 py-0.5 rounded border border-emerald-200 text-emerald-700">توصيل ${matchedZone.fee} ج.م</span>`;
         }
         updateCheckoutSummary();
     } else {
         if (alertEl) {
             alertEl.className = 'text-xs p-2.5 rounded-lg font-medium bg-amber-50 border border-amber-200 text-amber-800';
-            alertEl.innerHTML = `<span>⚠️ Pin placed outside predefined zones. Please pick an area below or adjust location.</span>`;
+            alertEl.innerHTML = `<span>⚠️ الموقع خارج مناطق التوصيل المتاحة. اختر منطقة من الأسفل أو عدّل الموقع.</span>`;
         }
     }
 
@@ -728,7 +781,7 @@ function detectZoneForLocation(lat, lng) {
 }
 
 window.locateOnlineUser = function() {
-    if (!navigator.geolocation) return alert('Geolocation is not supported by your browser');
+    if (!navigator.geolocation) return alert('متصفحك لا يدعم تحديد الموقع');
     navigator.geolocation.getCurrentPosition(pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
@@ -739,7 +792,7 @@ window.locateOnlineUser = function() {
             detectZoneForLocation(lat, lng);
         }
     }, err => {
-        alert('Could not retrieve your location: ' + err.message);
+        alert('تعذر تحديد موقعك: ' + err.message);
     });
 };
 
@@ -803,7 +856,7 @@ async function submitOrder(e) {
         name: document.getElementById('custName').value,
         mobile: document.getElementById('custPhone').value,
         address: orderType === 'delivery' ? {
-            area: state.deliveryZone?.name || 'Unknown',
+            area: state.deliveryZone?.name || 'غير محدد',
             street: document.getElementById('addrStreet').value,
             building: document.getElementById('addrBuilding').value,
             location: onlineSelectedLocation ? {
@@ -860,13 +913,13 @@ async function submitOrder(e) {
             document.getElementById('successModal').classList.remove('hidden');
             document.getElementById('successModal').classList.add('flex');
         } else {
-            alert('Order Failed: ' + (result.error || 'Unknown Error'));
+            alert('تعذر إرسال الطلب: ' + (result.error || 'خطأ غير معروف'));
             submitBtn.disabled = false;
             submitBtn.textContent = 'Place Order';
         }
     } catch (err) {
         console.error(err);
-        alert('Network Error. Please try again.');
+        alert('تعذر الاتصال بالخادم. حاول مرة أخرى.');
         submitBtn.disabled = false;
         submitBtn.textContent = 'Place Order';
     }
@@ -897,12 +950,12 @@ async function fetchOrders() {
     const mobile = document.getElementById('trackMobile').value.trim();
     const container = document.getElementById('ordersList');
 
-    if (!mobile) return alert('Please enter mobile number');
+    if (!mobile) return alert('من فضلك أدخل رقم الموبايل');
 
     // Save for next time
     localStorage.setItem('last_customer_mobile', mobile);
 
-    container.innerHTML = '<div class="text-center py-10"><div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-slate-400">Loading History...</p></div>';
+    container.innerHTML = '<div class="text-center py-10"><div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-slate-400">جار تحميل الطلبات...</p></div>';
 
     try {
         const tenantId = getTenantId();
@@ -914,7 +967,7 @@ async function fetchOrders() {
             container.innerHTML = `
                 <div class="text-center py-10 opacity-50">
                     <span class="material-symbols-rounded text-4xl mb-2 text-slate-300">receipt_long</span>
-                    <p class="text-slate-400 text-sm">No orders found for this number</p>
+                    <p class="text-slate-400 text-sm">لا توجد طلبات لهذا الرقم</p>
                 </div>`;
             return;
         }
@@ -939,8 +992,8 @@ async function fetchOrders() {
                     ${order.items.map(i => `${i.qty}x ${i.name}`).join(', ')}
                 </div>
                 <div class="flex justify-between items-center text-sm">
-                    <div class="font-bold text-slate-900">${(order.total || 0).toFixed(2)} EGP</div>
-                    <button class="text-xs text-blue-600 hover:underline">Details</button>
+                    <div class="font-bold text-slate-900">${(order.total || 0).toFixed(2)} ج.م</div>
+                    <button class="text-xs text-blue-600 hover:underline">التفاصيل</button>
                 </div>
             `;
             container.appendChild(div);
@@ -948,7 +1001,7 @@ async function fetchOrders() {
 
     } catch (e) {
         console.error(e);
-        container.innerHTML = '<div class="text-center text-red-500 py-4">Failed to load orders</div>';
+        container.innerHTML = '<div class="text-center text-red-500 py-4">تعذر تحميل الطلبات</div>';
     }
 }
 
@@ -959,23 +1012,23 @@ function mapOrderStatus(order) {
 
     // Cancelled/Void
     if (s === 'void' || s === 'refunded' || s === 'cancelled' || s === 'rejected') {
-        return { label: 'Cancelled', color: 'text-red-700', bg: 'bg-red-50' };
+        return { label: 'ملغي', color: 'text-red-700', bg: 'bg-red-50' };
     }
 
     // Finished/Delivered
     if (s === 'finished' || s === 'delivered' || s === 'completed') {
-        return { label: 'Delivered', color: 'text-green-700', bg: 'bg-green-50' };
+        return { label: 'تم التوصيل', color: 'text-green-700', bg: 'bg-green-50' };
     }
 
     // Active States
     if (ks === 'ready' || s === 'out_for_delivery') {
-        return { label: 'On the Way', color: 'text-purple-700', bg: 'bg-purple-50' };
+        return { label: 'في الطريق', color: 'text-purple-700', bg: 'bg-purple-50' };
     }
 
     if (ks === 'preparing' || s === 'confirmed') {
-        return { label: 'Preparing', color: 'text-blue-700', bg: 'bg-blue-50' };
+        return { label: 'قيد التحضير', color: 'text-blue-700', bg: 'bg-blue-50' };
     }
 
     // Default Pending
-    return { label: 'Waiting to Confirm', color: 'text-amber-700', bg: 'bg-amber-50' };
+    return { label: 'بانتظار التأكيد', color: 'text-amber-700', bg: 'bg-amber-50' };
 }

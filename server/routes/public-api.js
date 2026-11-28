@@ -15,10 +15,21 @@ const publicLimiter = rateLimit({
 
 router.use(publicLimiter);
 
+// Resolve the store/tenant a public request belongs to.
+// Accepts the x-tenant-id header, or the store link's own `oid` parameter
+// (and `tenantId` as an alias), so a store link works even when a proxy,
+// an in-app browser or a cached page drops the custom header.
+function resolveTenant(req) {
+    const raw = req.headers['x-tenant-id'] || req.query.tenantId || req.query.oid;
+    const tenantId = typeof raw === 'string' ? raw.trim() : '';
+    if (!tenantId || tenantId === 'null' || tenantId === 'undefined' || tenantId === 'global') return null;
+    return tenantId;
+}
+
 // GET /api/public/branches
 router.get('/branches', async (req, res) => {
     try {
-        const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+        const tenantId = resolveTenant(req);
         if (!tenantId) return res.status(400).json({ error: 'Store ID (Tenant) is required' });
 
         const branches = await prisma.branch.findMany({
@@ -45,9 +56,15 @@ router.get('/branches', async (req, res) => {
 // GET /api/public/delivery-zones
 router.get('/delivery-zones', async (req, res) => {
     try {
+        const tenantId = resolveTenant(req);
+        if (!tenantId) return res.status(400).json({ error: 'Store ID (Tenant) is required' });
+
         const { branchId } = req.query;
-        const filter = { isActive: true };
-        if (branchId) filter.branchId = branchId;
+        // Zones are always scoped to the store's tenant. A zone without a branch is a
+        // store-wide area (that is what the staff Areas screen creates), so it applies
+        // to every branch of this tenant and must not be filtered out.
+        const filter = { tenantId, isActive: true };
+        if (branchId) filter.OR = [{ branchId }, { branchId: null }];
 
         const zones = await prisma.deliveryZone.findMany({
             where: filter,
@@ -155,12 +172,14 @@ router.post('/order', async (req, res) => {
 
         let deliveryFee = 0;
         if (orderType === 'delivery') {
+            // A zone either belongs to this branch or is store-wide (branchId null).
+            const zoneScope = { tenantId, OR: [{ branchId }, { branchId: null }] };
             if (deliveryZoneId) {
-                const zone = await prisma.deliveryZone.findUnique({ where: { id: deliveryZoneId,tenantId,branchId } });
+                const zone = await prisma.deliveryZone.findFirst({ where: { id: deliveryZoneId, ...zoneScope } });
                 if (zone) deliveryFee = zone.fee;
             } else if (customer.address && customer.address.area) {
                 const zone = await prisma.deliveryZone.findFirst({
-                    where: { name: customer.address.area, tenantId, branchId }
+                    where: { name: customer.address.area, ...zoneScope }
                 });
                 if (zone) deliveryFee = zone.fee;
             }
