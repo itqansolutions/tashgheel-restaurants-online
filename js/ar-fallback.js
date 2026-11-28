@@ -267,6 +267,12 @@
         'Taxes & VAT': 'الضرائب وضريبة القيمة المضافة', 'Add New Tax': 'إضافة ضريبة جديدة', 'Enabled': 'مفعّلة', 'Notes': 'ملاحظات', 'Customers': 'العملاء', 'Protected': 'محمي',
         'Please choose a location to continue': 'من فضلك اختر الفرع للمتابعة',
         'View history logs for all cash drawer shifts, Cashier audit figures, expected calculations, physical drawer values, and notes.': 'سجل ورديات الدرج النقدي: أرقام جرد الكاشير، الحسابات المتوقعة، قيم الدرج الفعلية، والملاحظات.',
+        // Admin: branch card leftovers (empty state, toasts, confirm/alert, placeholders)
+        'No branches yet. Add one above!': 'لا توجد فروع بعد. أضف فرعًا من الأعلى!',
+        'Unnamed': 'بدون اسم', 'Branch deleted': 'تم حذف الفرع', 'Branch created!': 'تم إنشاء الفرع!',
+        'Delete this branch?': 'حذف هذا الفرع؟', 'Name and code required': 'الاسم والكود مطلوبان',
+        'Failed to create branch': 'فشل إنشاء الفرع', 'No taxes configured.': 'لا توجد ضرائب مضافة.',
+        'e.g. Main Branch': 'مثال: الفرع الرئيسي', 'Full address...': 'العنوان بالكامل...',
         'Welcome,': 'أهلًا بك،', 'System Administrator': 'مدير النظام', ',': '،', ', or': '، أو'
     };
     // Case-insensitive lookup (headers are often uppercased in source)
@@ -302,6 +308,7 @@
         const lasto = s.match(/^Last order: (.*)\.$/); if (lasto) return 'آخر طلب: ' + lasto[1] + '.';
         const synci = s.match(/^⚠️ Sync issue: (.*)$/); if (synci) return '⚠️ مشكلة في المزامنة: ' + synci[1];
         const failc = s.match(/^❌ (Check failed|Failed to save|Sync failed): (.*)$/); if (failc) return '❌ ' + ({'Check failed':'فشل التحقق','Failed to save':'فشل الحفظ','Sync failed':'فشلت المزامنة'}[failc[1]]) + ': ' + failc[2];
+        const errx = s.match(/^Error: (.+)$/); if (errx && L[errx[1].toLowerCase()]) return 'خطأ: ' + L[errx[1].toLowerCase()];
         const enterl = s.match(/^Enter (.+)$/); if (enterl && L[enterl[1].toLowerCase()]) return 'أدخل ' + L[enterl[1].toLowerCase()];
         const m = s.match(/^([^A-Za-z0-9\u0600-\u06FF]*(?:\d+\.\s+)?)(.*?)([\s:*]*)$/);
         if (!m) return null;
@@ -310,6 +317,10 @@
         if (!hit) return null;
         return m[1].replace(/^\d+\.\s+$/, '') + hit + (L[m[2].toLowerCase()] ? m[3] : m[3].replace(':', ''));
     }
+    // Native confirm/alert dialogs are not DOM nodes; translate their messages too.
+    const _confirm = window.confirm.bind(window), _alert = window.alert.bind(window);
+    window.confirm = function (m) { return _confirm(tr(String(m)) || m); };
+    window.alert = function (m) { _alert(tr(String(m)) || m); };
     function walk(root) {
         if (!root) return;
         if (root.nodeType === 3) {

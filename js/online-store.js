@@ -240,7 +240,7 @@ function renderProducts(products = state.menu.products.filter(p => !p.isService)
         card.className = 'bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer';
         card.onclick = () => openProductModal(p);
 
-        const imgUrl = p.image || 'https://placehold.co/400x300/f1f5f9/94a3b8?text=No+Image';
+        const imgUrl = p.image || 'https://placehold.co/400x300/f1f5f9/94a3b8?text=%D9%84%D8%A7%20%D8%AA%D9%88%D8%AC%D8%AF%20%D8%B5%D9%88%D8%B1%D8%A9';
 
         card.innerHTML = `
             <div class="h-48 overflow-hidden relative">
@@ -273,7 +273,7 @@ function openProductModal(product) {
 
     document.getElementById('modalTitle').textContent = product.name;
     document.getElementById('modalDesc').textContent = product.description || '';
-    document.getElementById('modalImg').src = product.image && product.image.trim() ? product.image : 'https://placehold.co/400x300/f1f5f9/94a3b8?text=No+Image';
+    document.getElementById('modalImg').src = product.image && product.image.trim() ? product.image : 'https://placehold.co/400x300/f1f5f9/94a3b8?text=%D9%84%D8%A7%20%D8%AA%D9%88%D8%AC%D8%AF%20%D8%B5%D9%88%D8%B1%D8%A9';
     document.getElementById('modalNote').value = '';
 
     // --- SIZE SELECTOR ---
