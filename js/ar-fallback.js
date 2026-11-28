@@ -225,7 +225,34 @@
         // ── Admin page extras ──
         'apply discount': 'تطبيق خصم', 'remove item from cart': 'حذف صنف من السلة', 'cancel an invoice': 'إلغاء فاتورة',
         'Product Category': 'قسم الصنف', '-- Select Category --': '-- اختر القسم --', 'Printer Designation': 'تعريف الطابعة',
-        '⬜ No PIN set — hard actions (discount, remove item, cancel) require no confirmation.': '⬜ لا يوجد رقم سري — الإجراءات الحساسة (خصم، حذف صنف، إلغاء) لا تتطلب تأكيدًا.'
+        '⬜ No PIN set — hard actions (discount, remove item, cancel) require no confirmation.': '⬜ لا يوجد رقم سري — الإجراءات الحساسة (خصم، حذف صنف، إلغاء) لا تتطلب تأكيدًا.',
+        // ── Delivery Integrations (Aggregator Hub) ──
+        'Delivery Integrations': 'تكاملات التوصيل', 'Aggregator Hub': 'مركز التجميع',
+        'Your Webhook URL': 'رابط الويب هوك الخاص بك',
+        'Give this URL to the selected delivery provider during onboarding. It is unique to this branch and changes when you pick another provider tab.': 'أعطِ هذا الرابط لمزوّد التوصيل المختار أثناء التفعيل. الرابط خاص بهذا الفرع ويتغير عند اختيار تبويب مزوّد آخر.',
+        'Copy': 'نسخ',
+        'Enable Talabat Integration': 'تفعيل تكامل طلبات', 'Enable Uber Eats Integration': 'تفعيل تكامل أوبر إيتس',
+        'Enable Careem Now Integration': 'تفعيل تكامل كريم ناو', 'Enable Mrsool Integration': 'تفعيل تكامل مرسول',
+        'API Key': 'مفتاح API', 'Client ID': 'معرّف العميل', 'Client Secret': 'سر العميل', 'Webhook Secret': 'سر الويب هوك',
+        'Enter API Key': 'أدخل مفتاح API', 'Enter Client ID': 'أدخل معرّف العميل', 'Enter Client Secret': 'أدخل سر العميل', 'Enter Webhook Secret': 'أدخل سر الويب هوك',
+        'Save Credentials': 'حفظ البيانات', 'Test Connection': 'اختبار الاتصال', 'Sync Menu': 'مزامنة القائمة', 'Remove Keys': 'إزالة المفاتيح',
+        'Health Status': 'حالة الاتصال', 'Refresh': 'تحديث',
+        '⚪ Not connected': '⚪ غير متصل', 'Not connected': 'غير متصل',
+        '🟡 Keys saved, switched off or missing the Webhook Secret': '🟡 المفاتيح محفوظة، لكن التكامل متوقف أو ينقصه سر الويب هوك',
+        'Keys saved': 'المفاتيح محفوظة',
+        '🟢 Connected': '🟢 متصل', 'Connected': 'متصل',
+        'Ready to receive orders. Keys are saved on the server and cannot be viewed.': 'جاهز لاستقبال الطلبات. المفاتيح محفوظة على الخادم ولا يمكن عرضها.',
+        '⚪ Not available yet': '⚪ غير متاح بعد', 'Not available yet': 'غير متاح بعد',
+        'The connection for this app is not built yet. It will be added once the official API details are available.': 'الاتصال بهذا التطبيق غير جاهز بعد. سيُضاف عند توفر تفاصيل الواجهة الرسمية.',
+        'Paste the keys from the delivery app and save.': 'الصق المفاتيح من تطبيق التوصيل واحفظها.',
+        'Turn the integration on and add the Webhook Secret to start receiving orders.': 'فعّل التكامل وأضف سر الويب هوك لبدء استقبال الطلبات.',
+        'No order received yet.': 'لم يُستلم أي طلب بعد.', 'Failed to load status': 'فشل تحميل الحالة',
+        '•••••• saved (leave blank to keep)': '•••••• محفوظ (اتركه فارغًا للإبقاء)',
+        '⏳ Checking with the provider...': '⏳ جارٍ التحقق مع المزوّد...', '⏳ Syncing menu...': '⏳ جارٍ مزامنة القائمة...',
+        '✅ Keys removed.': '✅ تمت إزالة المفاتيح.', '✅ Menu sent to the provider.': '✅ تم إرسال القائمة للمزوّد.',
+        '✅ Saved. Keys are encrypted on the server.': '✅ تم الحفظ. المفاتيح مشفرة على الخادم.',
+        '📋 Webhook URL copied!': '📋 تم نسخ رابط الويب هوك!',
+        'Remove the saved keys for this delivery app and switch it off?': 'إزالة المفاتيح المحفوظة لهذا التطبيق وإيقافه؟'
     };
     // Case-insensitive lookup (headers are often uppercased in source)
     const L = {};
@@ -247,6 +274,10 @@
         const sentb = s.match(/^(\d+) sent$/); if (sentb) return sentb[1] + ' مُرسل';
         const moreb = s.match(/^\+(\d+) more$/); if (moreb) return '+' + moreb[1] + ' أصناف';
         const openb = s.match(/^Order open · (\d+) items$/); if (openb) return 'طلب مفتوح · ' + openb[1] + ' صنف';
+        const lasto = s.match(/^Last order: (.*)\.$/); if (lasto) return 'آخر طلب: ' + lasto[1] + '.';
+        const synci = s.match(/^⚠️ Sync issue: (.*)$/); if (synci) return '⚠️ مشكلة في المزامنة: ' + synci[1];
+        const failc = s.match(/^❌ (Check failed|Failed to save|Sync failed): (.*)$/); if (failc) return '❌ ' + ({'Check failed':'فشل التحقق','Failed to save':'فشل الحفظ','Sync failed':'فشلت المزامنة'}[failc[1]]) + ': ' + failc[2];
+        const enterl = s.match(/^Enter (.+)$/); if (enterl && L[enterl[1].toLowerCase()]) return 'أدخل ' + L[enterl[1].toLowerCase()];
         const m = s.match(/^([^A-Za-z0-9\u0600-\u06FF]*(?:\d+\.\s+)?)(.*?)([\s:*]*)$/);
         if (!m) return null;
         if (/^[a-z_0-9]+$/.test(m[2])) return null;
