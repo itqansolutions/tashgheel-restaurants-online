@@ -238,9 +238,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 👤 Update Username Display
   if (window.getCurrentUser) {
     const user = window.getCurrentUser();
-    if (user && user.username) {
+    if (user && (user.fullName || user.username)) {
       const nameEl = document.getElementById('currentUserName');
-      if (nameEl) nameEl.textContent = user.username;
+      if (nameEl) nameEl.textContent = user.fullName || user.username;
     }
   }
 
@@ -2255,7 +2255,7 @@ async function completeSale(method) {
 
   // Resolve Cashier Name
   const currentUser = getCurrentUser();
-  let cashierName = currentUser.username || "Unknown";
+  let cashierName = currentUser.fullName || currentUser.username || "Unknown";
   if (window.DB.getEmployees) {
     const employees = window.DB.getEmployees();
     const linkedEmp = employees.find(e => e.linkedUser === currentUser.username);
@@ -3176,7 +3176,7 @@ function printReceiptPreview() {
 
     // Resolve Cashier Name
     const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : {};
-    let cashierName = currentUser.username || "Staff";
+    let cashierName = currentUser.fullName || currentUser.username || "Staff";
     if (window.DB && window.DB.getEmployees) {
       const employees = window.DB.getEmployees();
       const linkedEmp = employees.find(e => e.linkedUser === currentUser.username);
@@ -3290,9 +3290,9 @@ window.addEventListener('SystemDataReady', () => {
   checkShift();
   if (window.getCurrentUser) {
     const user = window.getCurrentUser();
-    if (user && user.username) {
+    if (user && (user.fullName || user.username)) {
       const nameEl = document.getElementById('currentUserName');
-      if (nameEl) nameEl.textContent = user.username;
+      if (nameEl) nameEl.textContent = user.fullName || user.username;
     }
   }
   fetchOnlineOrders();
