@@ -194,6 +194,10 @@
         'Could not connect. Please try again.': 'تعذر الاتصال. حاول مرة أخرى.',
         'Choose an available size': 'اختر حجمًا متاحًا', 'Could not add item': 'تعذر إضافة الصنف',
         'Could not remove item': 'تعذر حذف الصنف', 'Could not send order': 'تعذر إرسال الطلب',
+        '✅ Order sent to your waiter for approval. It goes to the kitchen once accepted.': '✅ تم إرسال الطلب للويتر للموافقة. سيصل للمطبخ بعد القبول.',
+        // ── Dine-in: table cards + table order panel ──
+        'Current Draft (Not Sent)': 'مسودة حالية (لم تُرسل)', 'Not sent yet': 'لم يُرسل بعد', 'In kitchen': 'في المطبخ',
+        'Search menu items to add...': 'ابحث في أصناف القائمة للإضافة...', 'Taxes': 'الضرائب', 'Bill': 'الحساب',
         // ── Online store page (online_ordering.html) ──
         'Select Branch': 'اختر الفرع', 'Select a Branch': 'اختر الفرع',
         'Choose a store to see the menu & availability': 'اختر الفرع لعرض القائمة والتوفر',
@@ -272,7 +276,11 @@
     function tr(raw) {
         if (!raw) return null;
         const s = raw.replace(/\s+/g, ' ').trim();
-        if (!s || /[\u0600-\u06FF]/.test(s)) return null;
+        if (!s) return null;
+        // English label + Arabic tenant data (tax names, item names): translate before the Arabic guard
+        const taxl = s.match(/^Taxes \((.+)\)$/i); if (taxl) return 'الضرائب (' + taxl[1] + ')';
+        const addedt = s.match(/^Added (.+)$/i); if (addedt) return 'تمت إضافة ' + addedt[1];
+        if (/[\u0600-\u06FF]/.test(s)) return null;
         if (L[s.toLowerCase()]) return L[s.toLowerCase()];
         const tb = s.match(/^Table (\d+)$/i); if (tb) return 'طاولة ' + tb[1];
         const zone = s.match(/^(.+) - ([\d.]+) EGP Delivery$/); if (zone) return zone[1] + ' - ' + zone[2] + ' ج.م توصيل';
@@ -283,6 +291,9 @@
         if (its) return its[1] + ' صنف' + its[2].replace('ready!', 'جاهز!').replace('in kitchen', 'في المطبخ');
         const itc = s.match(/^(\d+) items$/); if (itc) return itc[1] + ' صنف';
         const sentb = s.match(/^(\d+) sent$/); if (sentb) return sentb[1] + ' مُرسل';
+        const pendb = s.match(/^(\d+) pending$/i); if (pendb) return pendb[1] + ' معلّق';
+        const guestb = s.match(/^🔔? ?Guest order \((\d+)\)$/i); if (guestb) return '🔔 طلب ضيف (' + guestb[1] + ')';
+        const batchb = s.match(/^Batch (\d+)$/i); if (batchb) return 'الدفعة ' + batchb[1];
         const moreb = s.match(/^\+(\d+) more$/); if (moreb) return '+' + moreb[1] + ' أصناف';
         const openb = s.match(/^Order open · (\d+) items$/); if (openb) return 'طلب مفتوح · ' + openb[1] + ' صنف';
         const lasto = s.match(/^Last order: (.*)\.$/); if (lasto) return 'آخر طلب: ' + lasto[1] + '.';
