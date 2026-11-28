@@ -1,8 +1,9 @@
 // Locale-independent add-on category detection (see js/addon-category.js).
-function isAddonCategory(name) {
-    if (typeof window.isAddonCategory === 'function') return window.isAddonCategory(name);
+// Reuse the shared matcher when loaded; never re-declare it (a same-named top-level
+// function overwrites the global and then delegates to itself -> infinite recursion).
+var isAddonCategory = window.isAddonCategory || function (name) {
     return /add-?ons?|extras?|اضافات|اضافه/i.test(String(name || ''));
-}
+};
 // POS JS with salesman support and fixed receipt printing (final version)
 // ===================== MOBILE UI LOGIC =====================
 window.toggleCart = function () {
