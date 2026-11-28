@@ -3073,7 +3073,10 @@ function renderOnlineOrdersList() {
 async function rejectOnlineOrder(orderId) {
     const order = (window.latestOnlineOrders || []).find(o => String(o.id) === String(orderId));
     if (!order) return;
-    if (!(await window.confirmAsync(`رفض طلب الأونلاين #${order.receiptNo}؟ لن يتحول إلى فاتورة.\nReject online order #${order.receiptNo}? It will not become an invoice.`))) return;
+    const isArReject = localStorage.getItem('pos_language') === 'ar';
+    if (!(await window.confirmAsync(isArReject
+        ? `رفض طلب الأونلاين #${order.receiptNo}؟ لن يتحول إلى فاتورة.`
+        : `Reject online order #${order.receiptNo}? It will not become an invoice.`))) return;
     try {
         const result = await window.apiFetch(`/kitchen/reject/${encodeURIComponent(orderId)}`, { method: 'POST' });
         if (result && result.success) {
