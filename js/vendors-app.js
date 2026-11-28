@@ -251,7 +251,7 @@ async function handlePaymentSubmit(e) {
     if(!Number.isFinite(amount)||amount<=0){alert(t('payment_amount_error'));return;}
     if(!window.apiFetch){alert(t('Payment requires a server connection. Nothing was recorded.','السداد يحتاج اتصالًا بالخادم. لم يتم تسجيل شيء.'));return;}
     const date=new Date();const today=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
-    const intent={type:'payment',amount,description:`Vendor Payment: ${vendorName||vendorId}${notes?' - '+notes:''}`,method:'cash',date:today,notes:notes||null};
+    const intent={type:'payment',amount,description:`${t('Vendor Payment','سداد للمورد')}: ${vendorName||vendorId}${notes?' - '+notes:''}`,method:'cash',date:today,notes:notes||null};
     const pendingKey='vendor-payment-pending:'+vendorId;
     let pending;
     try{pending=JSON.parse(sessionStorage.getItem(pendingKey)||'null');}catch(e){alert('Could not verify pending payment. Reload and review the statement.');return;}
@@ -284,6 +284,15 @@ window.printVendorReport = function printVendorReport(vendorId) {
     // Define lang early
     const lang = localStorage.getItem('pos_language') || 'en';
     const isRTL = lang === 'ar';
+
+    // Stored transaction descriptions are written in English (some server-side);
+    // localize the known prefixes for the Arabic statement.
+    const localizeDesc = (d) => {
+        if (lang !== 'ar') return d;
+        return String(d || '')
+            .replace(/^Material purchase:\s*/i, 'شراء خامات: ')
+            .replace(/^Vendor Payment:\s*/i, 'سداد للمورد: ');
+    };
 
     const vendor = window.DB.getVendor(vendorId);
     if (!vendor) {
@@ -383,7 +392,7 @@ window.printVendorReport = function printVendorReport(vendorId) {
                                 <td style="padding: 10px; border: 1px solid #ddd;">
                                     ${tr.type === 'purchase' ? t('Purchase', 'شراء') : tr.type === 'payment' ? t('Payment', 'دفع') : tr.type}
                                 </td>
-                                <td style="padding: 10px; border: 1px solid #ddd;">${tr.description}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">${localizeDesc(tr.description)}</td>
                                 <td style="padding: 10px; border: 1px solid #ddd; color: ${tr.signedAmount > 0 ? '#e74c3c' : '#27ae60'};">
                                     ${tr.signedAmount > 0 && !tr.isAdjustment ? '+' : ''}${tr.displayAmount.toFixed(2)}
                                 </td>
